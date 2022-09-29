@@ -72,7 +72,8 @@
 },
 
 "Comments":{
-},
+"50":"set ram bank 01",
+"58":"set ram bank 00"},
 
 "LongComments":{
 "-2147483647":{
@@ -86,46 +87,46 @@
 
 "UserLabels":{
 "0":{
-"Label":"TCC00",
+"Label":"FN_07",
 "Value":52224,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "429":{
-"Label":"TCDAD",
+"Label":"FN_17",
 "Value":52653,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "329":{
-"Label":"TCD49",
+"Label":"FN_37",
 "Value":52553,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "634":{
-"Label":"TCE7A",
+"Label":"FN_57",
 "Value":52858,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "912":{
-"Label":"TCF90",
+"Label":"FN_67",
 "Value":53136,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "923":{
-"Label":"TCF9B",
+"Label":"FN_77",
 "Value":53147,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "972":{
 "Label":"BANKSWITCH",
@@ -149,12 +150,18 @@
 "LabelAnno":"None"}},
 
 "OperandFormats":{
+"53":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Hex",
+"SymbolRef":null},
+
 "944":{
 "Length":2,
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCC00",
+"Label":"FN_07",
 "Part":"Low"}},
 
 "946":{
@@ -162,7 +169,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDAD",
+"Label":"FN_17",
 "Part":"Low"}},
 
 "948":{
@@ -170,7 +177,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDAD",
+"Label":"FN_17",
 "Part":"Low"}},
 
 "950":{
@@ -178,7 +185,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD49",
+"Label":"FN_37",
 "Part":"Low"}},
 
 "952":{
@@ -186,7 +193,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDAD",
+"Label":"FN_17",
 "Part":"Low"}},
 
 "954":{
@@ -194,7 +201,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCE7A",
+"Label":"FN_57",
 "Part":"Low"}},
 
 "956":{
@@ -202,7 +209,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCF90",
+"Label":"FN_67",
 "Part":"Low"}},
 
 "958":{
@@ -210,7 +217,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCF9B",
+"Label":"FN_77",
 "Part":"Low"}},
 
 "960":{

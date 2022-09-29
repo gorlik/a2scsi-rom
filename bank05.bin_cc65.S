@@ -201,9 +201,9 @@ FN_05:   lda     #$0c       ;init card
          lda     #$15
          sta     REG_IO_BANK_SEL,y ;switch to RAM bank 1
          lda     #$60
-         sta     $c800      ;put RTS to RAM BANK1 entry point ???
-         sta     $c803
-         sta     $c806
+         sta     $c800      ;put RTS to additiona BANK 01 entr points
+         sta     $c803      ;put rts in Patch1Call entry point
+         sta     $c806      ;put RTS to additiona BANK 01 entr points
          lda     #$05
          sta     REG_IO_BANK_SEL,y ;back to RAM bank 0
          lda     #$05

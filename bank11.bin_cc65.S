@@ -15,6 +15,7 @@ TCOUNT_B2 =      $c802      ; timeout counter MSB
 TCOUNT_B1 =      $c803      ; timeout counter middle byte when using 24-bit counter
 XFER_MODE =      $c804      ; 0x00 IIe PDMA, 0x01 IIgs PDMA, 0x02-0xff PIO 
 SEL_TARGET =     $c806      ; SCSI (BUS?) ID of selected target
+TMP_c80a =       $c80a      ; unknown
 RET_CODE =       $c80b      ; 
 BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
 SCSI_CMD_LEN =   $c80d      ; SCSI COMMAND lenght
@@ -22,15 +23,19 @@ SCSI_CDB_CMD =   $c80e      ; SCSI CDB buffer
 SCSI_CDB_LUN =   $c80f      ; 
 SCSI_CDB_LBA_HI = $c810
 SCSI_CDB_LBA_LO = $c811
+SCSI_CDB_LEN =   $c812
+SCSI_CDB_CTRL =  $c813
+SCSI_CDB10_8 =   $c816
 SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
+UNK_c820 =       $c820      ; 0xff if PIO ?
 PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
-SDAT_BASE =      $c831      ;start of SDAT table (extends to $C8A7)
 LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
 IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
 BLKSIZE_H =      $c92f      ;byte1 of block size
 BLKSIZE_L =      $c930      ;byte0 of block size
 LDIO_SIZE_LO =   $c9ee
+DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
 
          .org    $cc00
@@ -61,7 +66,7 @@ FN_0B:   jsr     LCE90
          iny
          lda     (TMP_PTR_L),y
          sta     $c9ef
-         sta     BLKSIZE_H-1
+         sta     $c92e
          ldx     #$02
          iny
          lda     (TMP_PTR_L),y
@@ -113,7 +118,7 @@ FN_0B:   jsr     LCE90
          iny
          lda     [TMP_PTR_L],y
          sta     $c9ef
-         sta     BLKSIZE_H-1
+         sta     $c92e
          iny
          lda     [TMP_PTR_L],y
          clc
@@ -169,10 +174,10 @@ FN_2B:   lda     #$00
          lda     $c92d
          sbc     $c92b
          pha
-         lda     BLKSIZE_H-1
+         lda     $c92e
          sbc     $c92c
          bcc     @LCD23
-         sta     BLKSIZE_H-1
+         sta     $c92e
          pla
          sta     $c92d
          pha
@@ -190,9 +195,9 @@ FN_2B:   lda     #$00
          pla
          ldy     $c92d
          sty     $c929
-         ldy     BLKSIZE_H-1
+         ldy     $c92e
          sty     $c92a
-         stx     BLKSIZE_H-1
+         stx     $c92e
          sta     $c92d
          ldy     SAVE_Y
          rts
@@ -212,7 +217,7 @@ FN_5B:   lda     CALL_TYPE
          tax
          lda     @LCD7A,x
          sta     TMP_PTR1
-         lda     @LCD81+2,x
+         lda     @LCD83,x
          sta     TMP_PTR1+1
          jmp     (TMP_PTR1)
 
@@ -224,124 +229,93 @@ FN_5B:   lda     CALL_TYPE
          xce
          jmp     @LCD5E
 
-@LCD7A:  sty     $bbae
-         cmp     ($c7,x)
-         bne     @LCD5A
-@LCD81:  sbc     @LCDF3
-         cmp     @LCDCD
-         cmp     @LCDCD
-         cmp     $20cd
-         stz     $20cd,x
-         lda     [$ce]
-         jsr     LCE13
+@LCD7A:  .byte   <TCD8C
+         .byte   <TCDAE
+         .byte   <TCDBB
+         .byte   <TCDC1
+         .byte   <TCDC7
+         .byte   <TCDD0
+         .byte   <TCDD9
+         .byte   <TCDED
+         .byte   <Patch1Call
+@LCD83:  .byte   >TCD8C
+         .byte   >TCDAE
+         .byte   >TCDBB
+         .byte   >TCDC1
+         .byte   >TCDC7
+         .byte   >TCDD0
+         .byte   >TCDD9
+         .byte   >TCDED
+         .byte   >Patch1Call
+
+TCD8C:   jsr     LCD9E
+         jsr     LCEA7
+LCD92:   jsr     LCE13
          jsr     LCE56
          jsr     LCE3D
-         jmp     @LCDE2
+         jmp     LCDE2
 
-         .byte   $ad
-         .byte   $f3
-         .byte   $c9
-         .byte   $c9
-         .byte   $b4
-         .byte   $d0
-         .byte   $01
-         .byte   $60
-         .byte   $ac
-         .byte   $1a
-         .byte   $c8
-         .byte   $a9
-         .byte   $21
-         .byte   $4c
-         .byte   $9e
-         .byte   $cf
-         .byte   $20
-         .byte   $b6
-         .byte   $ce
-         .byte   $20
-         .byte   $13
-         .byte   $ce
-         .byte   $20
-         .byte   $42
-         .byte   $ce
-         .byte   $20
-         .byte   $1e
-         .byte   $ce
-         .byte   $60
-         .byte   $20
-         .byte   $c7
-         .byte   $ce
-         .byte   $4c
-         .byte   $df
-         .byte   $cd
-         .byte   $20
-         .byte   $d5
-         .byte   $ce
-         .byte   $4c
-         .byte   $df
-         .byte   $cd
-         .byte   $20
-         .byte   $9e
-         .byte   $cd
-         .byte   $20
-         .byte   $de
-         .byte   $ce
-@LCDCD:  .byte   $4c
-         .byte   $df
-         .byte   $cd
-         .byte   $20
-         .byte   $9e
-         .byte   $cd
-         .byte   $20
-         .byte   $e7
-         .byte   $ce
-         .byte   $4c
-         .byte   $df
-         .byte   $cd
-         .byte   $20
-         .byte   $9e
-         .byte   $cd
-         .byte   $20
-         .byte   $f0
-         .byte   $ce
-         .byte   $20
-         .byte   $92
-         .byte   $cd
+LCD9E:   lda     DEV_STATUS
+         cmp     #$b4
+         bne     @LCDA6
+         rts
 
-@LCDE2:  lda     RET_CODE
+@LCDA6:  ldy     SAVE_Y
+         lda     #$21
+         jmp     LCF9E
+
+TCDAE:   jsr     LCEB6
+         jsr     LCE13
+         jsr     LCE42
+         jsr     LCE1E
+         rts
+
+TCDBB:   jsr     LCEC7
+         jmp     LCDDF
+
+TCDC1:   jsr     LCED5
+         jmp     LCDDF
+
+TCDC7:   jsr     LCD9E
+         jsr     LCEDE
+         jmp     LCDDF
+
+TCDD0:   jsr     LCD9E
+         jsr     LCEE7
+         jmp     LCDDF
+
+TCDD9:   jsr     LCD9E
+         jsr     LCEF0
+LCDDF:   jsr     LCD92
+LCDE2:   lda     RET_CODE
          beq     @LCDEC
          lda     #$27
          jmp     LCF9E
 
 @LCDEC:  rts
 
-         .byte   $20
-         .byte   $04
-         .byte   $cf
-         .byte   $4c
-         .byte   $df
-         .byte   $cd
-@LCDF3:  .byte   $20
-         .byte   $fd
-         .byte   $cd
-         .byte   $20
-         .byte   $03
-         .byte   $c8
-         .byte   $20
-         .byte   $03
-         .byte   $ce
-         .byte   $60
+TCDED:   jsr     LCF04
+         jmp     LCDDF
 
-LCDFD:   lda     #$1b
-         sta     REG_IO_BANK_SEL,y
+Patch1Call:
+         jsr     SET_RAM_BANK_01
+         jsr     $c803
+         jsr     SET_RAM_BANK_00
          rts
 
-LCE03:   lda     #$0b
-         sta     REG_IO_BANK_SEL,y
+SET_RAM_BANK_01:
+         lda     #$1b
+         sta     REG_IO_BANK_SEL,y ;set RAM BANK 01
          rts
 
-FN_6B:   jsr     LCDFD
+SET_RAM_BANK_00:
+         lda     #$0b
+         sta     REG_IO_BANK_SEL,y ;set ram bank 00
+         rts
+
+FN_6B:   jsr     SET_RAM_BANK_01
          jsr     SEL_TARGET
-         jsr     LCE03
+         jsr     SET_RAM_BANK_00
          rts
 
 LCE13:   lda     #$00
@@ -350,84 +324,55 @@ LCE15:   ldx     #$0b
          jsr     BANKSWITCH
          rts
 
-         .byte   $ac
-         .byte   $1a
-         .byte   $c8
-         .byte   $a9
-         .byte   $ff
-         .byte   $8d
-         .byte   $20
-         .byte   $c8
-         .byte   $ad
-         .byte   $04
-         .byte   $c8
-         .byte   $8d
-         .byte   $0a
-         .byte   $c8
-         .byte   $a9
-         .byte   $03
-         .byte   $8d
-         .byte   $04
-         .byte   $c8
-         .byte   $a9
-         .byte   $40
-         .byte   $20
-         .byte   $15
-         .byte   $ce
-         .byte   $ad
-         .byte   $0a
-         .byte   $c8
-         .byte   $8d
-         .byte   $04
-         .byte   $c8
-         .byte   $60
+LCE1E:   ldy     SAVE_Y
+         lda     #$ff
+         sta     UNK_c820
+         lda     XFER_MODE
+         sta     TMP_c80a
+         lda     #$03
+         sta     XFER_MODE
+         lda     #$40
+         jsr     LCE15
+         lda     TMP_c80a
+         sta     XFER_MODE
+         rts
 
 LCE3D:   lda     #$30
          jmp     LCE15
 
-         .byte   $20
-         .byte   $6f
-         .byte   $ce
-         .byte   $b9
-         .byte   $04
-         .byte   $c0
-         .byte   $29
-         .byte   $1c
-         .byte   $c9
-         .byte   $04
-         .byte   $f0
-         .byte   $07
-         .byte   $20
-         .byte   $7d
-         .byte   $ce
-         .byte   $b0
-         .byte   $17
-         .byte   $90
-         .byte   $f0
-         .byte   $60
+LCE42:   jsr     LCE6F
+@LCE45:  lda     REG_5380_STAT,y
+         and     #$1c
+         cmp     #$04
+         beq     @LCE55
+         jsr     LCE7D
+         bcs     LCE6A
+         bcc     @LCE45
 
-LCE56:   jsr     @LCE6F
+@LCE55:  rts
+
+LCE56:   jsr     LCE6F
 @LCE59:  lda     REG_5380_STAT,y
          and     #$1c
          cmp     #$0c
          beq     @LCE69
-         jsr     @LCE7D
-         bcs     @LCE6A
+         jsr     LCE7D
+         bcs     LCE6A
          bcc     @LCE59
 
 @LCE69:  rts
 
-@LCE6A:  lda     #$27
+LCE6A:   lda     #$27
          jmp     LCF9E
 
-@LCE6F:  lda     #$ff
+LCE6F:   lda     #$ff
          sta     TCOUNT_B0
          sta     TCOUNT_B2
          lda     #$03
          sta     TCOUNT_B1
          rts
 
-@LCE7D:  dec     TCOUNT_B0
+LCE7D:   dec     TCOUNT_B0
          bne     @LCE8C
          dec     TCOUNT_B2
          bne     @LCE8C
@@ -441,169 +386,105 @@ LCE56:   jsr     @LCE6F
 
 LCE90:   lda     #$06
          sta     SCSI_CMD_LEN
-         bne     @LCE9C
+         bne     LCE9C
 
-         .byte   $a9
-         .byte   $0a
-         .byte   $8d
-         .byte   $0d
-         .byte   $c8
-
-@LCE9C:  ldx     #$0a
+LCE97:   lda     #$0a
+         sta     SCSI_CMD_LEN
+LCE9C:   ldx     #$0a
          lda     #$00
 @LCEA0:  sta     SCSI_CDB_CMD,x
          dex
          bne     @LCEA0
          rts
 
-         .byte   $20
-         .byte   $97
-         .byte   $ce
-         .byte   $a9
-         .byte   $2b
-         .byte   $8d
-         .byte   $0e
-         .byte   $c8
-         .byte   $20
-         .byte   $51
-         .byte   $cf
-         .byte   $20
-         .byte   $0d
-         .byte   $cf
+LCEA7:   jsr     LCE97
+         lda     #$2b
+         sta     SCSI_CDB_CMD
+         jsr     FN_8B
+         jsr     LCF0D
+         rts
+
+LCEB6:   jsr     LCE90
+         lda     #$1c
+         sta     SCSI_CDB_CMD
+         lda     #$ff
+         sta     SCSI_CDB_LEN
+         jsr     FN_8B
+         rts
+
+LCEC7:   jsr     LCE90
+         lda     #$1b
+LCECC:   sta     SCSI_CDB_CMD
+         lda     #$01
+         sta     SCSI_CDB_LEN
+         rts
+
+LCED5:   jsr     LCE90
+         lda     #$1b
+         sta     SCSI_CDB_CMD
+         rts
+
+LCEDE:   jsr     LCE90
+         lda     #$1e
+         jmp     LCECC
+
          .byte   $60
-         .byte   $20
-         .byte   $90
-         .byte   $ce
-         .byte   $a9
-         .byte   $1c
-         .byte   $8d
-         .byte   $0e
-         .byte   $c8
-         .byte   $a9
-         .byte   $ff
-         .byte   $8d
-         .byte   $12
-         .byte   $c8
-         .byte   $20
-         .byte   $51
-         .byte   $cf
-         .byte   $60
-         .byte   $20
-         .byte   $90
-         .byte   $ce
-         .byte   $a9
-         .byte   $1b
-         .byte   $8d
-         .byte   $0e
-         .byte   $c8
-         .byte   $a9
-         .byte   $01
-         .byte   $8d
-         .byte   $12
-         .byte   $c8
-         .byte   $60
-         .byte   $20
-         .byte   $90
-         .byte   $ce
-         .byte   $a9
-         .byte   $1b
-         .byte   $8d
-         .byte   $0e
-         .byte   $c8
-         .byte   $60
-         .byte   $20
-         .byte   $90
-         .byte   $ce
-         .byte   $a9
-         .byte   $1e
-         .byte   $4c
-         .byte   $cc
-         .byte   $ce
-         .byte   $60
-         .byte   $20
-         .byte   $90
-         .byte   $ce
-         .byte   $a9
-         .byte   $1e
-         .byte   $8d
-         .byte   $0e
-         .byte   $c8
-         .byte   $60
-         .byte   $20
-         .byte   $97
-         .byte   $ce
-         .byte   $a9
-         .byte   $2f
-         .byte   $8d
-         .byte   $0e
-         .byte   $c8
-         .byte   $20
-         .byte   $51
-         .byte   $cf
-         .byte   $20
-         .byte   $0d
-         .byte   $cf
-         .byte   $a9
-         .byte   $01
-         .byte   $8d
-         .byte   $16
-         .byte   $c8
-         .byte   $60
-         .byte   $20
-         .byte   $90
-         .byte   $ce
-         .byte   $a9
-         .byte   $01
-         .byte   $8d
-         .byte   $0e
-         .byte   $c8
-         .byte   $60
-         .byte   $ad
-         .byte   $1d
-         .byte   $c8
-         .byte   $29
-         .byte   $40
-         .byte   $f0
-         .byte   $05
-.macro   HiAscii Arg
-         .repeat .strlen(Arg), I
-         .byte   .strat(Arg, I) | $80
-         .endrep
-.endmacro
-         HiAscii "-sHP"
-         .byte   $1a
-         .byte   $a0
-         .byte   $00
-         .byte   $b1
-         .byte   $fa
-         .byte   $8d
-         .byte   $13
-         .byte   $c8,$c8,$b1,$fa,$8d
-         .byte   $12
-         .byte   $c8,$c8,$b1,$fa,$8d
-         .byte   $11
-         .byte   $c8,$c8,$b1,$fa,$8d
-         .byte   $10
-         .byte   $c8
-         .byte   $60
-         .byte   $18
-         .byte   $fb
-         .byte   $a0
-         .byte   $00
-         .byte   $b7
-         .byte   $fa
-         .byte   $8d
-         .byte   $13
-         .byte   $c8,$c8,$b7,$fa,$8d
-         .byte   $12
-         .byte   $c8,$c8,$b7,$fa,$8d
-         .byte   $11
-         .byte   $c8,$c8,$b7,$fa,$8d
-         .byte   $10
-         .byte   $c8
-         .byte   $38
-         .byte   $fb
-         .byte   $60
+
+LCEE7:   jsr     LCE90
+         lda     #$1e
+         sta     SCSI_CDB_CMD
+         rts
+
+LCEF0:   jsr     LCE97
+         lda     #$2f
+         sta     SCSI_CDB_CMD
+         jsr     FN_8B
+         jsr     LCF0D
+         lda     #$01
+         sta     SCSI_CDB10_8
+         rts
+
+LCF04:   jsr     LCE90
+         lda     #$01
+         sta     SCSI_CDB_CMD
+         rts
+
+LCF0D:   lda     CALL_TYPE
+         and     #$40
+         beq     @LCF19
+         lda     IIgs_PDMA
+         bne     @LCF33
+@LCF19:  ldy     #$00
+         lda     (BUF_PTR_L),y
+         sta     SCSI_CDB_CTRL
+         iny
+         lda     (BUF_PTR_L),y
+         sta     SCSI_CDB_LEN
+         iny
+         lda     (BUF_PTR_L),y
+         sta     SCSI_CDB_LBA_LO
+         iny
+         lda     (BUF_PTR_L),y
+         sta     SCSI_CDB_LBA_HI
+         rts
+
+@LCF33:  clc
+         xce
+         ldy     #$00
+         lda     [BUF_PTR_L],y
+         sta     SCSI_CDB_CTRL
+         iny
+         lda     [BUF_PTR_L],y
+         sta     SCSI_CDB_LEN
+         iny
+         lda     [BUF_PTR_L],y
+         sta     SCSI_CDB_LBA_LO
+         iny
+         lda     [BUF_PTR_L],y
+         sta     SCSI_CDB_LBA_HI
+         sec
+         xce
+         rts
 
 FN_8B:   lda     CALL_TYPE
          and     #$40
@@ -639,14 +520,14 @@ FN_8B:   lda     CALL_TYPE
 
 FN_4B:   lda     #$06
          tax
-         sta     SDAT_BASE-1
+         sta     $c830
 @bus_busy:
          lda     REG_5380_STAT,y
          and     #$40
          bne     @ret
          dex
          bne     @bus_busy
-         dec     SDAT_BASE-1
+         dec     $c830
          bne     @bus_busy
 @ret:    rts
 

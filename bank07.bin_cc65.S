@@ -13,7 +13,6 @@ BUF_PTR_VH =     $fc
 BUF_PTR_XH =     $fd
 REG_5380_STAT =  $c004      ; R SCSI status
 REG_IO_BANK_SEL = $c00a     ; W memory bank select
-DEV_IDX  =       $c800      ; index into the SDAT/DIBTAB tables
 TCOUNT_B0 =      $c801      ; timeout counter LSB
 TCOUNT_B2 =      $c802      ; timeout counter MSB
 TCOUNT_B1 =      $c803      ; timeout counter middle byte when using 24-bit counter
@@ -42,7 +41,7 @@ BLKSIZE_H =      $c92f      ;byte1 of block size
          .org    $cc00
          .a8
          .i8
-TCC00:   jsr     @LCC30
+FN_07:   jsr     @LCC30
          jsr     LCC51
          jsr     @LCC3E
          lda     SCSI_CDB_CMD
@@ -64,10 +63,10 @@ TCC00:   jsr     @LCC30
          jmp     LCC40
 
 @LCC30:  lda     #$17
-         sta     REG_IO_BANK_SEL,y
-         jsr     DEV_IDX
+         sta     REG_IO_BANK_SEL,y ;set ram bank 01
+         jsr     $c800
          lda     #$07
-         sta     REG_IO_BANK_SEL,y
+         sta     REG_IO_BANK_SEL,y ;set ram bank 00
          rts
 
 @LCC3E:  lda     #$00
@@ -237,7 +236,7 @@ LCD31:   dec     TCOUNT_B0
 LCD44:   lda     #$27
          jmp     LCFA6
 
-TCD49:   lda     #$00
+FN_37:   lda     #$00
          sta     TEMP_c8da-1
          sta     UNK_c8cf
          lda     $c92d
@@ -247,7 +246,7 @@ TCD49:   lda     #$00
          cmp     #$44
          beq     @LCD88
 @LCD60:  jsr     @LCD8C
-         jsr     TCDAD
+         jsr     FN_17
          lda     UNK_c8cf
          beq     @LCD74
          jsr     LCDD9
@@ -284,7 +283,7 @@ TCD49:   lda     #$00
 
 @LCDAC:  rts
 
-TCDAD:   lda     XFER_MODE
+FN_17:   lda     XFER_MODE
          sta     SAVE_SP_UNIT-1
          lda     CALL_TYPE
          and     #$3f
@@ -327,7 +326,7 @@ LCDD9:   lda     #$00
          rts
 
 @LCE0A:  inc     TEMP_c8da-1
-         jsr     TCE7A
+         jsr     FN_57
          ldy     #$00
          lda     #$86
          sta     (TMP_PTR0),y
@@ -386,7 +385,7 @@ LCDD9:   lda     #$00
          sta     (TMP_PTR0),y
          rts
 
-TCE7A:   lda     #$31
+FN_57:   lda     #$31
          sta     TMP_PTR0
          lda     #$c8
          sta     TMP_PTR0+1
@@ -555,13 +554,13 @@ LCF86:   lda     #$00
          bne     @LCF8A
          rts
 
-TCF90:   lda     TMP_PTR_L
+FN_67:   lda     TMP_PTR_L
          sta     PTR_c8d7
          lda     TMP_PTR_H
          sta     PTR_c8d7+1
          rts
 
-TCF9B:   lda     PTR_c8d7
+FN_77:   lda     PTR_c8d7
          sta     TMP_PTR_L
          lda     PTR_c8d7+1
          sta     TMP_PTR_H
@@ -573,14 +572,14 @@ LCFA6:   sta     RET_CODE
          jmp     BANKSWITCH
 
 FN_TABLE:
-         .word   TCC00
-         .word   TCDAD
-         .word   TCDAD
-         .word   TCD49
-         .word   TCDAD
-         .word   TCE7A
-         .word   TCF90
-         .word   TCF9B
+         .word   FN_07
+         .word   FN_17
+         .word   FN_17
+         .word   FN_37
+         .word   FN_17
+         .word   FN_57
+         .word   FN_67
+         .word   FN_77
          .byte   $ea
          .byte   $ea
          .byte   $ea
