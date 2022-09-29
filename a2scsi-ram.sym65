@@ -1,0 +1,165 @@
+; ZP locations *************************************************
+TMP_PTR0      @ $19 2   ; temporary ZP pointer 
+TMP_PTR1      @ $1b 2   ; temporary ZP pointer 
+TMP_PTR2      @ $1d 2   ; temporary ZP pointer 
+
+PD_PAR_CMD    @ $42     ;PRODOS input parameter COMMAND number
+PD_PAR_UNIT   @ $43     ;PRODOS input parameter UNIT number
+PD_PAR_BUF_LO @ $44     ;PRODOS input parameter Buffer lo address
+PD_PAR_BUF_HI @ $45     ;PRODOS input parameter Buffer hi address
+PD_PAR_BLK_LO @ $46     ;PRODOS input parameter Block lo
+PD_PAR_BLK_HI @ $47     ;PRODOS input parameter Block hi
+
+TMP_PTR_L     @ $F6     ; temporary ZP long pointer
+TMP_PTR_H     @ $F7     ;
+TMP_PTR_VH    @ $F8     ;
+TMP_PTR_XH    @ $F9     ;
+
+BUF_PTR_L     @ $FA     ; ZP long BUF pointer
+BUF_PTR_H     @ $FB     ;
+BUF_PTR_VH    @ $FC     ;
+BUF_PTR_XH    @ $FD     ;
+
+
+;TEMP          @ $07F8   ; Unknown temp
+
+; CARD RAM locations in BANK 0 *******************************
+DEV_IDX           @ $C800   ; index into the SDAT/DIBTAB tables
+TCOUNT_B0         @ $C801   ; timeout counter LSB
+TCOUNT_B2         @ $C802   ; timeout counter MSB
+TCOUNT_B1         @ $C803   ; timeout counter middle byte when using 24-bit counter
+XFER_MODE         @ $C804   ; 0x00 IIe PDMA, 0x01 IIgs PDMA, 0x02-0xff PIO 
+SEL_TARGET        @ $C806   ; SCSI (BUS?) ID of selected target
+SAVE_CYAREG       @ $C808   ; saved value of CYAREG
+INIT_FLAG         @ $C809   ; card initialized flag (init=$77)
+TMP_c80a          @ $C80A   ; unknown
+RET_CODE          @ $C80B   ; 
+BSW_SAVE_X        @ $C80C   ; save X in BANKSWITCH
+; SCSI CDB buffer
+SCSI_CMD_LEN      @ $C80D   ; SCSI COMMAND lenght
+SCSI_CDB_CMD      @ $C80E   ; SCSI CDB buffer
+SCSI_CDB_LUN      @ $C80F   ; 
+SCSI_CDB_LBA_HI   @ $C810   ;
+SCSI_CDB_LBA_LO   @ $C811   ;
+SCSI_CDB_LEN      @ $C812   ;
+SCSI_CDB_CTRL     @ $C813   ;
+SCSI_CDB10_6      @ $C814   ; additional bytes for 10 bytes CDB
+SCSI_CDB10_7      @ $C815   ;
+SCSI_CDB10_8      @ $C816   ;
+SCSI_CDB10_9      @ $C817   ;
+SCSI_CDB12_10     @ $C818   ; additional bytes for 12 bytes CDB
+SCSI_CDB12_11     @ $C819   ;
+
+SAVE_Y            @ $C81A   ; slot adress (n+8)<<4 
+SAVE_SP_CMD_B     @ $C81B   ; saved SmartPort Command
+; c81c
+CALL_TYPE         @ $C81D   ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
+CMD_STATUS        @ $C81E   ; SCSI CMD status - 0x00 OK, 0x02 Check condition
+SCSI_RD_c81f      @ $C81F   ; SCSI STATUS or MESSAGE return from FN_04 
+UNK_c820          @ $C820   ; 0xff if PIO ?
+SAVE_ENTRY_SP     @ $C821   ; stack pointer saved at the PD/SM entry point
+BLKSIZE_H2        @ $C822   ; byte1 of block size copy
+; c823
+PART_START        @ $C824 3 ; partition start (3 bytes) seems to be in reverse endian (?)
+UNK_c827          @ $C827 3 ; 3-byte unknown in reverse endian as the above
+
+; c82a
+; ...
+; c830
+
+; SCSI Device Access Table 
+; 7 entries, 17 ($11) bytes per entry
+; 119 total size
+SDAT_BASE        @ $C831   ;start of SDAT table (extends to $C8A7)
+
+SAVE_ZP_F6       @ $C8A8   ;saved zero page locations $f6-$fd
+SAVE_ZP_15       @ $C8B0   ;saved zero page locations $15-$1e
+
+; c8ba
+; c8bb
+
+PD_PAR_CMD_CPY    @ $C8BC     ;PRODOS input parameter COMMAND number
+PD_PAR_UNIT_CPY   @ $C8BD     ;PRODOS input parameter UNIT number
+PD_PAR_BUF_LO_CPY @ $C8BE     ;PRODOS input parameter Buffer lo address
+PD_PAR_BUF_HI_CPY @ $C8BF     ;PRODOS input parameter Buffer hi address
+PD_PAR_BLK_LO_CPY @ $C8C0     ;PRODOS input parameter Block lo
+PD_PAR_BLK_HI_CPY @ $C8C1     ;PRODOS input parameter Block hi
+
+; c8c2
+; ...
+; c8c5
+TEMP_c8c6         @ $C8C6   ;unknown
+BLK_c8c7          @ $C8C7 2 ; saved PRODOS BLOCK from input parameters
+; c8c9
+TEMP_c8ca         @ $C8CA   ; TEMP_BUF_PTR?
+; c8cb
+UNK_c8cc          @ $C8CC   ;unknown
+; c8cd
+; c8ce
+UNK_c8cf          @ $C8CF   ; unknown
+PTR_c8d0          @ $C8D0 2 ; temp pointer storage (?)
+; c8d2
+; ...
+; c8d6
+PTR_c8d7          @ $C8D7 2 ; temp pointer storage (?)
+; c8d9
+TEMP_c8da         @ $C8DA   ;unknown
+LBA_c8db          @ $C8DB 3 ; LBA to use in CDB (?) (copied to CDB_LBA)
+; c8de
+PTR_c8df          @ $C8DF 2 ;unknown
+BLK_c8e1          @ $C8E1 2 ;unknown
+BOOT_SEQ          @ $C8E3   ;$55 if in boot process
+RX_LEN_LO         @ $C8E4   ;bytes read if call successfull
+RX_LEN_HI         @ $C8E5   ;bytes read if call successfull
+SAVE_SP_CMD       @ $C8E6   ; saved Smartport COMMAND number
+; c8e7
+SAVE_SP_UNIT      @ $C8E8   ; saved Smartport UNIT number
+; c8e9
+; ...
+; c8ec
+SAVE_SP2          @ $C8ED   ;saved SP
+TEMP_HI           @ $C8EE   ;generic 16-bit temp high byte
+TEMP_LO           @ $C8EF   ;generic 16-bit temp low byte
+; c8f0
+; c8f1
+; c8f2
+IIgs_PDMA         @ $C8F3   ;0x01 if IIgs PDMA
+UNK_c8f4          @ $C8F4   ;unknown
+buf_c8f5          @ $C8F5   ;unknown
+; c8f6
+; ...
+; c914
+TEMP_c915         @ $C915   ;unknown
+; c916
+; ...
+; c91e
+SAVE_XFER_MODE    @ $C91F   ;
+; c920
+UNK_c921          @ $C921   ;unknown
+UNK_c922          @ $C922   ;unknown
+; c923
+; ...
+; c92e
+BLKSIZE_H         @ $C92F   ;byte1 of block size
+BLKSIZE_L         @ $C930   ;byte0 of block size
+
+; SCSI Device Information Block Table 
+; 7 entries, 27 ($1B) bytes per entry
+; 189 total size
+DBITAB_BASE   @ $C931   ;start of DIBTAB (extends to $C9ED)
+
+LDIO_SIZE_LO      @ $C9EE   ;
+; c9ef
+; ...
+; c9f2
+DEV_STATUS        @ $C9F3   ; seems a copy of device status from DIBTAB
+; c9f4
+; c9f5
+TIMEOUT           @ $C9F6   ; each unit is 1.25s
+; c9f7
+; ...
+; c9fc
+PD_UNIT           @ $C9FD   ; PRODOS UNIT from the parameter if prodos call
+LDIO_SIZE_HI      @ $C9FF   ;
+
+; ca00                      ; seems used as read buffer

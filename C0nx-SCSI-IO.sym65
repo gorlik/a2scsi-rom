@@ -1,0 +1,21 @@
+REG_5380_DATA        < $C000 ; R current SCSI data lines status
+REG_5380_DATA_OUT    > $C000 ; W SCSI data output register
+REG_5380_ICMD        @ $C001 ; RW Initiator command register
+REG_5380_MODE_SEL    @ $C002 ; RW Mode select register
+REG_5380_TCMD        @ $C003 ; RW target command register
+REG_5380_STAT        < $C004 ; R SCSI status
+REG_5380_SEL         > $C004 ; W Select enable register
+REG_5380_STAT2       < $C005 ; R Bus and status register
+REG_5380_START_WDMA  > $C005 ; W start DMA send
+REG_5380_DATA_IN     < $C006 ; R SCSI data input register
+REG_5380_START_TRDMA > $C006 ; W start DMA target receive 
+REG_5380_INT         < $C007 ; R reset parity/interrupts
+REG_5380_START_IRDMA > $C007 ; W start DMA initiator receive
+REG_IO_PDMA_DACK     @ $C008 ; RW PDMA/DACK
+REG_IO_DEV_ID        < $C009 ; R SCSI device ID
+REG_IO_BANK_SEL      > $C00A ; W memory bank select
+REG_IO_5380_RST      @ $C00B ; W 5380 Reset
+REG_IO_RSVD_C        @ $C00C
+REG_IO_PDMA_EN       @ $C00D ; W PDMA mode enable
+REG_IO_DRQ           < $C00E ; R read DRQ on bit7
+REG_IO_RSVD_F        @ $C00F
