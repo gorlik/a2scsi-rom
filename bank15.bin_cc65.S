@@ -243,7 +243,7 @@ LCD77:   ldy     #$00
          lda     BUF_PTR_XH
          sta     $c9fa
          lda     #$0c
-         jsr     CALL_FN_XF
+         jsr     CALL_FN_XF ;CALL_FN_0C
          lda     $c918
          sta     CALL_TYPE
          lda     $c9f7
@@ -336,7 +336,7 @@ READ_STATUS_MESSAGE_PHASE:
 
 CALL_FN_42:
          lda     #$42       ;Decrement TIMEOUT3
-         jmp     CALL_FN_XF
+         jmp     CALL_FN_XF ;CALL_FN_42
 
 SET_TIMEOUT_FF:
          lda     #$ff
@@ -380,7 +380,7 @@ ERROR_NODRIVE:
 
 CALL_FN_2C:
          lda     #$2c       ;write data until not busy
-         jmp     CALL_FN_XF
+         jmp     CALL_FN_XF ;CALL_FN_2C
 
 FN_3F:   tsx
          stx     SAVE_SP2   ;save the original SP

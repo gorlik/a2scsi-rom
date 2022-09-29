@@ -82,6 +82,8 @@
 "278":"CALL_FN_47",
 "356":"branch if SCSI READ6 command",
 "358":"redundant ???",
+"425":"CALL_FN_49",
+"507":"CALL_FN_0C",
 "517":"CALL_FN_A3",
 "580":"TEMP_c8c6 count from 0 to 9",
 "616":"TEMP_c8c6 count from 0 to 9",
@@ -109,6 +111,7 @@
 "858":"arbitration lost try again",
 "861":"return success",
 "862":"very similar to SCSI SELECT",
+"922":"CALL_FN_3A",
 "927":"CALL_FN_4B"},
 
 "LongComments":{

@@ -512,82 +512,82 @@ CTRL_CODE_TABLE_IDX_A:
 
 CALL_FN_93:
          lda     #$93
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_93
 
 CALL_FN_A3:
          lda     #$a3
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_A3
 
 CALL_FN_B3:
          lda     #$b3
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_B3
 
 CALL_FN_C3:
          lda     #$c3
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_C3
 
 CALL_FN_E3:
          lda     #$e3
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_E3
 
 CALL_FN_D3:
          lda     #$d3
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_D3
 
 CALL_FN_03:
          lda     #$03
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_03
 
 CALL_FN_5A:
          lda     #$5a
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_5A
 
 CALL_FN_23:
          lda     #$23
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_23
 
 CALL_FN_33:
          lda     #$33
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_33
 
 CALL_FN_43:
          lda     #$43
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_43
 
 CALL_FN_53:
          lda     #$53
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_53
 
 CALL_FN_63:
          lda     #$63
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_63
 
 CALL_FN_4A:
          lda     #$4a
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_4A
 
 CALL_FN_1B:
          lda     #$1b
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_1B
 
 CALL_FN_0C:
          lda     #$0c
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_0C
 
 CALL_FN_5B:
          lda     #$5b
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_5B
 
 CALL_FN_1E:
          lda     #$1e
 CALL_FN_X2:
          ldx     #$02
          ldy     SAVE_Y
-         jmp     BANKSWITCH
+         jmp     BANKSWITCH ;CALL_FN_X2_SAVE_Y
 
 CALL_FN_2E:
          lda     #$2e
-         bne     CALL_FN_X2
+         bne     CALL_FN_X2 ;CALL_FN_2E
 
 SP_CMD_08_READ:
          lda     #$09
@@ -599,7 +599,7 @@ SP_CMD_09_WRITE:
 
 SP_CMD_00_STATUS:
          lda     #$24
-         jsr     CALL_FN_X2
+         jsr     CALL_FN_X2 ;CALL_FN_24
 LCF61:   jsr     FN_12
          ldy     SAVE_Y
          lda     RET_CODE

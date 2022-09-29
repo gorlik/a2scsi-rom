@@ -110,9 +110,9 @@ FN_1E:   lda     CALL_TYPE
 
 TCC7C:   jsr     LCC96
          jsr     LCDB6
-LCC82:   jsr     LCD1B
+LCC82:   jsr     CALL_FN_00
          jsr     LCD62
-         jsr     LCD45
+         jsr     CALL_FN_30
          lda     RET_CODE
          beq     @LCC95
          lda     #$27
@@ -143,7 +143,7 @@ TCCB8:   jsr     LCC96
 
 TCCC1:   jsr     LCC96
          jsr     LCE01
-         jsr     LCD1B
+         jsr     CALL_FN_00
          jsr     LCD4A
          jmp     LCD26
 
@@ -157,19 +157,19 @@ FN_2E:   jsr     LCC96
 
 TCCE2:   jsr     LCC96
          jsr     LCE2A
-         jsr     LCD1B
+         jsr     CALL_FN_00
          jsr     LCD4A
          jmp     LCD26
 
 TCCF1:   jsr     LCC96
          jsr     LCE68
-         jsr     LCD1B
+         jsr     CALL_FN_00
          jsr     LCD4A
          jmp     LCD26
 
 TCD00:   jsr     LCC96
          jsr     LCE78
-         jsr     LCD1B
+         jsr     CALL_FN_00
          jsr     LCD4A
          jmp     LCD26
 
@@ -177,10 +177,12 @@ TCD0F:   ldy     #$02
          lda     (TMP_PTR_L),y
          sta     UNK_c8cc
          lda     #$d3
-         jmp     LCD1D
+         jmp     CALL_FN_XE ;CALL_FN_D3
 
-LCD1B:   lda     #$00
-LCD1D:   ldx     #$0e
+CALL_FN_00:
+         lda     #$00
+CALL_FN_XE:
+         ldx     #$0e
          ldy     SAVE_Y
          jsr     BANKSWITCH
          rts
@@ -193,13 +195,14 @@ LCD26:   ldy     SAVE_Y
          lda     #$03
          sta     XFER_MODE
          lda     #$40
-         jsr     LCD1D
+         jsr     CALL_FN_XE ;CALL_FN_40
          lda     TMP_c80a
          sta     XFER_MODE
          rts
 
-LCD45:   lda     #$30
-         jmp     LCD1D
+CALL_FN_30:
+         lda     #$30
+         jmp     CALL_FN_XE ;CALL_FN_30
 
 LCD4A:   jsr     SET_TIMEOUT_03
 @LCD4D:  lda     REG_5380_STAT,y
@@ -207,9 +210,9 @@ LCD4A:   jsr     SET_TIMEOUT_03
          cmp     #$24
          beq     @LCD61
          cmp     #$2c
-         beq     LCD76
+         beq     ERROR_IOERROR
          jsr     DEC_TIMEOUT3
-         bcs     LCD76
+         bcs     ERROR_IOERROR
          bcc     @LCD4D
 
 @LCD61:  rts
@@ -220,12 +223,13 @@ LCD62:   jsr     SET_TIMEOUT_03
          cmp     #$0c
          beq     @LCD75
          jsr     DEC_TIMEOUT3
-         bcs     LCD76
+         bcs     ERROR_IOERROR
          bcc     @LCD65
 
 @LCD75:  rts
 
-LCD76:   lda     #$27
+ERROR_IOERROR:
+         lda     #$27
          ldy     SAVE_Y
          jmp     CALL_FN_60_RET
 
@@ -518,7 +522,7 @@ LCF4A:   lda     CALL_TYPE
          xce
          jmp     @LCF61
 
-FN_3E:   jsr     LCD45
+FN_3E:   jsr     CALL_FN_30
          lda     CMD_STATUS
          cmp     #$08
          bne     @LCFB1
@@ -527,7 +531,7 @@ FN_3E:   jsr     LCD45
          sta     $c8cd
          sta     PTR_c8d7-1
 @LCF96:  lda     #$a3
-         jsr     LCD1D
+         jsr     CALL_FN_XE
          lda     CMD_STATUS
          cmp     #$08
          bne     @LCFAC

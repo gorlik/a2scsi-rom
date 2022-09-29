@@ -280,7 +280,7 @@ LCDA2:   lda     #$27
          jmp     LCFAB
 
 LCDA7:   lda     #$49
-         jmp     CALL_FN_X06_SY
+         jmp     CALL_FN_X06_SY ;CALL_FN_49
 
 LCDAC:   jsr     LCDA7
          ldx     #$02
@@ -325,7 +325,7 @@ LCDF5:   lda     #$2f
          bne     LCDEF
 
 LCDF9:   lda     #$0c
-         jmp     CALL_FN_X06_SY
+         jmp     CALL_FN_X06_SY ;CALL_FN_0C
 
 FN_56:   lda     #$ff
          sta     SAVE_SP2
@@ -553,7 +553,7 @@ SCSI_SELECT_ALT:
 
 CALL_FN_3A:
          lda     #$3a
-         jmp     CALL_FN_X06_SY
+         jmp     CALL_FN_X06_SY ;CALL_FN_3A
 
 WAIT_NOT_BUSY:
          lda     #$4b

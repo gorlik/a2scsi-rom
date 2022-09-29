@@ -117,7 +117,9 @@
 },
 
 "Comments":{
-},
+"280":"CALL_FN_D3",
+"315":"CALL_FN_40",
+"327":"CALL_FN_30"},
 
 "LongComments":{
 "-2147483647":{
@@ -280,6 +282,34 @@
 "382":{
 "Label":"SET_TIMEOUT_03",
 "Value":52606,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"285":{
+"Label":"CALL_FN_XE",
+"Value":52509,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"283":{
+"Label":"CALL_FN_00",
+"Value":52507,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"325":{
+"Label":"CALL_FN_30",
+"Value":52549,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"374":{
+"Label":"ERROR_IOERROR",
+"Value":52598,
 "Source":"User",
 "Type":"GlobalAddr",
 "LabelAnno":"None"}},
