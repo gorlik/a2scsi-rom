@@ -3,6 +3,8 @@
          .setcpu "65816"
 SCSI_CMD_READ6 = $08
 SCSI_CMD_WRITE6 = $0a
+P8E_IO_ERR =     $27        ;I/O error
+P8E_WRITE_PROT = $2b        ;Disk write protected
 
 TMP_PTR1 =       $1b        ; temporary ZP pointer 
 PD_PAR_BLK_LO =  $46        ;PRODOS input parameter Block lo
@@ -33,13 +35,13 @@ SAVE_SP_CMD_B =  $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 CMD_STATUS =     $c81e      ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 SDAT_BASE =      $c831      ;start of SDAT table (extends to $C8A7)
-TEMP_c8c6 =      $c8c6      ;unknown
-TEMP_c8ca =      $c8ca      ; TEMP_BUF_PTR?
-UNK_c8cf =       $c8cf      ; unknown
-PTR_c8d0 =       $c8d0      ; temp pointer storage (?)
+TMP_COUNTER =    $c8c6
+UNK_c8c9 =       $c8c9      ; 
+UNK_c8cf =       $c8cf      ; $00 if failed to read Partition Map. $ff if PM detected
+TEMP_c8d0 =      $c8d0      ; temp int storage (size of DDM block?)
 TEMP_c8da =      $c8da      ;unknown
 PTR_c8df =       $c8df      ;unknown
-SAVE_SP2 =       $c8ed      ;saved SP
+SAVE_SP2 =       $c8ed      ;saved SP - also used a random temp
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 
          .org    $cc00
@@ -47,11 +49,12 @@ DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
          .i8
 FN_06:   lda     DEV_STATUS
          cmp     #$b4
-         bne     @LCC0C
-         lda     #$2b
-         jmp     LCFAB
+         bne     @not_write_protected
+         lda     #P8E_WRITE_PROT ;ERROR NOWRITE
+         jmp     CALL_FN_60_RET
 
-@LCC0C:  lda     BUF_PTR_L
+@not_write_protected:
+         lda     BUF_PTR_L
          sta     PTR_c8df
          lda     BUF_PTR_H
          sta     PTR_c8df+1
@@ -59,17 +62,17 @@ FN_06:   lda     DEV_STATUS
          bcs     @LCC1C
          rts
 
-@LCC1C:  jsr     @CALL_FN_D3
+@LCC1C:  jsr     @CALL_FN_D3 ;FORMAT_UNIT
          jsr     LCC32
          lda     #$0c
-         jmp     CALL_FN_X06_SY ;CALL_FN_0C
+         jmp     CALL_FN_X6_SY ;CALL_FN_0C - Set New SDAT
 
 @CALL_FN_D3:
          lda     #$d3
-CALL_FN_X06_SY:
+CALL_FN_X6_SY:
          ldx     #$06
          ldy     SAVE_Y
-         jsr     BANKSWITCH
+         jsr     BANKSWITCH ;CALL_FN_X6
          rts
 
 LCC32:   jsr     @LCC39
@@ -89,7 +92,7 @@ LCC32:   jsr     @LCC39
          lda     TMP_PTR_H
          sta     (TMP_PTR_L),y
          lda     #$c3
-         jsr     CALL_FN_X06_SY ;CALL_FN_C3
+         jsr     CALL_FN_X6_SY ;CALL_FN_C3
          lda     #$00
          sta     BUF_PTR_L
          lda     #$ca
@@ -115,10 +118,10 @@ LCC32:   jsr     @LCC39
          bpl     @LCC77
          ldy     #$06
          lda     (BUF_PTR_L),y
-         sta     PTR_c8d0
+         sta     TEMP_c8d0
          iny
          lda     (BUF_PTR_L),y
-         sta     PTR_c8d0+1
+         sta     TEMP_c8d0+1
          rts
 
 @LCC92:  lda     #$00
@@ -134,11 +137,11 @@ LCC32:   jsr     @LCC39
          iny
          lda     #$52
          sta     (BUF_PTR_L),y
-         lda     PTR_c8d0
+         lda     TEMP_c8d0
          iny
          sta     (BUF_PTR_L),y
          iny
-         lda     PTR_c8d0+1
+         lda     TEMP_c8d0+1
          sta     (BUF_PTR_L),y
          ldx     #$00
          ldy     #$04
@@ -152,24 +155,24 @@ LCC32:   jsr     @LCC39
          lda     #$01
          sta     (BUF_PTR_L),y
          lda     #$1f
-         jsr     CALL_FN_X06_SY ;CALL_FN_1F
+         jsr     CALL_FN_X6_SY ;CALL_FN_1F
          jsr     @LCCF3
          lda     #$01
          jsr     @LCCFB
          lda     #$2f
-         jsr     CALL_FN_X06_SY ;CALL_FN_2F
+         jsr     CALL_FN_X6_SY ;CALL_FN_2F
          jsr     @LCCF3
          lda     #$02
          jsr     @LCCFB
          lda     #$0f
-         jsr     CALL_FN_X06_SY ;CALL_FN_0F
+         jsr     CALL_FN_X6_SY ;CALL_FN_0F
          jsr     @LCCF3
          ldy     SAVE_Y
          rts
 
 @LCCF3:  jsr     LCD27
          lda     #$20
-         jmp     CALL_FN_X06_SY
+         jmp     CALL_FN_X6_SY ;CALL_FN_20
 
 @LCCFB:  sta     PD_PAR_BLK_LO
          lda     #$00
@@ -188,7 +191,7 @@ LCC32:   jsr     @LCC39
          rts
 
 FN_26:   lda     #$47
-         jsr     CALL_FN_X06_SY ;CALL_FN_47
+         jsr     CALL_FN_X6_SY ;CALL_FN_47
          lda     UNK_c8cf
          beq     @ret_fail
          clc
@@ -260,134 +263,146 @@ FN_16:   lda     SCSI_CDB_CMD
          jsr     LCE63
          bcc     @LCD85
          jsr     LCE80
-         bcs     LCDA2
+         bcs     ERROR_IOERROR
 @LCD85:  clc
          lda     #$00
          sta     RET_CODE
          rts
 
-@LCD8C:  jsr     LCEDF
+@LCD8C:  jsr     SET_BUF_PTR_CA00
          lda     SAVE_SP_CMD_B
          cmp     #$0a
          beq     @LCD9D
          jsr     LCEA0
-         bcs     LCDA2
+         bcs     ERROR_IOERROR
          bcc     @LCD85
 
 @LCD9D:  jsr     LCEB9
          bcc     @LCD85
-LCDA2:   lda     #$27
-         jmp     LCFAB
+ERROR_IOERROR:
+         lda     #P8E_IO_ERR
+         jmp     CALL_FN_60_RET
 
-LCDA7:   lda     #$49
-         jmp     CALL_FN_X06_SY ;CALL_FN_49
+CALL_FN_49:
+         lda     #$49       ;load REQUEST_SENSE at $c901
+         jmp     CALL_FN_X6_SY ;CALL_FN_49
 
-LCDAC:   jsr     LCDA7
+LCDAC:   jsr     CALL_FN_49 ;load REQUEST_SENSE at $c901
          ldx     #$02
-         lda     $c901,x
+         lda     $c901,x    ;get SENSE KEY
          cmp     #$06
-         beq     FN_66
+         beq     FN_66      ;SENSE_KEY==UNIT_ATTENTION
          cmp     #$02
-         beq     FN_66
-         and     #$07
+         beq     FN_66      ;SENSE_KEY==NOT_READY
+         and     #$07       ;likely a bug - the mask for sense key should be $F
          cmp     #$01
-         beq     @LCDC5
+         beq     @recoverable ;branch if recoverable error
          sec
-         bcs     @LCDC6
+         bcs     @sense_end
 
-@LCDC5:  clc
-@LCDC6:  ldy     SAVE_Y
+@recoverable:
+         clc
+@sense_end:
+         ldy     SAVE_Y
          rts
 
-LCDCA:   ldx     #$0c
+LDA_ASC: ldx     #$0c
          lda     $c901,x
          rts
 
-FN_66:   jsr     LCDCA
-         cmp     #$28
+FN_66:   jsr     LDA_ASC    ;process ASC from SENSE_DATA at $c901
+         cmp     #$28       ;load ASC (additional sense code)
          beq     LCDDF
          cmp     #$b7
          beq     LCE27
          cmp     #$b0
-         beq     LCDF5
+         beq     ERROR_OFFLINE
 LCDDF:   jsr     LCDF9
          lda     CALL_TYPE
          cmp     #$01
-         bne     @LCDED
-         lda     #$27
-         bne     LCDEF
+         bne     ERROR_DISKSWITCH
+         lda     #$27       ;ERROR_IOERROR
+         bne     RET_ERROR
 
-@LCDED:  lda     #$2e
-LCDEF:   ldy     SAVE_Y
-         jmp     LCFAB
+ERROR_DISKSWITCH:
+         lda     #$2e
+RET_ERROR:
+         ldy     SAVE_Y
+         jmp     CALL_FN_60_RET
 
-LCDF5:   lda     #$2f
-         bne     LCDEF
+ERROR_OFFLINE:
+         lda     #$2f
+         bne     RET_ERROR
 
 LCDF9:   lda     #$0c
-         jmp     CALL_FN_X06_SY ;CALL_FN_0C
+         jmp     CALL_FN_X6_SY ;CALL_FN_0C
 
 FN_56:   lda     #$ff
-         sta     SAVE_SP2
-@LCE03:  lda     #$a3
-         jsr     CALL_FN_X06_SY ;CALL_FN_A3
+         sta     SAVE_SP2   ;number of retrys
+@FN_65_try_again:
+         lda     #$a3
+         jsr     CALL_FN_X6_SY ;CALL_FN_A3 - SEND CMD_TEST_UNIT_READY
          lda     CMD_STATUS
-         beq     @LCE25
-         jsr     LCE2F
-         jsr     LCDA7
-         jsr     LCDCA
+         beq     @FN_56_ret_ok
+         jsr     DELAY_C0FF
+         jsr     CALL_FN_49
+         jsr     LDA_ASC
          cmp     #$28
-         beq     @LCE25
+         beq     @FN_56_ret_ok
          cmp     #$b0
-         beq     @LCE25
+         beq     @FN_56_ret_ok
          dec     SAVE_SP2
-         bne     @LCE03
+         bne     @FN_65_try_again
          sec
          rts
 
-@LCE25:  clc
+@FN_56_ret_ok:
+         clc
          rts
 
 LCE27:   jsr     FN_56
          bcc     LCDDF
-         jmp     LCDA2
+         jmp     ERROR_IOERROR
 
-LCE2F:   tya
+DELAY_C0FF:
+         tya
          ldx     #$ff
          ldy     #$c0
-@LCE34:  dex
-         bne     @LCE34
+@delay_loop:
+         dex
+         bne     @delay_loop
          dey
-         bne     @LCE34
+         bne     @delay_loop
          tay
          rts
 
 LCE3C:   lda     #$00
-         sta     TEMP_c8ca-1
-         sta     TEMP_c8c6
-@loop1:  jsr     LCE9D      ;TEMP_c8c6 count from 0 to 9
+         sta     UNK_c8c9
+         sta     TMP_COUNTER ;TEMP_c8c6 count from 0 to 9
+@loop1:  jsr     LCE9D
          bcc     @LCE4C
-         inc     TEMP_c8ca-1
-@LCE4C:  inc     TEMP_c8c6
-         lda     TEMP_c8c6
+         inc     UNK_c8c9
+@LCE4C:  inc     TMP_COUNTER
+         lda     TMP_COUNTER
          cmp     #$0a
          bne     @loop1
-         lda     TEMP_c8ca-1
+         lda     UNK_c8c9
          cmp     #$0a
-         beq     @LCE60
-         cmp     #$05
+         beq     @io_error
+         cmp     #$05       ;useful?
          rts
 
-@LCE60:  jmp     LCDA2
+@io_error:
+         jmp     ERROR_IOERROR
 
 LCE63:   lda     #$00
-         sta     TEMP_c8c6
-@loop2:  jsr     LCEB9      ;TEMP_c8c6 count from 0 to 9
+         sta     TMP_COUNTER ;TEMP_c8c6 count from 0 to 9
+@loop2:  jsr     LCEB9
          bcs     @LCE7E
          jsr     LCE9D
          bcs     @LCE7E
-         inc     TEMP_c8c6
-         lda     TEMP_c8c6
+         inc     TMP_COUNTER
+         lda     TMP_COUNTER
          cmp     #$0a
          bne     @loop2
          clc
@@ -397,9 +412,9 @@ LCE63:   lda     #$00
          rts
 
 LCE80:   lda     #$21
-         jsr     CALL_FN_X06 ;CALL_FN_21
+         jsr     CALL_FN_X6 ;CALL_FN_21
          lda     #$3d
-         jsr     CALL_FN_X06 ;CALL_FN_3D
+         jsr     CALL_FN_X6 ;CALL_FN_3D - auto select XFER_MODE
          lda     RET_CODE
          bne     @LCE9B
          jsr     LCEB9
@@ -413,46 +428,48 @@ LCE80:   lda     #$21
 @LCE9B:  sec
          rts
 
-LCE9D:   jsr     LCEDF
+LCE9D:   jsr     SET_BUF_PTR_CA00
 LCEA0:   lda     #$41
-         jsr     CALL_FN_X06_SY ;CALL_FN_41
-         jsr     CALL_FN_00
-         jsr     CALL_FN_01
+         jsr     CALL_FN_X6_SY ;CALL_FN_41
+         jsr     CALL_FN_00 ;Do Phases
+         jsr     CALL_FN_01 ;Data Xin
          lda     #$a0
-         jsr     CALL_FN_X06_SY ;CALL_FN_A0
-LCEB0:   lda     CMD_STATUS
-         beq     @LCEB7
+         jsr     CALL_FN_X6_SY ;CALL_FN_A0 - Get status and message
+CHECK_STATUS_RET:
+         lda     CMD_STATUS ;check status
+         beq     @ret_ok
          sec
          rts
 
-@LCEB7:  clc
+@ret_ok: clc
          rts
 
-LCEB9:   jsr     LCEDF
+LCEB9:   jsr     SET_BUF_PTR_CA00
          lda     #$51
-         jsr     CALL_FN_X06_SY ;CALL_FN_51
-         jsr     CALL_FN_00
-         jsr     CALL_FN_11
+         jsr     CALL_FN_X6_SY ;CALL_FN_51
+         jsr     CALL_FN_00 ;Do Phases
+         jsr     CALL_FN_11 ;Data Xout
          lda     #$a0
-         jsr     CALL_FN_X06_SY ;CALL_FN_A0
-         jmp     LCEB0
+         jsr     CALL_FN_X6_SY ;CALL_FN_A0 - Get status and message
+         jmp     CHECK_STATUS_RET
 
 CALL_FN_00:
          lda     #$00
-CALL_FN_X06:
+CALL_FN_X6:
          ldx     #$06
-         jsr     BANKSWITCH
+         jsr     BANKSWITCH ;CALL_FN_X6
          rts
 
 CALL_FN_01:
          lda     #$01
-         bne     CALL_FN_X06
+         bne     CALL_FN_X6 ;CALL_FN_01
 
 CALL_FN_11:
          lda     #$11
-         bne     CALL_FN_X06
+         bne     CALL_FN_X6 ;CALL_FN_11
 
-LCEDF:   lda     #$00
+SET_BUF_PTR_CA00:
+         lda     #$00
          sta     BUF_PTR_L
          lda     #$ca
          sta     BUF_PTR_H
@@ -480,7 +497,7 @@ FN_36:   jsr     LCF21      ;CALL_FN_3A
          jsr     SCSI_SELECT_ALT
          bcs     RET_EC_27
          lda     #$44
-         jsr     CALL_FN_X06_SY ;CALL_FN_44
+         jsr     CALL_FN_X6_SY ;CALL_FN_44
          clc
          rts
 
@@ -553,11 +570,11 @@ SCSI_SELECT_ALT:
 
 CALL_FN_3A:
          lda     #$3a
-         jmp     CALL_FN_X06_SY ;CALL_FN_3A
+         jmp     CALL_FN_X6_SY ;CALL_FN_3A
 
 WAIT_NOT_BUSY:
          lda     #$4b
-         jsr     CALL_FN_X06_SY ;CALL_FN_4B
+         jsr     CALL_FN_X6_SY ;CALL_FN_4B
          lda     SDAT_BASE-1
          beq     ret_fail2
          clc
@@ -567,10 +584,11 @@ ret_fail2:
          sec
          rts
 
-LCFAB:   sta     RET_CODE
+CALL_FN_60_RET:
+         sta     RET_CODE
          lda     #$60
          ldx     #$00
-         jmp     BANKSWITCH
+         jmp     BANKSWITCH ;CALL_FN_60_RET
 
 FN_TABLE:
          .word   FN_06

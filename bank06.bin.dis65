@@ -31,7 +31,22 @@
 "ExtensionScriptFileIdentifiers":["RT:Apple/ProDOS8.cs",
 "RT:Apple/VisHiRes.cs"],
 "ProjectSyms":{
-}},
+"TMP_COUNTER":{
+"DataDescriptor":{
+"Length":1,
+"Format":"NumericLE",
+"SubFormat":"Hex",
+"SymbolRef":null},
+
+"Comment":"",
+"HasWidth":false,
+"Direction":"ReadWrite",
+"MultiMask":null,
+"Label":"TMP_COUNTER",
+"Value":51398,
+"Source":"Project",
+"Type":"ExternalAddr",
+"LabelAnno":"None"}}},
 
 "AddressMap":[{
 "Offset":0,
@@ -74,25 +89,49 @@
 },
 
 "Comments":{
-"36":"CALL_FN_0C",
+"7":"ERROR NOWRITE",
+"28":"FORMAT_UNIT",
+"36":"CALL_FN_0C - Set New SDAT",
+"46":"CALL_FN_X6",
 "82":"CALL_FN_C3",
 "207":"CALL_FN_1F",
 "220":"CALL_FN_2F",
 "233":"CALL_FN_0F",
+"248":"CALL_FN_20",
 "278":"CALL_FN_47",
 "356":"branch if SCSI READ6 command",
 "358":"redundant ???",
+"423":"load REQUEST_SENSE at $c901",
 "425":"CALL_FN_49",
+"428":"load REQUEST_SENSE at $c901",
+"433":"get SENSE KEY",
+"438":"SENSE_KEY==UNIT_ATTENTION",
+"442":"SENSE_KEY==NOT_READY",
+"444":"likely a bug - the mask for sense key should be $F",
+"448":"branch if recoverable error",
+"464":"process ASC from SENSE_DATA at $c901",
+"467":"load ASC (additional sense code)",
+"489":"ERROR_IOERROR",
 "507":"CALL_FN_0C",
-"517":"CALL_FN_A3",
-"580":"TEMP_c8c6 count from 0 to 9",
-"616":"TEMP_c8c6 count from 0 to 9",
+"512":"number of retrys",
+"517":"CALL_FN_A3 - SEND CMD_TEST_UNIT_READY",
+"577":"TEMP_c8c6 count from 0 to 9",
+"605":"useful?",
+"613":"TEMP_c8c6 count from 0 to 9",
 "642":"CALL_FN_21",
-"647":"CALL_FN_3D",
+"647":"CALL_FN_3D - auto select XFER_MODE",
 "674":"CALL_FN_41",
-"685":"CALL_FN_A0",
+"677":"Do Phases",
+"680":"Data Xin",
+"685":"CALL_FN_A0 - Get status and message",
+"688":"check status",
 "702":"CALL_FN_51",
-"713":"CALL_FN_A0",
+"705":"Do Phases",
+"708":"Data Xout",
+"713":"CALL_FN_A0 - Get status and message",
+"723":"CALL_FN_X6",
+"729":"CALL_FN_01",
+"733":"CALL_FN_11",
 "751":"try to call FN_36 twice",
 "764":"call to FN_36 was successfull",
 "769":"loop one more time",
@@ -112,7 +151,8 @@
 "861":"return success",
 "862":"very similar to SCSI SELECT",
 "922":"CALL_FN_3A",
-"927":"CALL_FN_4B"},
+"927":"CALL_FN_4B",
+"946":"CALL_FN_60_RET"},
 
 "LongComments":{
 "-2147483647":{
@@ -203,7 +243,7 @@
 "LabelAnno":"None"},
 
 "41":{
-"Label":"CALL_FN_X06_SY",
+"Label":"CALL_FN_X6_SY",
 "Value":52265,
 "Source":"User",
 "Type":"LocalOrGlobalAddr",
@@ -217,7 +257,7 @@
 "LabelAnno":"None"},
 
 "721":{
-"Label":"CALL_FN_X06",
+"Label":"CALL_FN_X6",
 "Value":52945,
 "Source":"User",
 "Type":"LocalOrGlobalAddr",
@@ -333,9 +373,143 @@
 "Value":52968,
 "Source":"User",
 "Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"939":{
+"Label":"CALL_FN_60_RET",
+"Value":53163,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"418":{
+"Label":"ERROR_IOERROR",
+"Value":52642,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"423":{
+"Label":"CALL_FN_49",
+"Value":52647,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"608":{
+"Label":"io_error",
+"Value":52832,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"695":{
+"Label":"ret_ok",
+"Value":52919,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"688":{
+"Label":"CHECK_STATUS_RET",
+"Value":52912,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"735":{
+"Label":"SET_BUF_PTR_CA00",
+"Value":52959,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"12":{
+"Label":"not_write_protected",
+"Value":52236,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"549":{
+"Label":"FN_56_ret_ok",
+"Value":52773,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"559":{
+"Label":"DELAY_C0FF",
+"Value":52783,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"564":{
+"Label":"delay_loop",
+"Value":52788,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"515":{
+"Label":"FN_65_try_again",
+"Value":52739,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"458":{
+"Label":"LDA_ASC",
+"Value":52682,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"495":{
+"Label":"RET_ERROR",
+"Value":52719,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"493":{
+"Label":"ERROR_DISKSWITCH",
+"Value":52717,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"501":{
+"Label":"ERROR_OFFLINE",
+"Value":52725,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"454":{
+"Label":"sense_end",
+"Value":52678,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"453":{
+"Label":"recoverable",
+"Value":52677,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
+"7":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"P8E_WRITE_PROT",
+"Part":"Low"}},
+
 "354":{
 "Length":2,
 "Format":"NumericLE",
@@ -350,6 +524,14 @@
 "SubFormat":"Symbol",
 "SymbolRef":{
 "Label":"SCSI_CMD_WRITE6",
+"Part":"Low"}},
+
+"418":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"P8E_IO_ERR",
 "Part":"Low"}},
 
 "949":{
