@@ -96,6 +96,8 @@
 "119":"CALL_FN_4C",
 "154":"set expectation for DATA IN phase",
 "177":"branch if phase mismatch",
+"187":"branch if not init",
+"194":"branch if in boot sequence",
 "198":"ERROR_IOERROR",
 "203":"ERROR_IOERROR",
 "210":"set expectation for DATA OUT phase",
@@ -103,10 +105,17 @@
 "251":"advance the index",
 "254":"advance the pointer if necessary",
 "267":"assert ACK",
-"275":"wait for REQ deassertion",
+"270":"WAIT FOR REQ ASSERTION",
+"273":"REQ mask bit",
+"275":"branch if REQ not asserted",
 "279":"deassert ACK",
-"287":"wait for REQ deassertion",
+"282":"WAIT for REQ DEASSERTION",
+"285":"REQ mask bit",
+"287":"branch if REQ asserted",
 "294":"branch if phase mismatch",
+"302":"SP CMD Control",
+"304":"branch if command not control",
+"306":"return the # of bytes read",
 "333":"put data on SCSI BUS",
 "338":"enable SCSI DATA buffers",
 "342":"wait for REQ asserted by target",
@@ -138,18 +147,20 @@
 "705":"branch on DRQ asserted",
 "712":"branch on phase mismatch",
 "714":"now TCOUNT is timeout",
-"801":"clear 10 bytes starting at 0xc8f5",
+"803":"clear 12 bytes starting at 0xc8f5",
 "807":"TMP_PTR = $c8f5",
 "822":"*($c8f5+2)=$c8f9",
 "833":"*$(c8f5+7)=$04",
 "835":"copy SCSI CDB block number starting at offset $c8f5+9",
 "850":"CALL_FN_03",
+"857":"CALL_FN_X1",
 "860":"READ STATUS and MESSAGE",
 "862":"set expectation for STATUS phase",
 "873":"set expectation for MESSAGE IN phase",
 "893":"CALL_FN_04",
 "896":"load CDB READ6",
-"901":"load CDB WRTIE6"},
+"901":"load CDB WRTIE6",
+"945":"CALL_FN_60_RET"},
 
 "LongComments":{
 "-2147483647":{
@@ -303,7 +314,7 @@
 "LabelAnno":"None"},
 
 "780":{
-"Label":"RESTORE_EMULATION_MODE",
+"Label":"RESTORE_EMU_IF_NEEDED",
 "Value":53004,
 "Source":"User",
 "Type":"GlobalAddr",
@@ -671,6 +682,62 @@
 "Value":52280,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"1017":{
+"Label":"DO_CALL_FN",
+"Value":53241,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"948":{
+"Label":"FN_TABLE",
+"Value":53172,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"246":{
+"Label":"native_not_req",
+"Value":52470,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"251":{
+"Label":"data_read",
+"Value":52475,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"314":{
+"Label":"not_control",
+"Value":52538,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"299":{
+"Label":"done_reading",
+"Value":52523,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"625":{
+"Label":"RET_27_RESTORE",
+"Value":52849,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"622":{
+"Label":"RESTORE_EMU_IF_NEEDED_LOCAL",
+"Value":52846,
+"Source":"User",
+"Type":"GlobalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -682,12 +749,100 @@
 "Label":"SCSI_CMD_READ6",
 "Part":"Low"}},
 
+"196":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"P8E_IO_ERR",
+"Part":"Low"}},
+
+"201":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"P8E_IO_ERR",
+"Part":"Low"}},
+
 "510":{
 "Length":3,
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
 "Label":"REG_5380_STAT2",
+"Part":"Low"}},
+
+"531":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_DRQ",
+"Part":"Low"}},
+
+"546":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_5380_STAT",
+"Part":"Low"}},
+
+"553":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_DRQ",
+"Part":"Low"}},
+
+"560":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_DRQ",
+"Part":"Low"}},
+
+"565":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_5380_STAT2",
+"Part":"Low"}},
+
+"576":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_PDMA_DACK",
+"Part":"Low"}},
+
+"597":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_DRQ",
+"Part":"Low"}},
+
+"602":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_5380_STAT2",
+"Part":"Low"}},
+
+"616":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_PDMA_DACK",
 "Part":"Low"}},
 
 "896":{

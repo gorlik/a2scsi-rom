@@ -3,6 +3,7 @@
          .setcpu "65816"
 SCSI_CMD_READ6 = $08
 SCSI_CMD_WRITE6 = $0a
+P8E_IO_ERR =     $27        ;I/O error
 
 TMP_PTR1 =       $1b        ; temporary ZP pointer 
 PD_PAR_BLK_LO =  $46        ;PRODOS input parameter Block lo
@@ -12,8 +13,6 @@ TMP_PTR_H =      $f7
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
 BUF_PTR_H =      $fb
 BUF_PTR_VH =     $fc
-P8_IBAKVER =     $bffc      ;undefined; reserved for future use
-P8_KVERSION =    $bfff      ;version no. (release ID)
 REG_5380_DATA =  $c000      ; R current SCSI data lines status
 REG_5380_DATA_OUT = $c000   ; W SCSI data output register
 REG_5380_ICMD =  $c001      ; RW Initiator command register
@@ -164,14 +163,14 @@ func_return:
 
 IOERROR: lda     INIT_FLAG
          cmp     #$77
-         bne     @ret_code_only
+         bne     @ret_code_only ;branch if not init
          lda     BOOT_SEQ
          cmp     #$55
-         beq     @ret_code_only
-         lda     #$27
+         beq     @ret_code_only ;branch if in boot sequence
+         lda     #P8E_IO_ERR
          jsr     CALL_FN_60_RET ;ERROR_IOERROR
 @ret_code_only:
-         lda     #$27
+         lda     #P8E_IO_ERR
          sta     RET_CODE   ;ERROR_IOERROR
          bne     func_return
 
@@ -195,14 +194,16 @@ READ_BYTES_PIO:
          ldy     #$00       ;Read SCSI DATA
 @read_more_data:
          jsr     CHECK_NATIVE_NEEDED
-         bcc     @LCCF6
+         bcc     @native_not_req
          lda     REG_5380_DATA,x
          sta     [BUF_PTR_L],y
-         jmp     @LCCFB
+         jmp     @data_read
 
-@LCCF6:  lda     REG_5380_DATA,x
+@native_not_req:
+         lda     REG_5380_DATA,x
          sta     (BUF_PTR_L),y
-@LCCFB:  iny                ;advance the index
+@data_read:
+         iny                ;advance the index
          bne     @end_ptr_inc
          inc     BUF_PTR_H  ;advance the pointer if necessary
          bne     @end_ptr_inc
@@ -213,29 +214,31 @@ READ_BYTES_PIO:
          lda     #$10
          sta     REG_5380_ICMD,x ;assert ACK
 @req_loop1:
-         lda     REG_5380_STAT,x
-         and     #$20
-         bne     @req_loop1 ;wait for REQ deassertion
+         lda     REG_5380_STAT,x ;WAIT FOR REQ ASSERTION
+         and     #$20       ;REQ mask bit
+         bne     @req_loop1 ;branch if REQ not asserted
          lda     #$00
          sta     REG_5380_ICMD,x ;deassert ACK
 @req_loop2:
-         lda     REG_5380_STAT,x
-         and     #$20
-         beq     @req_loop2 ;wait for REQ deassertion
+         lda     REG_5380_STAT,x ;WAIT for REQ DEASSERTION
+         and     #$20       ;REQ mask bit
+         beq     @req_loop2 ;branch if REQ asserted
          lda     REG_5380_STAT2,x
          and     #$08
-         beq     @LCD2B     ;branch if phase mismatch
+         beq     @done_reading ;branch if phase mismatch
          jmp     @read_more_data
 
-@LCD2B:  lda     SAVE_SP_CMD_B
-         cmp     #$04
-         bne     @LCD3A
-         sty     RX_LEN_LO
+@done_reading:
+         lda     SAVE_SP_CMD_B
+         cmp     #$04       ;SP CMD Control
+         bne     @not_control ;branch if command not control
+         sty     RX_LEN_LO  ;return the # of bytes read
          ldy     #$00
          sty     RX_LEN_HI
-@LCD3A:  txa
+@not_control:
+         txa
          tay
-         jmp     RESTORE_EMULATION_MODE
+         jmp     RESTORE_EMU_IF_NEEDED
 
 WRITE_BYTES_PIO:
          ldy     #$00
@@ -276,7 +279,7 @@ WRITE_BYTES_PIO:
 @write_pio_end:
          txa
          tay
-         jmp     RESTORE_EMULATION_MODE
+         jmp     RESTORE_EMU_IF_NEEDED
 
 DELAY_FF:
          lda     #$ff
@@ -357,28 +360,28 @@ WAIT_FOR_PHASE_MISMATCH:
          rts
 
 LCE10:   jsr     SET_TIMEOUT_02
-@LCE13:  lda     REG_5380_STAT2,x
+@LCE13:  lda     REG_IO_DRQ-9,x
          bmi     @LCE3E
 @LCE18:  dec     TCOUNT_B0
          bne     @LCE22
          dec     TCOUNT_B1
-         beq     @LCE71
-@LCE22:  lda     P8_IBAKVER-1,x
+         beq     RET_27_RESTORE
+@LCE22:  lda     REG_5380_STAT-9,x
          and     #$20
          bne     @LCE30
-         lda     REG_5380_STAT2,x
+         lda     REG_IO_DRQ-9,x
          bmi     @LCE3E
          bpl     @LCE18
 
-@LCE30:  lda     REG_5380_STAT2,x
+@LCE30:  lda     REG_IO_DRQ-9,x
          bmi     @LCE3E
-         lda     P8_IBAKVER,x
+         lda     REG_5380_STAT2-9,x
          and     #$08
-         beq     @LCE6E
+         beq     RESTORE_EMU_IF_NEEDED_LOCAL
          bne     @LCE18
 
 @LCE3E:  lda     (BUF_PTR_L),y
-         sta     P8_KVERSION,x
+         sta     REG_IO_PDMA_DACK-9,x
          iny
          bne     @LCE13
          dec     TCOUNT_B2
@@ -388,24 +391,26 @@ LCE10:   jsr     SET_TIMEOUT_02
 
 @LCE50:  lda     #$00
          sta     TCOUNT_B2
-@LCE55:  lda     REG_5380_STAT2,x
+@LCE55:  lda     REG_IO_DRQ-9,x
          bmi     @LCE68
-         lda     P8_IBAKVER,x
+         lda     REG_5380_STAT2-9,x
          and     #$08
-         beq     @LCE6E
+         beq     RESTORE_EMU_IF_NEEDED_LOCAL
          dec     TCOUNT_B2
-         beq     @LCE71
+         beq     RET_27_RESTORE
          bne     @LCE55
 
-@LCE68:  sta     P8_KVERSION,x
+@LCE68:  sta     REG_IO_PDMA_DACK-9,x
          clc
          bcc     @LCE55
 
-@LCE6E:  jmp     RESTORE_EMULATION_MODE
+RESTORE_EMU_IF_NEEDED_LOCAL:
+         jmp     RESTORE_EMU_IF_NEEDED
 
-@LCE71:  lda     #$27
+RET_27_RESTORE:
+         lda     #$27
          sta     RET_CODE
-         bne     @LCE6E
+         bne     RESTORE_EMU_IF_NEEDED_LOCAL
 
 SET_TIMEOUT_02:
          lda     #$00
@@ -464,7 +469,7 @@ DMA_READ:
          bcc     @end_dma_loop
 
 RESTORE_EMULATION_NEAR:
-         jmp     RESTORE_EMULATION_MODE
+         jmp     RESTORE_EMU_IF_NEEDED
 
 RET_27:  lda     #$27
          sta     RET_CODE
@@ -503,7 +508,7 @@ SET_NATIVE_MODE:
          xce
          rts
 
-RESTORE_EMULATION_MODE:
+RESTORE_EMU_IF_NEEDED:
          lda     CALL_TYPE
          and     #$40
          beq     @restore_mode_end
@@ -516,8 +521,8 @@ RESTORE_EMULATION_MODE:
 @restore_mode_end:
          rts
 
-FN_21:   lda     #$f5       ;clear 10 bytes starting at 0xc8f5
-         sta     TMP_PTR_L
+FN_21:   lda     #$f5
+         sta     TMP_PTR_L  ;clear 12 bytes starting at 0xc8f5
          lda     #$c8
          sta     TMP_PTR_H  ;TMP_PTR = $c8f5
          lda     #$00
@@ -548,7 +553,7 @@ FN_21:   lda     #$f5       ;clear 10 bytes starting at 0xc8f5
 CALL_FN_X1:
          ldx     #$01
          ldy     SAVE_Y
-         jmp     BANKSWITCH
+         jmp     BANKSWITCH ;CALL_FN_X1
 
 FN_31:   lda     #$03       ;READ STATUS and MESSAGE
          jsr     SET_PHASE_AND_READ_STAT_OR_MSG ;set expectation for STATUS phase
@@ -591,9 +596,10 @@ CALL_FN_60_RET:
          sta     RET_CODE
          lda     #$60
          ldx     #$00
-         jmp     BANKSWITCH
+         jmp     BANKSWITCH ;CALL_FN_60_RET
 
-LCFB4:   .word   FN_01
+FN_TABLE:
+         .word   FN_01
          .word   FN_11
          .word   FN_21
          .word   FN_31
@@ -625,19 +631,20 @@ BANKSWITCH:
          ror     A
          ror     A
          tax
-         lda     LCFB4,x
+         lda     FN_TABLE,x
          sta     TMP_PTR1
          inx
-         lda     LCFB4,x
+         lda     FN_TABLE,x
          sta     TMP_PTR1+1
-         jsr     @LCFF9
+         jsr     DO_CALL_FN
          pla
          and     #$0f
          sta     REG_IO_BANK_SEL,y
          clc
          rts
 
-@LCFF9:  jmp     (TMP_PTR1)
+DO_CALL_FN:
+         jmp     (TMP_PTR1)
 
          .byte   $02
          .byte   $31
