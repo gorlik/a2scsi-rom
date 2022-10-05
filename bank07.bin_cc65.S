@@ -1,6 +1,8 @@
 ; Target assembler: cc65 v2.18.0 [--target none -C bank07.bin_cc65.cfg]
 ; 6502bench SourceGen v1.8.3
          .setcpu "65816"
+SCSI_CMD_READ6 = $08
+
 TMP_PTR0 =       $19        ; temporary ZP pointer 
 TMP_PTR1 =       $1b        ; temporary ZP pointer 
 PD_PAR_BLK_LO =  $46        ;PRODOS input parameter Block lo
@@ -30,62 +32,69 @@ SAVE_Y   =       $c81a      ; slot adress (n+8)<<4
 SAVE_SP_CMD_B =  $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
-UNK_c8cf =       $c8cf      ; unknown
-PTR_c8d0 =       $c8d0      ; temp pointer storage (?)
+NUM_PART =       $c8ce      ; number of partition on the device - only used in bank 07
+UNK_c8cf =       $c8cf      ; $00 if failed to read Partition Map. $ff if PM detected
+TEMP_c8d0 =      $c8d0      ; temp int storage (size of DDM block?)
+TMP_COUNT =      $c8d6      ; temp counter - only used in bank 07
 PTR_c8d7 =       $c8d7      ; temp pointer storage (?)
 TEMP_c8da =      $c8da      ;unknown
-SAVE_SP_UNIT =   $c8e8      ; saved Smartport UNIT number
+SAVE_XFER_MODE_ALT = $c8e7  ; saved XFER_MODE ? - seems used only in bank 7 as a temp
 IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
-BLKSIZE_H =      $c92f      ;byte1 of block size
+BLKSIZE_H =      $c92f      ;byte1 of block size - reverse endian
 
          .org    $cc00
          .a8
          .i8
-FN_07:   jsr     @LCC30
+FN_07:   jsr     CALL_B1_c800
          jsr     LCC51
-         jsr     @LCC3E
+         jsr     CALL_FN_00 ;Do Phases
          lda     SCSI_CDB_CMD
-         cmp     #$08
+         cmp     #SCSI_CMD_READ6
          beq     @LCC1A
          jsr     LCCFB
-         jsr     LCC4D
+         jsr     CALL_FN_71
          lda     #$65
          bne     @LCC22
 
 @LCC1A:  jsr     LCCE7
-         jsr     LCC49
+         jsr     CALL_FN_61
          lda     #$55
-@LCC22:  jsr     LCC40
-         jmp     @LCC28
+@LCC22:  jsr     CALL_FN_X7 ;CALL_FN_55
+         jmp     @LCC28     ;redundant
 
 @LCC28:  jsr     LCD0F
          lda     #$30
-         jmp     LCC40
+         jmp     CALL_FN_X7 ;CALL_FN_30
 
-@LCC30:  lda     #$17
+CALL_B1_c800:
+         lda     #$17
          sta     REG_IO_BANK_SEL,y ;set ram bank 01
          jsr     $c800
          lda     #$07
          sta     REG_IO_BANK_SEL,y ;set ram bank 00
          rts
 
-@LCC3E:  lda     #$00
-LCC40:   ldy     SAVE_Y
+CALL_FN_00:
+         lda     #$00       ;CALL_FN_00
+CALL_FN_X7:
+         ldy     SAVE_Y
          ldx     #$07
-         jsr     BANKSWITCH
+         jsr     BANKSWITCH ;CALL_FN_X7
          rts
 
-LCC49:   lda     #$61
-         bne     LCC40
+CALL_FN_61:
+         lda     #$61
+         bne     CALL_FN_X7 ;CALL_FN_61
 
-LCC4D:   lda     #$71
-         bne     LCC40
+CALL_FN_71:
+         lda     #$71
+         bne     CALL_FN_X7 ;CALL_FN_71
 
 LCC51:   jsr     @LCC95
          lda     SAVE_SP_CMD_B
-         and     #$0f
-         cmp     #$08
-         bne     @LCC61
+         and     #$0f       ;mask extended cmd bit
+         cmp     #$08       ;SP CMD Read
+         bne     @LCC61     ;branch if not a read command
 @LCC5D:  sta     SCSI_CDB_CMD
          rts
 
@@ -139,7 +148,7 @@ LCC51:   jsr     @LCC95
          sta     SCSI_CDB_CMD,x
          dex
          beq     @LCC8A
-@LCC95:  jsr     @LCC8B
+@LCC95:  jsr     @LCC8B     ;seems a bug
          lda     CALL_TYPE
          and     #$40
          beq     @LCCA4
@@ -181,60 +190,63 @@ LCC51:   jsr     @LCC95
          sta     BUF_PTR_XH
          jmp     @LCCC6
 
-LCCE7:   jsr     LCD23
+LCCE7:   jsr     SET_TIMEOUT_03
 @LCCEA:  lda     REG_5380_STAT,y
          and     #$1c
          cmp     #$04
          beq     @LCCFA
-         jsr     LCD31
-         bcs     LCD44
+         jsr     DEC_TIMEOUT
+         bcs     ERROR_IOERROR
          bcc     @LCCEA
 
 @LCCFA:  rts
 
-LCCFB:   jsr     LCD23
+LCCFB:   jsr     SET_TIMEOUT_03
 @LCCFE:  lda     REG_5380_STAT,y
          and     #$1c
          cmp     #$00
          beq     @LCD0E
-         jsr     LCD31
-         bcs     LCD44
+         jsr     DEC_TIMEOUT
+         bcs     ERROR_IOERROR
          bcc     @LCCFE
 
 @LCD0E:  rts
 
-LCD0F:   jsr     LCD23
+LCD0F:   jsr     SET_TIMEOUT_03
 @LCD12:  lda     REG_5380_STAT,y
          and     #$1c
          cmp     #$0c
          beq     @LCD22
-         jsr     LCD31
-         bcs     LCD44
+         jsr     DEC_TIMEOUT
+         bcs     ERROR_IOERROR
          bcc     @LCD12
 
 @LCD22:  rts
 
-LCD23:   lda     #$ff
+SET_TIMEOUT_03:
+         lda     #$ff
          sta     TCOUNT_B0
          sta     TCOUNT_B2
          lda     #$03
          sta     TCOUNT_B1
          rts
 
-LCD31:   dec     TCOUNT_B0
+DEC_TIMEOUT:
+         dec     TCOUNT_B0
          bne     @LCD40
          dec     TCOUNT_B2
          bne     @LCD40
          dec     TCOUNT_B1
-         beq     @LCD42
+         beq     @LCD42     ;likely a bug - should be bmi
 @LCD40:  clc
          rts
 
 @LCD42:  sec
          rts
 
-LCD44:   lda     #$27
-         jmp     LCFA6
+ERROR_IOERROR:
+         lda     #$27
+         jmp     CALL_FN_60_RET
 
 FN_37:   lda     #$00
          sta     TEMP_c8da-1
@@ -246,11 +258,11 @@ FN_37:   lda     #$00
          cmp     #$44
          beq     @LCD88
 @LCD60:  jsr     @LCD8C
-         jsr     FN_17
+         jsr     FN_17      ;Read DDM and master PDM
          lda     UNK_c8cf
-         beq     @LCD74
-         jsr     LCDD9
-         lda     SAVE_SP_UNIT-1
+         beq     @LCD74     ;branch if DDM/PDM read failed
+         jsr     FILL_SDAT_TABLE
+         lda     SAVE_XFER_MODE_ALT
          sta     XFER_MODE
 @LCD74:  lda     $c92d
          cmp     #$05
@@ -259,7 +271,7 @@ FN_37:   lda     #$00
          lda     UNK_c8cf
          bne     @LCD88
          lda     #$69
-         jmp     LCC40
+         jmp     CALL_FN_X7 ;CALL_FN_69
 
 @LCD88:  ldy     SAVE_Y
          rts
@@ -268,14 +280,14 @@ FN_37:   lda     #$00
          cmp     #$44
          beq     @LCDAC
          lda     #$4d
-         jsr     LCC40
+         jsr     CALL_FN_X7 ;CALL_FN_4D
          ldx     #$00
          lda     $ca00,x
          cmp     #$05
          bne     @LCDAC
          sta     $c92d
          lda     #$59
-         jmp     LCC40
+         jmp     CALL_FN_X7 ;CALL_FN_59
 
          .byte   $8c
          .byte   $2d
@@ -283,143 +295,162 @@ FN_37:   lda     #$00
 
 @LCDAC:  rts
 
-FN_17:   lda     XFER_MODE
-         sta     SAVE_SP_UNIT-1
+FN_17:   lda     XFER_MODE  ;READ DDM and master PDM
+         sta     SAVE_XFER_MODE_ALT
          lda     CALL_TYPE
          and     #$3f
-         sta     CALL_TYPE
-         jsr     LCEF1
-         bcs     @LCDCD
+         sta     CALL_TYPE  ;strip extended flag from CALL_TYPE
+         jsr     READ_DDM
+         bcs     @FN_17_fail ;branch if failed to read DDM
          lda     #$01
-         sta     PD_PAR_BLK_LO
-         jsr     LCECA
-         bcs     @LCDCD
+         sta     PD_PAR_BLK_LO ;set block to 1
+         jsr     READ_PDM   ;Read PDM
+         bcs     @FN_17_fail
          lda     #$ff
-         bne     @LCDCF
+         bne     @FN_17_end
 
-@LCDCD:  lda     #$00
-@LCDCF:  sta     UNK_c8cf
-         lda     SAVE_SP_UNIT-1
+@FN_17_fail:
+         lda     #$00
+@FN_17_end:
+         sta     UNK_c8cf
+         lda     SAVE_XFER_MODE_ALT
          sta     XFER_MODE
          rts
 
-LCDD9:   lda     #$00
-         sta     PTR_c8d7-1
+FILL_SDAT_TABLE:
+         lda     #$00
+         sta     TMP_COUNT
          ldy     #$07
-         lda     (BUF_PTR_L),y
-         sta     UNK_c8cf-1
-@LCDE5:  jsr     LCF54
-         bcs     @LCDED
-         jsr     @LCE0A
-@LCDED:  inc     PTR_c8d7-1
-         lda     PTR_c8d7-1
-         cmp     UNK_c8cf-1
-         beq     @LCE03
-         clc
+         lda     (BUF_PTR_L),y ;read total number of partitions on the device
+         sta     NUM_PART   ;read and parse NUM_PART PDM
+@next_pdm:
+         jsr     CALL_FN_0E_CARRY
+         bcs     @skip_make_entry ;skip parsing if partition not recognized ???
+         jsr     NEW_SDAT_ENTRY
+@skip_make_entry:
+         inc     TMP_COUNT
+         lda     TMP_COUNT
+         cmp     NUM_PART
+         beq     @done_reading_pdm
+         clc                ;add 1 to block
          adc     #$01
          sta     PD_PAR_BLK_LO
-         jsr     LCECA
-         jmp     @LCDE5
+         jsr     READ_PDM   ;read next PDM
+         jmp     @next_pdm
 
-@LCE03:  lda     TEMP_c8da-1
+@done_reading_pdm:
+         lda     TEMP_c8da-1
          sta     UNK_c8cf
          rts
 
-@LCE0A:  inc     TEMP_c8da-1
-         jsr     FN_57
+NEW_SDAT_ENTRY:
+         inc     TEMP_c8da-1 ;add partition to SDAT
+         jsr     FN_57      ;Find empty SDAT -> TMP_PTR0
          ldy     #$00
          lda     #$86
-         sta     (TMP_PTR0),y
-         jsr     @LCE1F
-         jsr     @LCE3E
-         jmp     @LCE6D
+         sta     (TMP_PTR0),y ;put signature in SDAT entry
+         jsr     GET_PART_SIZE_START ;*$C8D2=partition size; PART_START=partition start
+         jsr     FILL_SDAT_ENTRY
+         jmp     FILL_ID_TIMEOUT
 
-@LCE1F:  ldy     #$0c
-         ldx     #$00
-@LCE23:  lda     (BUF_PTR_L),y
+GET_PART_SIZE_START:
+         ldy     #$0c
+         ldx     #$00       ;copy partiton size ($0c is the offset in the PDM) to $c8d2
+@size_copy_loop:
+         lda     (BUF_PTR_L),y
          sta     $c8d2,x
          iny
          inx
          cpy     #$10
-         bne     @LCE23
-         ldy     #$09
+         bne     @size_copy_loop
+         ldy     #$09       ;copy 3 lsb of partition start to PART_START
          ldx     #$00
-@LCE32:  lda     (BUF_PTR_L),y
+@start_copy_loop:
+         lda     (BUF_PTR_L),y
          sta     PART_START,x
          iny
          inx
          cpy     #$0c
-         bne     @LCE32
+         bne     @start_copy_loop
          rts
 
-@LCE3E:  jsr     LCF86
+FILL_SDAT_ENTRY:
+         jsr     CLR_SDAT_ENTRY ;keeps signature ID intact
          ldy     #$07
-         lda     PTR_c8d0
+         lda     TEMP_c8d0
          sta     (TMP_PTR0),y
          iny
-         lda     PTR_c8d0+1
-         sta     (TMP_PTR0),y
+         lda     TEMP_c8d0+1
+         sta     (TMP_PTR0),y ;fill the bytes per block
          ldy     #$01
          ldx     #$00
-@LCE52:  lda     $c8d2,x
+@blk_count_cpy_loop:
+         lda     $c8d2,x
          sta     (TMP_PTR0),y
          iny
          inx
          cpy     #$05
-         bne     @LCE52
+         bne     @blk_count_cpy_loop ;fill the block count
          ldy     #$0a
          ldx     #$00
-@LCE61:  lda     PART_START,x
+@start_cpy_loop:
+         lda     PART_START,x
          sta     (TMP_PTR0),y
          iny
          inx
          cpy     #$0d
-         bne     @LCE61
+         bne     @start_cpy_loop ;fill partition start
          rts
 
-@LCE6D:  ldy     #$0d
+FILL_ID_TIMEOUT:
+         ldy     #$0d
          lda     SEL_TARGET
-         sta     (TMP_PTR0),y
+         sta     (TMP_PTR0),y ;fill SDAT entry software ID
          iny
          lda     #$0c
-         sta     (TMP_PTR0),y
+         sta     (TMP_PTR0),y ;fill SDAT entry timeout
          rts
 
-FN_57:   lda     #$31
+FN_57:   lda     #$31       ;Find empty SDAT (TMP_PTR0 points to the first free entry)
          sta     TMP_PTR0
          lda     #$c8
-         sta     TMP_PTR0+1
+         sta     TMP_PTR0+1 ;TMP_PTR0=SDAT_BASE
          ldy     #$00
-         lda     (TMP_PTR0),y
-         cmp     #$86
-         beq     @LCE8C
-         bne     @LCEA4
+         lda     (TMP_PTR0),y ;load SDAT_ID
+         cmp     #$86       ;check for signature
+         beq     next_entry ;branch if entry already taken
+         bne     FN_57_end  ;branch if entry is free
 
-@LCE8C:  lda     TMP_PTR0
+next_entry:
+         lda     TMP_PTR0
          clc
          adc     #$11
          cmp     #$98
-         bcs     @LCE9C
-         jsr     @LCEA8
-         bcs     @LCE8C
-         bcc     @LCEA4
+         bcs     SET_TMP_PTR_CB00_RET ;branch if table overflow
+         jsr     check_sdat_entry
+         bcs     next_entry ;branch if entry alredy in use
+         bcc     FN_57_end
 
-@LCE9C:  lda     #$00
+SET_TMP_PTR_CB00_RET:
+         lda     #$00
          sta     TMP_PTR0
          lda     #$cb
          sta     TMP_PTR0+1
-@LCEA4:  ldy     SAVE_Y
+FN_57_end:
+         ldy     SAVE_Y
          rts
 
-@LCEA8:  sta     TMP_PTR0
+check_sdat_entry:
+         sta     TMP_PTR0
          ldy     #$00
          lda     (TMP_PTR0),y
          cmp     #$86
-         bne     @LCEB4
+         bne     @entry_free
          sec
          rts
 
-@LCEB4:  clc
+@entry_free:
+         clc
          rts
 
          .byte   $98
@@ -436,55 +467,61 @@ FN_57:   lda     #$31
          .byte   $c8
          .byte   $60
 
-LCECA:   jsr     LCF27
+READ_PDM:
+         jsr     SET_BUF_PTR_CA00
          lda     #$00
          sta     XFER_MODE
          sta     PD_PAR_BLK_HI
-         jsr     LCF63
+         jsr     READ_BLOCK_LBA16
          ldy     #$00
-         jsr     LCF27
+         jsr     SET_BUF_PTR_CA00
          lda     (BUF_PTR_L),y
-         cmp     #$50
-         bne     LCEEC
+         cmp     #$50       ;check for PDM signature
+         bne     RET_CARRY_SET ;branch if not PDM
          iny
          lda     (BUF_PTR_L),y
-         cmp     #$4d
-         bne     LCEEC
+         cmp     #$4d       ;check for PDM signature
+         bne     RET_CARRY_SET ;branch if not PDM
          clc
-         bcc     LCEED
+         bcc     RET_RESTORE_Y
 
-LCEEC:   sec
-LCEED:   ldy     SAVE_Y
+RET_CARRY_SET:
+         sec
+RET_RESTORE_Y:
+         ldy     SAVE_Y
          rts
 
-LCEF1:   jsr     LCF27
+READ_DDM:
+         jsr     SET_BUF_PTR_CA00
          lda     #$00
          sta     XFER_MODE
-         lda     #$00
-         sta     PD_PAR_BLK_HI
+         lda     #$00       ;redundant
+         sta     PD_PAR_BLK_HI ;set block to 0
          sta     PD_PAR_BLK_LO
-         jsr     LCF63
+         jsr     READ_BLOCK_LBA16 ;read BLOCK 0
          ldy     #$00
-         jsr     LCF27
+         jsr     SET_BUF_PTR_CA00
          lda     (BUF_PTR_L),y
-         cmp     #$45
-         bne     @LCF24
+         cmp     #$45       ;Check for DDM signature
+         bne     RET_CARRY_SET_LOCAL ;not DDM block
          iny
          lda     (BUF_PTR_L),y
-         cmp     #$52
-         bne     @LCF24
+         cmp     #$52       ;Check for DDM signature
+         bne     RET_CARRY_SET_LOCAL ;not DDM block
          ldy     #$02
          lda     (BUF_PTR_L),y
-         sta     PTR_c8d0
+         sta     TEMP_c8d0
          iny
          lda     (BUF_PTR_L),y
-         sta     PTR_c8d0+1
+         sta     TEMP_c8d0+1 ;TEMP_c8d0 contains the size in bytes of the DDM (inverse endian)
          clc
-         bcc     LCEED
+         bcc     RET_RESTORE_Y
 
-@LCF24:  jmp     LCEEC
+RET_CARRY_SET_LOCAL:
+         jmp     RET_CARRY_SET ;redundant
 
-LCF27:   lda     #$00
+SET_BUF_PTR_CA00:
+         lda     #$00
          sta     BUF_PTR_L
          lda     #$ca
          sta     BUF_PTR_H
@@ -520,8 +557,9 @@ LCF27:   lda     #$00
          .byte   $38
          .byte   $60
 
-LCF54:   lda     #$0e
-         jsr     LCC40
+CALL_FN_0E_CARRY:
+         lda     #$0e
+         jsr     CALL_FN_X7 ;CALL_FN_0E
          lda     UNK_c8cf
          beq     @LCF60
          clc
@@ -532,7 +570,8 @@ LCF54:   lda     #$0e
 
          .byte   $60
 
-LCF63:   lda     #$08
+READ_BLOCK_LBA16:
+         lda     #SCSI_CMD_READ6
          sta     SCSI_CDB_CMD
          lda     #$06
          sta     SCSI_CMD_LEN
@@ -545,28 +584,31 @@ LCF63:   lda     #$08
          lda     #$01
          sta     SCSI_CDB_LEN
          lda     #$10
-         jmp     LCC40
+         jmp     CALL_FN_X7 ;CALL_FN_10 Data Xin
 
-LCF86:   lda     #$00
+CLR_SDAT_ENTRY:
+         lda     #$00
          ldy     #$10
-@LCF8A:  sta     (TMP_PTR0),y
+@sdat_clr_loop:
+         sta     (TMP_PTR0),y
          dey
-         bne     @LCF8A
+         bne     @sdat_clr_loop
          rts
 
-FN_67:   lda     TMP_PTR_L
+FN_67:   lda     TMP_PTR_L  ;SAVE TMP_PTR to $c8d7
          sta     PTR_c8d7
          lda     TMP_PTR_H
          sta     PTR_c8d7+1
          rts
 
-FN_77:   lda     PTR_c8d7
+FN_77:   lda     PTR_c8d7   ;Restore TMP_PTR from $c8d7
          sta     TMP_PTR_L
          lda     PTR_c8d7+1
          sta     TMP_PTR_H
          rts
 
-LCFA6:   sta     RET_CODE
+CALL_FN_60_RET:
+         sta     RET_CODE
          lda     #$60
          ldx     #$00
          jmp     BANKSWITCH

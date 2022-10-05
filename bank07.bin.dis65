@@ -72,8 +72,73 @@
 },
 
 "Comments":{
+"6":"Do Phases",
+"34":"CALL_FN_55",
+"37":"redundant",
+"45":"CALL_FN_30",
 "50":"set ram bank 01",
-"58":"set ram bank 00"},
+"58":"set ram bank 00",
+"62":"CALL_FN_00",
+"69":"CALL_FN_X7",
+"75":"CALL_FN_61",
+"79":"CALL_FN_71",
+"87":"mask extended cmd bit",
+"89":"SP CMD Read",
+"91":"branch if not a read command",
+"149":"seems a bug",
+"318":"likely a bug - should be bmi",
+"355":"Read DDM and master PDM",
+"361":"branch if DDM/PDM read failed",
+"389":"CALL_FN_69",
+"405":"CALL_FN_4D",
+"422":"CALL_FN_59",
+"429":"READ DDM and master PDM",
+"440":"strip extended flag from CALL_TYPE",
+"446":"branch if failed to read DDM",
+"450":"set block to 1",
+"452":"Read PDM",
+"480":"read total number of partitions on the device",
+"482":"read and parse NUM_PART PDM",
+"488":"skip parsing if partition not recognized ???",
+"504":"add 1 to block",
+"509":"read next PDM",
+"522":"add partition to SDAT",
+"525":"Find empty SDAT -\u003e TMP_PTR0",
+"532":"put signature in SDAT entry",
+"534":"*$C8D2=partition size; PART_START=partition start",
+"545":"copy partiton size ($0c is the offset in the PDM) to $c8d2",
+"558":"copy 3 lsb of partition start to PART_START",
+"574":"keeps signature ID intact",
+"588":"fill the bytes per block",
+"603":"fill the block count",
+"618":"fill partition start",
+"626":"fill SDAT entry software ID",
+"631":"fill SDAT entry timeout",
+"634":"Find empty SDAT (TMP_PTR0 points to the first free entry)",
+"640":"TMP_PTR0=SDAT_BASE",
+"644":"load SDAT_ID",
+"646":"check for signature",
+"648":"branch if entry already taken",
+"650":"branch if entry is free",
+"659":"branch if table overflow",
+"664":"branch if entry alredy in use",
+"734":"check for PDM signature",
+"736":"branch if not PDM",
+"741":"check for PDM signature",
+"743":"branch if not PDM",
+"761":"redundant",
+"763":"set block to 0",
+"767":"read BLOCK 0",
+"777":"Check for DDM signature",
+"779":"not DDM block",
+"784":"Check for DDM signature",
+"786":"not DDM block",
+"798":"TEMP_c8d0 contains the size in bytes of the DDM (inverse endian)",
+"804":"redundant",
+"854":"CALL_FN_0E",
+"899":"CALL_FN_10 Data Xin",
+"912":"SAVE TMP_PTR to $c8d7",
+"923":"Restore TMP_PTR from $c8d7"},
 
 "LongComments":{
 "-2147483647":{
@@ -147,14 +212,296 @@
 "Value":53168,
 "Source":"User",
 "Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"62":{
+"Label":"CALL_FN_00",
+"Value":52286,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"64":{
+"Label":"CALL_FN_X7",
+"Value":52288,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"73":{
+"Label":"CALL_FN_61",
+"Value":52297,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"77":{
+"Label":"CALL_FN_71",
+"Value":52301,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"48":{
+"Label":"CALL_B1_c800",
+"Value":52272,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"291":{
+"Label":"SET_TIMEOUT_03",
+"Value":52515,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"305":{
+"Label":"DEC_TIMEOUT",
+"Value":52529,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"934":{
+"Label":"CALL_FN_60_RET",
+"Value":53158,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"867":{
+"Label":"READ_BLOCK_LBA16",
+"Value":53091,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"807":{
+"Label":"SET_BUF_PTR_CA00",
+"Value":53031,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"748":{
+"Label":"RET_CARRY_SET",
+"Value":52972,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"749":{
+"Label":"RET_RESTORE_Y",
+"Value":52973,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"804":{
+"Label":"RET_CARRY_SET_LOCAL",
+"Value":53028,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"324":{
+"Label":"ERROR_IOERROR",
+"Value":52548,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"753":{
+"Label":"READ_DDM",
+"Value":52977,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"714":{
+"Label":"READ_PDM",
+"Value":52938,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"461":{
+"Label":"FN_17_fail",
+"Value":52685,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"463":{
+"Label":"FN_17_end",
+"Value":52687,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"852":{
+"Label":"CALL_FN_0E_CARRY",
+"Value":53076,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"485":{
+"Label":"next_pdm",
+"Value":52709,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"515":{
+"Label":"done_reading_pdm",
+"Value":52739,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"676":{
+"Label":"FN_57_end",
+"Value":52900,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"680":{
+"Label":"check_sdat_entry",
+"Value":52904,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"692":{
+"Label":"entry_free",
+"Value":52916,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"652":{
+"Label":"next_entry",
+"Value":52876,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"668":{
+"Label":"SET_TMP_PTR_CB00_RET",
+"Value":52892,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"547":{
+"Label":"size_copy_loop",
+"Value":52771,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"562":{
+"Label":"start_copy_loop",
+"Value":52786,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"543":{
+"Label":"GET_PART_SIZE_START",
+"Value":52767,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"902":{
+"Label":"CLR_SDAT_ENTRY",
+"Value":53126,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"906":{
+"Label":"sdat_clr_loop",
+"Value":53130,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"594":{
+"Label":"blk_count_cpy_loop",
+"Value":52818,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"609":{
+"Label":"start_cpy_loop",
+"Value":52833,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"574":{
+"Label":"FILL_SDAT_ENTRY",
+"Value":52798,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"621":{
+"Label":"FILL_ID_TIMEOUT",
+"Value":52845,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"522":{
+"Label":"NEW_SDAT_ENTRY",
+"Value":52746,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"493":{
+"Label":"skip_make_entry",
+"Value":52717,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"473":{
+"Label":"FILL_SDAT_TABLE",
+"Value":52697,
+"Source":"User",
+"Type":"GlobalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
+"12":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_READ6",
+"Part":"Low"}},
+
 "53":{
 "Length":3,
 "Format":"NumericLE",
 "SubFormat":"Hex",
 "SymbolRef":null},
+
+"867":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_READ6",
+"Part":"Low"}},
 
 "944":{
 "Length":2,
