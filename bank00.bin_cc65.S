@@ -3,6 +3,7 @@
          .setcpu "65816"
 SCSI_CMD_READ6 = $08
 SCSI_CMD_WRITE6 = $0a
+P8E_WRITE_PROT = $2b        ;Disk write protected
 
 TMP_PTR0 =       $19        ; temporary ZP pointer 
 TMP_PTR1 =       $1b        ; temporary ZP pointer 
@@ -54,7 +55,7 @@ RX_LEN_LO =      $c8e4      ;bytes read if call successfull
 RX_LEN_HI =      $c8e5      ;bytes read if call successfull
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
-DISABLE_ROM =    $cfff      ; access this to disable ROM for all slots
+CLRROM   =       $cfff      ;disable slot C8 ROM
 MON_SLOOP =      $faba
 
          .org    $cc00
@@ -69,7 +70,7 @@ MON_SLOOP =      $faba
 
          .a8
          .i8
-         lda     DISABLE_ROM ;boot code?
+         lda     CLRROM     ;boot code?
          cld
          php
          sei                ;this fragment retrieves the slot number
@@ -80,7 +81,7 @@ MON_SLOOP =      $faba
          lda     $0100,x    ;retrieve the Cn slot number from the stack
          sta     ACTV_PERIP_SLOT ;store $Cn slot address
          plp                ;restore interrupt
-         lda     DISABLE_ROM
+         lda     CLRROM
          lda     ACTV_PERIP_SLOT
          sta     TMP_PTR0+1
          lda     #$00
@@ -138,7 +139,7 @@ skip_sp: cld
          pha
          lda     TMP_PTR0+1
          pha                ;save $19 and $1A
-         lda     DISABLE_ROM
+         lda     CLRROM
          lda     ACTV_PERIP_SLOT ;A=$Cn
          sta     TMP_PTR0+1
          lda     #$00
@@ -217,7 +218,7 @@ FN_10_DataXin:
 FN_40:   lda     REG_5380_STAT,y
          and     #$1c
          cmp     #$04
-         beq     @B_CD23    ;branch if DATA IN pahse
+         beq     @B_CD23    ;branch if DATA IN phase
          lda     REG_5380_STAT,y
          cmp     #$6c
          beq     @FN_40_timeout ;branch if STATUS phase
@@ -227,7 +228,7 @@ FN_40:   lda     REG_5380_STAT,y
          bne     FN_40
 
 @B_CD23: lda     #$01
-         jsr     CALL_FN_X0 ;CALL_FN_01
+         jsr     CALL_FN_X0 ;CALL_FN_01 - data read (?)
 @FN_40_timeout:
          jsr     FN_A0      ;get STATUS and MESSAGE IN
          jmp     B_CDD7
@@ -245,8 +246,8 @@ FN_30:   lda     REG_5380_STAT,y
          bne     FN_30
 
 @FN_30_read_status:
-         lda     #$03
-         jsr     CALL_FN_04_PHASE_RET ;set expectation for STATUS phase
+         lda     #$03       ;set expectation for STATUS phase
+         jsr     CALL_FN_04_PHASE_RET ;read status and save it to CMD_STATUS
 @FN_30_status_timeout:
          lda     #$00
          sta     TCOUNT_B2
@@ -260,8 +261,8 @@ FN_30:   lda     REG_5380_STAT,y
          bne     @FN_30_msg_loop
 
 @FN_30_read_message:
-         lda     #$07
-         jsr     CALL_FN_04_PHASE ;set expectation for MESSAGE IN phase
+         lda     #$07       ;set expectation for MESSAGE IN phase
+         jsr     CALL_FN_04_PHASE
          lda     #$00
          sta     REG_5380_ICMD,y
          sta     REG_IO_5380_RST,y
@@ -271,7 +272,7 @@ FN_30:   lda     REG_5380_STAT,y
 
 CALL_FN_3A_DUP:
          lda     #$3a
-         jmp     CALL_FN_X0
+         jmp     CALL_FN_X0 ;CALL_FN_3A_DUP
 
 CALL_FN_42:
          lda     #$42
@@ -286,16 +287,16 @@ PRODOS_WRITE:
 FN_20:   jsr     FN_00_DoPhases
 FN_50:   lda     #$11
          jsr     CALL_FN_X0 ;CALL_FN_11 (Data Xout)
-         jsr     FN_A0
+         jsr     FN_A0      ;get STATUS and MESSAGE
          jmp     B_CDD7
 
 ERROR_NOWRITE:
-         lda     #$2b
+         lda     #P8E_WRITE_PROT
          sta     RET_CODE
          jmp     FN_60
 
 FN_00_DoPhases:
-         jsr     CALL_FN_3A
+         jsr     CALL_FN_3A ;BUS_FREE
 FN_B0:   jsr     SCSI_ARBITRATE
          jsr     SCSI_SELECT
          jsr     CALL_FN_14 ;Send SCSI CMD
@@ -323,25 +324,25 @@ PRODOS_FORMAT:
          lda     #$06
          jsr     CALL_FN_X0 ;CALL_FN_06
 B_CDD7:  lda     PD_PAR_BUF_HI
-         cmp     #$08
-         beq     PD_cmd_end
+         cmp     #$08       ;trying to detect boot ???
+         beq     PD_cmd_end ;branch if PD_BUF_H==$08
          lda     INIT_FLAG
          cmp     #$77
-         bne     PD_cmd_end
+         bne     PD_cmd_end ;branch if not init (also during boot)
          lda     RET_CODE
-         bne     scsi_cmd
+         bne     scsi_cmd_end ;branch if RET_CODE!=0
 PD_cmd_end:
          jsr     CALL_FN_12 ;restore ZP and return
          lda     #$00
          clc
          rts
 
-scsi_cmd:
+scsi_cmd_end:
          lda     SCSI_CDB_CMD
-         beq     PD_cmd_end
+         beq     PD_cmd_end ;end if SCSI CMD==TEST_UNIT_READY
          lda     SAVE_SP_CMD_B
-         cmp     #$04
-         beq     PD_cmd_end
+         cmp     #$04       ;smartport CMD Control
+         beq     PD_cmd_end ;end if smartport CMD==Control
          lda     RET_CODE
          cmp     #$02
          beq     CALL_FN_16_and_end
@@ -410,21 +411,21 @@ LOAD_BLOCK_0:
 
 @CALL_FN_45:
          lda     #$45
-         bne     CALL_FN_X0
+         bne     CALL_FN_X0 ;CALL_FN_45
 
 CALL_FN_75:
          lda     #$75
-         bne     CALL_FN_X0
+         bne     CALL_FN_X0 ;CALL_FN_75
 
 CALL_FN_25:
          lda     #$25
 CALL_FN_X0:
          ldx     #$00
-         jmp     BANKSWITCH
+         jmp     BANKSWITCH ;CALL_FN_X0
 
 CALL_FN_3A:
          lda     #$3a
-         bne     CALL_FN_X0
+         bne     CALL_FN_X0 ;CALL_FN_3A
 
 SCSI_ARBITRATE:
          lda     REG_5380_MODE_SEL,y
@@ -560,12 +561,12 @@ SCSI_SELECT:
 
 CALL_FN_14:
          lda     #$14
-         jmp     CALL_FN_X0
+         jmp     CALL_FN_X0 ;CALL_FN_14
 
 CALL_FN_04_PHASE_RET:
          sta     REG_5380_TCMD,y
          lda     #$04
-         jsr     CALL_FN_X0 ;CALL_FN_04 read STAUS and MESSAGE
+         jsr     CALL_FN_X0 ;CALL_FN_04 read STAUS or MESSAGE
          lda     SCSI_RD_c81f
          sta     CMD_STATUS
          sta     RET_CODE
@@ -574,11 +575,11 @@ CALL_FN_04_PHASE_RET:
 CALL_FN_04_PHASE:
          sta     REG_5380_TCMD,y
          lda     #$04
-         jmp     CALL_FN_X0 ;CALL_FN_04 read STATUS and MESSAGE
+         jmp     CALL_FN_X0 ;CALL_FN_04 read STATUS or MESSAGE
 
 CALL_FN_12:
          lda     #$12       ;restore ZP and return
-         jmp     CALL_FN_X0
+         jmp     CALL_FN_X0 ;CALL_FN_12
 
 SAVE_ZP_COPY_PARAM:
          ldx     #$07

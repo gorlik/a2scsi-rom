@@ -129,25 +129,36 @@
 "252":"PRODOS Device Size",
 "254":"PRODOS Device Status",
 "255":"LSB of the PRODOS entry point (MUST be at $CCFF)",
-"272":"branch if DATA IN pahse",
+"272":"branch if DATA IN phase",
 "279":"branch if STATUS phase",
 "281":"decrement TIMEOUT",
-"293":"CALL_FN_01",
+"293":"CALL_FN_01 - data read (?)",
 "296":"get STATUS and MESSAGE IN",
 "312":"detected STATUS phase",
 "316":"detected MESSAGE IN phase",
 "318":"decrement TIMEOUT3",
-"330":"set expectation for STATUS phase",
+"328":"set expectation for STATUS phase",
+"330":"read status and save it to CMD_STATUS",
 "345":"detected MESSAGE IN phase",
-"356":"set expectation for MESSAGE IN phase",
+"354":"set expectation for MESSAGE IN phase",
+"373":"CALL_FN_3A_DUP",
 "378":"Decrement TIMEOUT3",
 "399":"CALL_FN_11 (Data Xout)",
+"402":"get STATUS and MESSAGE",
+"416":"BUS_FREE",
 "425":"Send SCSI CMD",
 "445":"CALL_FN_25",
 "450":"CALL_FN_1D",
 "453":"restore ZP and return",
 "468":"CALL_FN_06",
+"473":"trying to detect boot ???",
+"475":"branch if PD_BUF_H==$08",
+"482":"branch if not init (also during boot)",
+"487":"branch if RET_CODE!=0",
 "489":"restore ZP and return",
+"499":"end if SCSI CMD==TEST_UNIT_READY",
+"504":"smartport CMD Control",
+"506":"end if smartport CMD==Control",
 "515":"PD cmd exit fail",
 "520":"CALL_FN_16",
 "526":"copy PD_PAR_BUF into BUF_PTR",
@@ -166,6 +177,10 @@
 "617":"branch if not bootable",
 "624":"branch if not bootable",
 "635":"jump to bootblock entry point",
+"640":"CALL_FN_45",
+"644":"CALL_FN_75",
+"650":"CALL_FN_X0",
+"655":"CALL_FN_3A",
 "662":"reset arbitrate bit",
 "668":"put scsi id on the bus",
 "676":"set the arbitrate bit",
@@ -187,9 +202,11 @@
 "774":"deassert SEL and disable DATA buffers",
 "779":"unreachable code (copies opf WAIT_NOT_BUSY)",
 "821":"unreachable code",
-"861":"CALL_FN_04 read STAUS and MESSAGE",
-"879":"CALL_FN_04 read STATUS and MESSAGE",
+"853":"CALL_FN_14",
+"861":"CALL_FN_04 read STAUS or MESSAGE",
+"879":"CALL_FN_04 read STATUS or MESSAGE",
 "882":"restore ZP and return",
+"884":"CALL_FN_12",
 "889":"copy from $F6-$FD to $C8A8-C8AF",
 "896":"copy from $15-$1C to $C8B0-C8B7",
 "901":"copy from $42-$49 (PD input param) to $C8BC-C8C3 ",
@@ -512,7 +529,7 @@
 "LabelAnno":"None"},
 
 "496":{
-"Label":"scsi_cmd",
+"Label":"scsi_cmd_end",
 "Value":52720,
 "Source":"User",
 "Type":"LocalOrGlobalAddr",
@@ -692,7 +709,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"DISABLE_ROM",
+"Label":"CLRROM",
 "Part":"Low"}},
 
 "30":{
@@ -700,7 +717,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"DISABLE_ROM",
+"Label":"CLRROM",
 "Part":"Low"}},
 
 "128":{
@@ -716,7 +733,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"DISABLE_ROM",
+"Label":"CLRROM",
 "Part":"Low"}},
 
 "137":{
@@ -747,6 +764,14 @@
 "SubFormat":"Symbol",
 "SymbolRef":{
 "Label":"ENTRY_PRODOS",
+"Part":"Low"}},
+
+"408":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"P8E_WRITE_PROT",
 "Part":"Low"}},
 
 "529":{
