@@ -11,6 +11,8 @@ SCSI_CMD_RELEASE = $17
 SCSI_CMD_MODE_SENSE6 = $1a
 SCSI_CMD_SEND_DIAG = $1d
 SCSI_CMD_READ_CAPACITY = $25
+P8E_IO_ERR =     $27        ;I/O error
+P8E_WRITE_PROT = $2b        ;Disk write protected
 SCSI_CMD_READ_DEFECT_DATA = $37
 
 TMP_PTR0 =       $19        ; temporary ZP pointer 
@@ -47,7 +49,7 @@ SAVE_SP_UNIT =   $c8e8      ; saved Smartport UNIT number
 TEMP_HI  =       $c8ee      ;generic 16-bit temp high byte
 TEMP_LO  =       $c8ef      ;generic 16-bit temp low byte
 IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
-buf_c8f5 =       $c8f5      ;unknown
+buf_c8f5 =       $c8f5      ; seems to be some sort of 12 byte structure ???
 SAVE_XFER_MODE = $c91f
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
@@ -107,13 +109,13 @@ FN_A3:   jsr     LOAD_CDB_TEST_UNIT_READY ;TEST_UNIT_READY
          beq     @FN_A3_end
          lda     #$39
          jsr     CALL_FN_X3 ;CALL_FN_39
-         lda     #$27
+         lda     #P8E_IO_ERR
          jmp     CALL_FN_60_RET ;return fail
 
 @FN_A3_end:
          rts
 
-FN_D3:   jsr     LCE43
+FN_D3:   jsr     WRITE_PROT_CHECK
          jsr     LOAD_CDB_FORMAT ;FORMAT_UNIT
          jsr     CALL_00_Do_Phases ;Do_Phases
 @LCC75:  lda     REG_5380_STAT,y
@@ -123,7 +125,7 @@ FN_D3:   jsr     LCE43
          jsr     CALL_FN_30
          lda     CMD_STATUS
          beq     LCCAF
-         jmp     LCCD9
+         jmp     ERROR_IOERROR
 
 FN_B3:   jsr     LOAD_CDB_REQUEST_SENSE ;REQUEST_SENSE
          jsr     CALL_00_Do_Phases
@@ -154,14 +156,15 @@ FN_C3:   jsr     LOAD_CDB_READ_CAPACITY
          lda     TEMP_LO
          sta     BUF_PTR_H
          lda     RET_CODE
-         beq     LCCDE
+         beq     RET_SY
          lda     INIT_FLAG
          cmp     #$77
-         bne     LCCDE
-LCCD9:   lda     #$27
+         bne     RET_SY     ;branch if not init
+ERROR_IOERROR:
+         lda     #P8E_IO_ERR
          jmp     CALL_FN_60_RET
 
-LCCDE:   ldy     SAVE_Y
+RET_SY:  ldy     SAVE_Y
          rts
 
 LOAD_CDB_RESERVE:
@@ -283,7 +286,7 @@ COPY_BUF_PTR:
 CALL_FN_X3:
          ldy     SAVE_Y
          ldx     #$03
-         jsr     BANKSWITCH
+         jsr     BANKSWITCH ;CALL_FN_X3
          rts
 
 SCSI_CMD_SEND_NO_DATA:
@@ -321,7 +324,7 @@ LCDCE:   lda     TIMEOUT
          rts
 
 LCDE3:   jsr     SET_PIO_MODE
-         jsr     LCE8E
+         jsr     WAIT_FOR_COMMAND_PHASE
          lda     #$01
          jsr     CALL_FN_X3 ;CALL_FN_01
          lda     SAVE_XFER_MODE
@@ -378,16 +381,17 @@ SET_PIO_MODE:
          .byte   $c8
          .byte   $60
 
-LCE43:   lda     DEV_STATUS
-         and     #$04
-         beq     @LCE4F
-         lda     #$2b
+WRITE_PROT_CHECK:
+         lda     DEV_STATUS
+         and     #$04       ;medium write protect bit
+         beq     @not_wp    ;branch if media is not write protected
+         lda     #P8E_WRITE_PROT
          jmp     CALL_FN_60_RET
 
-@LCE4F:  rts
+@not_wp: rts
 
 FN_03_DoStatus:
-         jsr     LCE43
+         jsr     WRITE_PROT_CHECK
          jsr     LOAD_CDB_REASSIGN_BLOCKS ;REASSIGN_BLOCKS
          jsr     CALL_00_Do_Phases
          jsr     LCE67
@@ -402,7 +406,7 @@ LCE67:   ldx     #$03
 @LCE69:  lda     REG_5380_STAT,y
          and     #$1c
          beq     @LCE78
-         jsr     LCE7A
+         jsr     DELAY_10000
          dex
          bne     @LCE69
          sec
@@ -411,28 +415,33 @@ LCE67:   ldx     #$03
 @LCE78:  clc
          rts
 
-LCE7A:   ldy     #$00
+DELAY_10000:
+         ldy     #$00
          sty     TCOUNT_B0
-@LCE7F:  dey
-         bne     @LCE7F
+@delay_loop:
+         dey
+         bne     @delay_loop
          dec     TCOUNT_B0
          lda     TCOUNT_B0
-         bne     @LCE7F
+         bne     @delay_loop
          ldy     SAVE_Y
          rts
 
-LCE8E:   ldx     #$02
-@LCE90:  lda     REG_5380_STAT,y
-         and     #$1c
-         cmp     #$04
-         beq     @LCEA1
-         jsr     LCE7A
+WAIT_FOR_COMMAND_PHASE:
+         ldx     #$02
+@cmd_pahse_loop:
+         lda     REG_5380_STAT,y
+         and     #$1c       ;MSG_CD_IO mask
+         cmp     #$04       ;Command phase
+         beq     @cmd_phase_found ;branch if Command Phase
+         jsr     DELAY_10000
          dex
-         bne     @LCE90
+         bne     @cmd_pahse_loop
          sec
          rts
 
-@LCEA1:  clc
+@cmd_phase_found:
+         clc
          rts
 
 FN_13:   rts
@@ -440,11 +449,12 @@ FN_13:   rts
 FN_23:   jsr     LOAD_CDB_MODE_SENSE6 ;MODE_SENSE
          jsr     CALL_00_Do_Phases
          lda     SCSI_CDB_LEN
-         beq     @LCEB3
+         beq     JMP_FN_30  ;branch if CMD lenght is 0 (nothing to transfer)
          jsr     LCDCE
          rts
 
-@LCEB3:  jmp     CALL_FN_30
+JMP_FN_30:
+         jmp     CALL_FN_30 ;GET STATUS_AND_MESSAGE
 
 FN_33:   jsr     LOAD_CDB_RESERVE
          jmp     SCSI_CMD_SEND_NO_DATA
@@ -466,10 +476,11 @@ FN_53:   jsr     LOAD_CDB_READ_DEFECT
 
 @LCEDA:  jsr     CALL_FN_30
          lda     RET_CODE
-         bne     @LCEE3
+         bne     ERROR_IOERROR_DUP
          rts
 
-@LCEE3:  lda     #$27
+ERROR_IOERROR_DUP:
+         lda     #$27
          ldy     SAVE_Y
          jmp     CALL_FN_60_RET
 
@@ -479,16 +490,17 @@ FN_63:   jsr     LOAD_CDB_SEND_DIAG
          lda     #$30
          jsr     BANKSWITCH ;CALL_FN_30
          lda     CMD_STATUS
-         bne     @LCEFE
+         bne     RET_27_LOCAL
          rts
 
-@LCEFE:  jmp     ret_27
+RET_27_LOCAL:
+         jmp     ret_27
 
 FN_E3:   lda     SAVE_SP_UNIT
          beq     @LCF0E     ;branch if unit number is invalid
          lda     #$80
          sta     REG_5380_ICMD,y
-         jmp     FN_A3
+         jmp     FN_A3      ;send CMD TEST_UNIT_READY
 
 @LCF0E:  lda     #$11       ;invalid unit number
          jmp     CALL_FN_60_RET ;return fail
@@ -521,39 +533,42 @@ FN_F3:   jsr     ZERO_CMD_BUF6 ;Send REQUEST SENSE command
          .byte   $c0
          .byte   $60
 
-FN_73:   ldx     #$00
+FN_73:   ldx     #$00       ;SAVE_TIMEOUT_AND CLEAR SDAT
          lda     #$c8
          sta     TMP_PTR0+1
          lda     #$31
-         sta     TMP_PTR0
-@LCF43:  ldy     #$0e
-         lda     (TMP_PTR0),y
-         sta     buf_c8f5,x
+         sta     TMP_PTR0   ;TMP_PTR0=$c831 (SDAT_BASE)
+@next_sdat:
+         ldy     #$0e       ;device timeout offset
+         lda     (TMP_PTR0),y ;load device timeout from SDAT entry
+         sta     buf_c8f5,x ;store sequentially at buf_c8f5
          inx
          lda     TMP_PTR0
          clc
          adc     #$11
-         sta     TMP_PTR0
+         sta     TMP_PTR0   ;next SDAT
          ldy     #$00
          lda     (TMP_PTR0),y
          cmp     #$86
-         beq     @LCF43
+         beq     @next_sdat ;branch if sdat valid - could be a bug check SDAT INIT
          lda     #$ff
-         sta     buf_c8f5,x
+         sta     buf_c8f5,x ;end the buffer with $ff
          lda     #$00
          ldx     #$76
-@LCF63:  sta     SDAT_BASE,x
+@sdat_clr_loop:
+         sta     SDAT_BASE,x ;clear all SDAT table (???)
          dex
-         bpl     @LCF63
-LCF69:   ldy     SAVE_Y
+         bpl     @sdat_clr_loop
+RET_LOAD_Y:
+         ldy     SAVE_Y
          rts
 
-FN_83:   ldx     #$00
+FN_83:   ldx     #$00       ;restore TIMEOUT
          lda     #$c8
          sta     TMP_PTR0+1
          lda     #$31
-         sta     TMP_PTR0
-@LCF77:  ldy     #$0e
+         sta     TMP_PTR0   ;TMP_PTR0=$c831 (SDAT_BASE)
+@LCF77:  ldy     #$0e       ;device timeout offset
          lda     buf_c8f5,x
          sta     (TMP_PTR0),y
          inx
@@ -564,7 +579,7 @@ FN_83:   ldx     #$00
          lda     buf_c8f5,x
          cmp     #$ff
          bne     @LCF77
-         beq     LCF69
+         beq     RET_LOAD_Y
 
          .byte   "JEFF ZIASEVA HENIN"
 

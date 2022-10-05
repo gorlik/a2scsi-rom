@@ -138,6 +138,7 @@
 "111":"FORMAT_UNIT",
 "114":"Do_Phases",
 "137":"REQUEST_SENSE",
+"215":"branch if not init",
 "226":"RESERVE",
 "240":"RELEASE",
 "256":"READ_DEFECT_DATA",
@@ -152,6 +153,7 @@
 "321":"if EXT_FLAG==$01 should be a PRODOS call",
 "323":"branch if not PRODOS",
 "347":"REASSIGN_BLOCKS",
+"430":"CALL_FN_X3",
 "436":"CALL_FN_00 (DoPhases)",
 "441":"CALL_FN_30 (Get Status and Message)",
 "446":"CALL_FN_00 (DoPhases)",
@@ -162,15 +164,35 @@
 "508":"CALL_FN_50",
 "534":"set PIO mode",
 "538":"unreachable code",
+"582":"medium write protect bit",
+"584":"branch if media is not write protected",
 "595":"REASSIGN_BLOCKS",
+"659":"MSG_CD_IO mask",
+"661":"Command phase",
+"663":"branch if Command Phase",
 "676":"MODE_SENSE",
+"685":"branch if CMD lenght is 0 (nothing to transfer)",
+"691":"GET STATUS_AND_MESSAGE",
 "757":"CALL_FN_30",
 "772":"branch if unit number is invalid",
+"779":"send CMD TEST_UNIT_READY",
 "782":"invalid unit number",
 "784":"return fail",
 "787":"Send REQUEST SENSE command",
 "800":"Do_Phases",
 "807":"seems unreachable code",
+"825":"SAVE_TIMEOUT_AND CLEAR SDAT",
+"833":"TMP_PTR0=$c831 (SDAT_BASE)",
+"835":"device timeout offset",
+"837":"load device timeout from SDAT entry",
+"839":"store sequentially at buf_c8f5",
+"848":"next SDAT",
+"856":"branch if sdat valid - could be a bug check SDAT INIT",
+"860":"end the buffer with $ff",
+"867":"clear all SDAT table (???)",
+"877":"restore TIMEOUT",
+"885":"TMP_PTR0=$c831 (SDAT_BASE)",
+"887":"device timeout offset",
 "929":"return fail",
 "936":"CALL_FN_60",
 "1015":"bug? all other banks have a clc before rts",
@@ -500,6 +522,111 @@
 "Value":52331,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"579":{
+"Label":"WRITE_PROT_CHECK",
+"Value":52803,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"591":{
+"Label":"not_wp",
+"Value":52815,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"634":{
+"Label":"DELAY_10000",
+"Value":52858,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"639":{
+"Label":"delay_loop",
+"Value":52863,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"654":{
+"Label":"WAIT_FOR_COMMAND_PHASE",
+"Value":52878,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"656":{
+"Label":"cmd_pahse_loop",
+"Value":52880,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"673":{
+"Label":"cmd_phase_found",
+"Value":52897,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"691":{
+"Label":"JMP_FN_30",
+"Value":52915,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"217":{
+"Label":"ERROR_IOERROR",
+"Value":52441,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"222":{
+"Label":"RET_SY",
+"Value":52446,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"835":{
+"Label":"next_sdat",
+"Value":53059,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"867":{
+"Label":"sdat_clr_loop",
+"Value":53091,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"873":{
+"Label":"RET_LOAD_Y",
+"Value":53097,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"766":{
+"Label":"RET_27_LOCAL",
+"Value":52990,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"739":{
+"Label":"ERROR_IOERROR_DUP",
+"Value":52963,
+"Source":"User",
+"Type":"GlobalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -548,7 +675,15 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"SP_ERR_IOERROR",
+"Label":"P8E_IO_ERR",
+"Part":"Low"}},
+
+"217":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"P8E_IO_ERR",
 "Part":"Low"}},
 
 "229":{
@@ -597,6 +732,14 @@
 "SubFormat":"Symbol",
 "SymbolRef":{
 "Label":"SCSI_CMD_REASSIGN_BLOCKS",
+"Part":"Low"}},
+
+"586":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"P8E_WRITE_PROT",
 "Part":"Low"}},
 
 "782":{
