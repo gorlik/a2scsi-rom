@@ -1,0 +1,173 @@
+BANK 00
+FN_00 Do Phases (TRM) (bus free, arbitrate, select, send cmd)
+FN_10 Data Xin (TRM)
+FN_20 
+FN_30 Get Status and Message (external Timeout)
+FN_40
+FN_50
+FN_60 Smartport return fail (not sure if this is also used for prodos)
+FN_70
+FN_80 
+FN_90 PRODOS Read
+FN_A0 Get Status and Message with setting Timeout
+FN_B0 Do phases without BUS_FREE
+
+BANK 01
+FN_01 data read ??? no idea what is the difference with FN_10 
+FN_11 Data Xout (TRM)
+FN_21
+FN_31 read status and message - save status in CMD_STATUS
+FN_41 Load CDB READ6 - 1 block at block LBA_c8db
+FN_51 Load CDB WRITE6 - 1 block at block LBA_c8db 
+FN_61 Prepare DMA receive
+FN_71 Prepare DMA send
+FN_81 DMA read
+
+BANK 02
+FN_02 Process Smartport CMD 
+FN_12 jump to FN_94 restore ZP and return
+FN_22 jump to FN_4F
+FN_32 same as FN_42
+FN_42 Decrement TIMEOUT3
+FN_52 
+FN_62 same as FN_52
+FN_92 LongData (TRM) - incorrect could be 9A, or 99
+
+BANK 03
+FN_03 Do Status (TRM)
+FN_13 rts only - Do nothing
+FN_23 MODE_SENSE ($1A)
+FN_33 SEND_CMD_RESERVE ($16)
+FN_43 SEND_CMD_RELEASE ($17)
+FN_53 READ_DEFECT_DATA ($37????)
+FN_63 SEND_DIAGNOSTIC
+FN_73 save timeouts to c8f5 and clear SDAT table
+FN_83 restore timeouts from c8f5
+FN_93 INQUIRY
+FN_A3 SEND_CMD_TEST_UNIT_READY ($00)
+FN_B3 SEND_CMD_REQUEST_SENSE ($03)
+FN_C3 READ_CAPACITY
+FN_D3 FORMAT_UNIT
+FN_E3 RESET SCSI DEVICE
+FN_F3 SEND_REQUEST_SENSE ($03)
+
+BANK 04
+FN_04 Read STATUS or MESSAGE
+FN_14 Send SCSI CMD (from SCSI_CDB buffer at $c80e)
+FN_24
+FN_34 Wait for REQ and expect DATA IN
+FN_44 Call FN_A3 (SEND_CMD_TEST_UNIT_READY) (and return $00 redundant)
+FN_54
+FN_64 Prepare DMA DATA OUT
+FN_74
+FN_84 Copy PD_PAR_BUF into BUF_PTR
+FN_94 Restore ZP and return
+FN_A4 Get SDAT entry in TMP_PTR0 for index in $c800
+FN_B4
+
+BANK 05
+FN_05 init card
+FN_15
+FN_25
+FN_35 load info from SDAT[DEV_IDX] entry (SEL_TARGET, PART_START, BLKSIZE, TIMEOUT)
+FN_45 failure to boot
+FN_55
+FN_65
+FN_75
+FN_85
+FN_95 
+FN_A5 second part of init - rescan bus ??? (only skip resetting RAM bank 1 and zero tables)
+FN_B5 DMA read call FN_3C (IIgs) if ext call else call FN_81 (normal DMA)
+
+
+BANK_06
+FN_06
+FN_16
+FN_26
+FN_36 CLEAR_BUS and send TEST_UNIT_READY
+FN_46 try to call FN_36 up to 2 times
+FN_56
+FN_66 Process ASC from SENSE DATA at $c901
+
+BANK_07
+FN_07
+FN_17 - Read DDM and master PDM
+FN_27 - points to FN_17
+FN_37 - 
+FN_47 - points to FN_17
+FN_57 - Find empty SDAT entry - returns TMP_PTR0 point to first empty entry
+FN_67 - Save TMP_PTR to $c8d7
+FN_77 - restrore TMP_PTR from $c8d7
+
+BANK 09
+FN_09
+FN_19
+FN_29
+FN_39
+FN_49 - send REQUEST_SENSE and store the result at $c901
+FN_59
+FN_69
+
+BANK 0A
+FN_0A
+FN_1A
+FN_2A
+FN_3A jump to FN_AF - BUS_FREE (TRM)
+FN_4A SET BLK SIZE
+FN_5A MODE_SELECT ($15)
+FN_6A lookup DIBTAB[DEV_IDX], set DEV_STATUS and copy device status and block size to memory pointed by BUF_PTR_L
+FN_7A
+FN_8A set DEV_STATUS, copy memory from TMP_PTR0-1 (points to a DIBTAB entry) to BUF_PTR_L lenght 4 or 5
+FN_9A points to FN_2A
+FN_AA
+
+BANK 0B
+FN_0B
+FN_1B SET_TIMEOUT
+FN_2B
+FN_3B - points to FN_2B
+FN_4B
+FN_5B handle smartport control codes $16-$1e
+FN_6B jsr to B1 $c806
+FN_7B - points to FN_6B
+FN_8B
+
+BANK 0C
+FN_0C Set_New_SDAT
+FN_1C add partition start to BLK number
+FN_2C send random data to SCSI bus until not busy (bug?)
+FN_3C DMA read IIgs
+FN_4C DMA write1 - need to understand the difference between 4C, 5C and 6C 
+FN_5C DMA write2 
+FN_6C DMA write3
+FN_7C add PART_START and optionally 5 to UNK_c827 if CMD is any read or write
+FN_8C detect IIgs
+FN_9C - call A4 and 85
+
+BANK 0D
+FN_0D
+FN_1D
+FN_2D
+FN_3D auto select XFER_MODE ($3 is override)
+FN_4D
+FN_5D
+
+BANK 0E
+FN_0E
+FN_1E handle smartport control codes $20-$2A
+FN_2E EJECT ($C0)
+FN_3E Get staus and message. Check for device not busy
+
+BANK 0F
+FN_0F
+FN_1F
+FN_2F
+FN_3F
+FN_4F print "SCSI BOOT ERROR" and run BASIC 
+FN_5F read and discard data
+FN_6F
+FN_7F
+FN_8F seems the same as FN_A0 (Get Status and Message with setting Timeout)
+FN_9F get message - second part of FN_A0 (no entry in bank 0) with some extra delay at the end
+FN_AF BUS_FREE (return to BUS FREE. flush data if necessary)
+FN_BF Set TMP_PTR and BUF_PTR to $ca00, check if device is online
