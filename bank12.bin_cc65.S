@@ -1,6 +1,8 @@
 ; Target assembler: cc65 v2.18.0 [--target none -C bank12.bin_cc65.cfg]
 ; 6502bench SourceGen v1.8.3
          .setcpu "65816"
+P8E_IO_ERR =     $27        ;I/O error
+
 TMP_PTR0 =       $19        ; temporary ZP pointer 
 TMP_PTR1 =       $1b        ; temporary ZP pointer 
 PD_PAR_CMD =     $42        ;PRODOS input parameter COMMAND number
@@ -10,8 +12,6 @@ TMP_PTR_L =      $f6        ; temporary ZP long pointer
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
 BUF_PTR_H =      $fb
 BUF_PTR_VH =     $fc
-P8_IBAKVER =     $bffc      ;undefined; reserved for future use
-P8_KVERSION =    $bfff      ;version no. (release ID)
 REG_5380_DATA_OUT = $c000   ; W SCSI data output register
 REG_5380_ICMD =  $c001      ; RW Initiator command register
 REG_5380_STAT =  $c004      ; R SCSI status
@@ -42,7 +42,7 @@ BLK_c8c7 =       $c8c7      ; saved PRODOS BLOCK from input parameters
 LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
 BOOT_SEQ =       $c8e3      ;$55 if in boot process
 IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
-DBITAB_BASE =    $c931      ;start of DIBTAB (extends to $C9ED)
+DIBTAB_BASE =    $c931      ;start of DIBTAB (extends to $C9ED)
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
 
@@ -70,7 +70,7 @@ FN_0C:   lda     SEL_TARGET
 CALL_FN_XC:
          ldx     #$0c
          ldy     SAVE_Y
-         jsr     BANKSWITCH
+         jsr     BANKSWITCH ;CALL_FN_XC
          rts
 
 FN_1C:   lda     CALL_TYPE  ;add partition start to BLK number
@@ -165,7 +165,7 @@ FN_2C_retry:
          .byte   $60
 
 LCCE3:   ldx     DEV_IDX
-         lda     #$31
+         lda     #$31       ;look through DIBTAB
 @LCCE8:  dex
          bmi     @LCCF0
          clc
@@ -176,34 +176,35 @@ LCCE3:   ldx     DEV_IDX
          sta     TMP_PTR0+1
          ldx     #$a4
          lda     #$00
-@LCCFA:  sta     DBITAB_BASE,x
+@LCCFA:  sta     DIBTAB_BASE,x
          dex
          bne     @LCCFA
-         sta     DBITAB_BASE
+         sta     DIBTAB_BASE
          rts
 
 FN_9C:   lda     #$a4
-         jsr     CALL_FN_XC ;CALL_FN_A4
+         jsr     CALL_FN_XC ;CALL_FN_A4 - GET SDAT ENTRY PTR in TMP_PTR0
          lda     #$85
          jmp     CALL_FN_XC ;CALL_FN_85
 
-FN_7C:   lda     CALL_TYPE
+FN_7C:   lda     CALL_TYPE  ;Add PART_START and optionally 5 to UNK_c827 if CMD is any read or write
          cmp     #$01
          beq     IS_RW_prodos
          bne     IS_RW_smartport
 
 RW_OP:   lda     DEV_STATUS ;get here if CMD is read or write op (1,2,8 or 9)
-         cmp     #$f8
-         bne     @LCD31
-         lda     UNK_c827+2 ;add 5 to UNK_c827
-         clc
+         cmp     #$f8       ;BLOCK, R, W, ONLINE and FMT flags
+         bne     @add5_done ;branch if not not as above
+         lda     UNK_c827+2 ;if(DEV_STATUS==0xf8) UNK_c827+=5
+         clc                ;add 5 to UNK_c827 (reverse endian)
          adc     #$05
          sta     UNK_c827+2
-         bcc     @LCD31
+         bcc     @add5_done
          inc     UNK_c827+1
-         bne     @LCD31
+         bne     @add5_done
          inc     UNK_c827
-@LCD31:  ldy     #$02
+@add5_done:
+         ldy     #$02
          clc                ;UNK_c827 = UNK_c827 + PART_START
 @add_loop:
          lda     UNK_c827,y
@@ -256,82 +257,84 @@ FN_7C_skip:
          beq     RW_OP
          bne     FN_7C_end
 
-LCD8F:   tya
+WAIT_PHASE_XPLUS9:
+         tya
          clc
          adc     #$09
-         tax
+         tax                ;X=Y+9
          lda     #$00
          sta     TCOUNT_B2
          sta     TCOUNT_B0
-@LCD9C:  lda     P8_IBAKVER,x
-         and     #$08
-         bne     @LCDAD
+@loop:   lda     REG_5380_STAT2-9,x
+         and     #$08       ;phase match mask
+         bne     @return    ;branch if phase mismatch
          dec     TCOUNT_B0
-         bne     @LCD9C
+         bne     @loop
          dec     TCOUNT_B2
-         bne     @LCD9C
-@LCDAD:  rts
+         bne     @loop
+@return: rts
 
-FN_6C:   jsr     LCD8F
+FN_6C:   jsr     WAIT_PHASE_XPLUS9
          jsr     SET_TIMEOUT
-@LCDB4:  lda     REG_5380_STAT2,x
-         bmi     @LCDDA
+@write_more:
+         lda     REG_IO_DRQ-9,x
+         bmi     @LCDDA     ;branch if DRQ asserted
 @LCDB9:  jsr     DEC_TIMEOUT
-         bcs     LCDF2
-         lda     P8_IBAKVER-1,x
-         and     #$20
-         bne     @LCDCC
-         lda     REG_5380_STAT2,x
-         bmi     @LCDDA
+         bcs     timeout
+         lda     REG_5380_STAT-9,x
+         and     #$20       ;REQ mask bit
+         bne     @LCDCC     ;branch if REQ asserted
+         lda     REG_IO_DRQ-9,x
+         bmi     @LCDDA     ;branch if DRQ asserted
          bpl     @LCDB9
 
-@LCDCC:  lda     REG_5380_STAT2,x
-         bmi     @LCDDA
-         lda     P8_IBAKVER,x
-         and     #$08
-         beq     LCDEA
+@LCDCC:  lda     REG_IO_DRQ-9,x
+         bmi     @LCDDA     ;branch if DRQ asserted
+         lda     REG_5380_STAT2-9,x
+         and     #$08       ;phase mismatch mask
+         beq     LCDEA      ;branch if not phase mismatch
          bne     @LCDB9
 
 @LCDDA:  lda     (BUF_PTR_L),y
-         sta     P8_KVERSION,x
+         sta     REG_IO_PDMA_DACK-9,x
          iny
-         bne     @LCDB4
+         bne     @write_more
          inc     BUF_PTR_H
-         inc     DEV_STATUS-1
-         jmp     @LCDB4
+         inc     $c9f2
+         jmp     @write_more
 
 LCDEA:   dey
          sty     $c9f1
          ldy     SAVE_Y
          rts
 
-LCDF2:   lda     #$27
+timeout: lda     #P8E_IO_ERR
          sta     RET_CODE
          bne     LCDEA
 
-FN_5C:   jsr     LCD8F
+FN_5C:   jsr     WAIT_PHASE_XPLUS9
          jsr     SET_TIMEOUT
-         jsr     LCF37
-@LCE02:  lda     REG_5380_STAT2,x
+         jsr     SET_FAST_MODE
+@LCE02:  lda     REG_IO_DRQ-9,x
          bmi     @LCE28
 @LCE07:  jsr     DEC_TIMEOUT
          bcs     @LCE43
-         lda     P8_IBAKVER-1,x
+         lda     REG_5380_STAT-9,x
          and     #$20
          bne     @LCE1A
-         lda     REG_5380_STAT2,x
+         lda     REG_IO_DRQ-9,x
          bmi     @LCE28
          bpl     @LCE07
 
-@LCE1A:  lda     REG_5380_STAT2,x
+@LCE1A:  lda     REG_IO_DRQ-9,x
          bmi     @LCE28
-         lda     P8_IBAKVER,x
+         lda     REG_5380_STAT2-9,x
          and     #$08
          beq     @LCE3C
          bne     @LCE07
 
 @LCE28:  lda     [BUF_PTR_L],y
-         sta     P8_KVERSION,x
+         sta     REG_IO_PDMA_DACK-9,x
          iny
          bne     @LCE02
          inc     DEV_STATUS-1
@@ -342,33 +345,33 @@ FN_5C:   jsr     LCD8F
 
 @LCE3C:  dey
          sty     $c9f1
-         jmp     LCF4C
+         jmp     RESTORE_SPEED_REG
 
 @LCE43:  jmp     LCEAC
 
-FN_4C:   jsr     LCD8F
+FN_4C:   jsr     WAIT_PHASE_XPLUS9
          jsr     SET_TIMEOUT
-         jsr     LCF37
-@LCE4F:  lda     REG_5380_STAT2,x
+         jsr     SET_FAST_MODE
+@LCE4F:  lda     REG_IO_DRQ-9,x
          bmi     @LCE75
 @LCE54:  jsr     DEC_TIMEOUT
          bcs     LCEAC
-         lda     P8_IBAKVER-1,x
+         lda     REG_5380_STAT-9,x
          and     #$20
          bne     @LCE67
-         lda     REG_5380_STAT2,x
+         lda     REG_IO_DRQ-9,x
          bmi     @LCE75
          bpl     @LCE54
 
-@LCE67:  lda     REG_5380_STAT2,x
+@LCE67:  lda     REG_IO_DRQ-9,x
          bmi     @LCE75
-         lda     P8_IBAKVER,x
+         lda     REG_5380_STAT2-9,x
          and     #$08
          beq     @LCEA9
          bne     @LCE54
 
 @LCE75:  lda     [BUF_PTR_L],y
-         sta     P8_KVERSION,x
+         sta     REG_IO_PDMA_DACK-9,x
          iny
          bne     @LCE4F
          dec     TCOUNT_B2
@@ -380,22 +383,22 @@ FN_4C:   jsr     LCD8F
 
 @LCE8B:  lda     #$00
          sta     TCOUNT_B2
-@LCE90:  lda     REG_5380_STAT2,x
+@LCE90:  lda     REG_IO_DRQ-9,x
          bmi     @LCEA3
-         lda     P8_IBAKVER,x
+         lda     REG_5380_STAT2-9,x
          and     #$08
          beq     @LCEA9
          dec     TCOUNT_B2
          beq     LCEAC
          bne     @LCE90
 
-@LCEA3:  sta     P8_KVERSION,x
+@LCEA3:  sta     REG_IO_PDMA_DACK-9,x
          clc
          bcc     @LCE90
 
-@LCEA9:  jmp     LCF4C
+@LCEA9:  jmp     RESTORE_SPEED_REG
 
-LCEAC:   jsr     LCF4C
+LCEAC:   jsr     RESTORE_SPEED_REG
          lda     #$27
          sta     RET_CODE
          jmp     LCDEA
@@ -415,7 +418,7 @@ DEC_TIMEOUT:
          dec     TCOUNT_B1
          bne     @LCED6
          dec     TCOUNT_B2
-         beq     @LCED8
+         beq     @LCED8     ;bug in decrement - should be bmi
 @LCED6:  clc
          rts
 
@@ -424,84 +427,96 @@ DEC_TIMEOUT:
 
 FN_3C:   jsr     SET_TIMEOUT
          lda     #$02
-         sta     TCOUNT_B2
-         jsr     LCF37
+         sta     TCOUNT_B2  ;2 pages = 512 bytes = 1 block
+         jsr     SET_FAST_MODE
          ldx     SAVE_Y
-@LCEE8:  lda     REG_IO_DRQ,x
-         bmi     @LCEF9
+@wait_for_DRQ:
+         lda     REG_IO_DRQ,x
+         bmi     @read_byte ;branch if DRQ asserted
          dec     TCOUNT_B0
-         bne     @LCEE8
+         bne     @wait_for_DRQ
          dec     TCOUNT_B1
-         beq     @LCF2E
-         bne     @LCEE8
+         beq     RET_IOERROR ;branch if timeout
+         bne     @wait_for_DRQ
 
-@LCEF9:  lda     REG_IO_PDMA_DACK,x
+@read_byte:
+         lda     REG_IO_PDMA_DACK,x
          sta     [BUF_PTR_L],y
          iny
-         bne     @LCEE8
+         bne     @wait_for_DRQ
          dec     TCOUNT_B2
-         beq     @LCF0F
+         beq     @read_done ;branch if done 2 pages
          inc     BUF_PTR_H
-         bne     @LCEE8
+         bne     @wait_for_DRQ
          inc     BUF_PTR_VH
-         jmp     @LCEE8
+         jmp     @wait_for_DRQ
 
-@LCF0F:  sty     TCOUNT_B2
-@LCF12:  lda     REG_IO_DRQ,x
-         bmi     @LCF25
+@read_done:
+         sty     TCOUNT_B2  ;at this point Y==0
+@discard_loop:
+         lda     REG_IO_DRQ,x
+         bmi     @read_and_discard ;branch if DRQ asserted - discard extra bytes
          lda     REG_5380_STAT2,x
          and     #$08
-         beq     @LCF2B
+         beq     @FN_3C_end ;branch if next phase
          dec     TCOUNT_B2
-         beq     @LCF2E
-         bne     @LCF12
+         beq     RET_IOERROR ;error if too many extra bytes
+         bne     @discard_loop
 
-@LCF25:  lda     REG_IO_PDMA_DACK,x
+@read_and_discard:
+         lda     REG_IO_PDMA_DACK,x
          clc
-         bcc     @LCF12
+         bcc     @discard_loop
 
-@LCF2B:  jmp     LCF4C
+@FN_3C_end:
+         jmp     RESTORE_SPEED_REG
 
-@LCF2E:  jsr     LCF4C
+RET_IOERROR:
+         jsr     RESTORE_SPEED_REG
          lda     #$27
          sta     RET_CODE
          rts
 
-LCF37:   lda     CALL_TYPE
+SET_FAST_MODE:
+         lda     CALL_TYPE
          and     #$40
-         beq     @LCF4B
+         beq     @end_fast_mode ;branch if not ext call
          lda     IIgs_PDMA
-         beq     @LCF4B
+         beq     @end_fast_mode ;branch if not IIgs
          lda     SAVE_CYAREG
-         ora     #$80
-         sta     CYAREG
-@LCF4B:  rts
+         ora     #$80       ;Speed bit mask
+         sta     CYAREG     ;put system in FAST mode
+@end_fast_mode:
+         rts
 
-LCF4C:   lda     CALL_TYPE
+RESTORE_SPEED_REG:
+         lda     CALL_TYPE
          and     #$40
-         beq     @LCF61
+         beq     @end_restore_speed ;branch if not ext call
          lda     IIgs_PDMA
-         beq     @LCF61
+         beq     @end_restore_speed ;branch if not IIgs
          lda     SAVE_CYAREG
          sta     CYAREG
          ldy     SAVE_Y
-@LCF61:  rts
+@end_restore_speed:
+         rts
 
-FN_8C:   lda     #$00
+FN_8C:   lda     #$00       ;detect IIgs
          sta     XFER_MODE
          sta     IIgs_PDMA
          php
          sei
-         lda     SLTROMSEL
-         sta     SAVE_CYAREG
+         lda     SLTROMSEL  ;save SLTROMSEL value
+         sta     SAVE_CYAREG ;at this point this is just a local temp variable
          lda     #$54
          sta     SLTROMSEL
-         ldx     #$05
-@LCF79:  lda     SLTROMSEL
+         ldx     #$05       ;try 4 times
+@FN_8C_retry:
+         lda     SLTROMSEL
          cmp     #$54
-         bne     @LCFA6
+         bne     @FN_8C_end ;branch if not IIgs
          dex
-         bne     @LCF79
+         bne     @FN_8C_retry
          lda     SAVE_CYAREG
          sta     SLTROMSEL
          lda     #$01
@@ -515,7 +530,8 @@ FN_8C:   lda     #$00
 @LCF9D:  lda     CYAREG
          sta     SAVE_CYAREG
          ldy     SAVE_Y
-@LCFA6:  plp
+@FN_8C_end:
+         plp
          rts
 
 CALL_FN_60_RET:
@@ -562,14 +578,15 @@ BANKSWITCH:
          inx
          lda     FN_TABLE,x
          sta     TMP_PTR1+1
-         jsr     @LCFF9
+         jsr     DO_CALL_FN
          pla
          and     #$0f
          sta     REG_IO_BANK_SEL,y
          clc
          rts
 
-@LCFF9:  jmp     (TMP_PTR1)
+DO_CALL_FN:
+         jmp     (TMP_PTR1)
 
          .byte   $00
          .byte   $00

@@ -95,20 +95,56 @@
 "14":"CALL_FN_73",
 "22":"CALL_FN_A5",
 "42":"CALL_FN_83",
+"53":"CALL_FN_XC",
 "57":"add partition start to BLK number",
 "194":"send random data to SCSI until not busy ???",
 "204":"assert data bus and ACK",
 "212":"deassert all",
 "220":"retry if BUSY",
-"262":"CALL_FN_A4",
+"230":"look through DIBTAB",
+"262":"CALL_FN_A4 - GET SDAT ENTRY PTR in TMP_PTR0",
 "267":"CALL_FN_85",
+"270":"Add PART_START and optionally 5 to UNK_c827 if CMD is any read or write",
 "279":"get here if CMD is read or write op (1,2,8 or 9)",
-"286":"add 5 to UNK_c827",
+"282":"BLOCK, R, W, ONLINE and FMT flags",
+"284":"branch if not not as above",
+"286":"if(DEV_STATUS==0xf8) UNK_c827+=5",
+"289":"add 5 to UNK_c827 (reverse endian)",
 "307":"UNK_c827 = UNK_c827 + PART_START",
 "325":"branch if *($c8dd) \u003e $20 ($1f ?)",
 "327":"compare *($c8dd) and *($UNK_c827) - $c8dd seems in reverse endian",
 "330":"there might be a bug in the comparison",
 "370":"return fail",
+"403":"X=Y+9",
+"415":"phase match mask",
+"417":"branch if phase mismatch",
+"439":"branch if DRQ asserted",
+"449":"REQ mask bit",
+"451":"branch if REQ asserted",
+"456":"branch if DRQ asserted",
+"463":"branch if DRQ asserted",
+"468":"phase mismatch mask",
+"470":"branch if not phase mismatch",
+"724":"bug in decrement - should be bmi",
+"735":"2 pages = 512 bytes = 1 block",
+"747":"branch if DRQ asserted",
+"757":"branch if timeout",
+"772":"branch if done 2 pages",
+"783":"at this point Y==0",
+"789":"branch if DRQ asserted - discard extra bytes",
+"796":"branch if next phase",
+"801":"error if too many extra bytes",
+"828":"branch if not ext call",
+"833":"branch if not IIgs",
+"838":"Speed bit mask",
+"840":"put system in FAST mode",
+"849":"branch if not ext call",
+"854":"branch if not IIgs",
+"866":"detect IIgs",
+"876":"save SLTROMSEL value",
+"879":"at this point this is just a local temp variable",
+"887":"try 4 times",
+"894":"branch if not IIgs",
 "948":"add partition start to BLK number",
 "950":"send random data until not busy"},
 
@@ -331,6 +367,146 @@
 "Value":52532,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"1017":{
+"Label":"DO_CALL_FN",
+"Value":53241,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"429":{
+"Label":"return",
+"Value":52653,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"412":{
+"Label":"loop",
+"Value":52636,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"498":{
+"Label":"timeout",
+"Value":52722,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"436":{
+"Label":"write_more",
+"Value":52660,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"399":{
+"Label":"WAIT_PHASE_XPLUS9",
+"Value":52623,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"305":{
+"Label":"add5_done",
+"Value":52529,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"823":{
+"Label":"SET_FAST_MODE",
+"Value":53047,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"843":{
+"Label":"end_fast_mode",
+"Value":53067,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"844":{
+"Label":"RESTORE_SPEED_REG",
+"Value":53068,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"865":{
+"Label":"end_restore_speed",
+"Value":53089,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"744":{
+"Label":"wait_for_DRQ",
+"Value":52968,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"814":{
+"Label":"RET_IOERROR",
+"Value":53038,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"811":{
+"Label":"FN_3C_end",
+"Value":53035,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"761":{
+"Label":"read_byte",
+"Value":52985,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"783":{
+"Label":"read_done",
+"Value":53007,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"805":{
+"Label":"read_and_discard",
+"Value":53029,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"786":{
+"Label":"discard_loop",
+"Value":53010,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"934":{
+"Label":"FN_8C_end",
+"Value":53158,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"889":{
+"Label":"FN_8C_retry",
+"Value":53113,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -420,6 +596,196 @@
 "SubFormat":"Symbol",
 "SymbolRef":{
 "Label":"UNK_c827",
+"Part":"Low"}},
+
+"412":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_5380_STAT2",
+"Part":"Low"}},
+
+"436":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_DRQ",
+"Part":"Low"}},
+
+"446":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_5380_STAT",
+"Part":"Low"}},
+
+"453":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_DRQ",
+"Part":"Low"}},
+
+"460":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_DRQ",
+"Part":"Low"}},
+
+"465":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_5380_STAT2",
+"Part":"Low"}},
+
+"476":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_PDMA_DACK",
+"Part":"Low"}},
+
+"484":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Hex",
+"SymbolRef":null},
+
+"498":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"P8E_IO_ERR",
+"Part":"Low"}},
+
+"514":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_DRQ",
+"Part":"Low"}},
+
+"524":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_5380_STAT",
+"Part":"Low"}},
+
+"531":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_DRQ",
+"Part":"Low"}},
+
+"538":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_DRQ",
+"Part":"Low"}},
+
+"543":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_5380_STAT2",
+"Part":"Low"}},
+
+"554":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_PDMA_DACK",
+"Part":"Low"}},
+
+"591":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_DRQ",
+"Part":"Low"}},
+
+"601":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_5380_STAT",
+"Part":"Low"}},
+
+"608":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_DRQ",
+"Part":"Low"}},
+
+"615":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_DRQ",
+"Part":"Low"}},
+
+"620":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_5380_STAT2",
+"Part":"Low"}},
+
+"631":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_PDMA_DACK",
+"Part":"Low"}},
+
+"656":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_DRQ",
+"Part":"Low"}},
+
+"661":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_5380_STAT2",
+"Part":"Low"}},
+
+"675":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"REG_IO_PDMA_DACK",
 "Part":"Low"}},
 
 "946":{
