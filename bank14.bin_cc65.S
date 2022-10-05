@@ -33,7 +33,6 @@ CMD_STATUS =     $c81e      ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 UNK_c820 =       $c820      ; 0xff if PIO ?
 UNK_c8cc =       $c8cc      ;unknown
 UNK_c8cf =       $c8cf      ; unknown
-PTR_c8d7 =       $c8d7      ; temp pointer storage (?)
 IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 
@@ -522,26 +521,29 @@ LCF4A:   lda     CALL_TYPE
          xce
          jmp     @LCF61
 
-FN_3E:   jsr     CALL_FN_30
+FN_3E:   jsr     CALL_FN_30 ;Get Status and Message
          lda     CMD_STATUS
-         cmp     #$08
-         bne     @LCFB1
+         cmp     #$08       ;SCSI_STATUS_BUSY
+         bne     @FN3_end   ;branch if status not busy
          lda     #$76
-         sta     INIT_FLAG
+         sta     INIT_FLAG  ;bug???
          sta     $c8cd
-         sta     PTR_c8d7-1
-@LCF96:  lda     #$a3
-         jsr     CALL_FN_XE
+         sta     $c8d6
+@busy_loop:
+         lda     #$a3       ;Keep trying until not busy
+         jsr     CALL_FN_XE ;CALL_FN_A3 - send CMD_TEST_UNIT_READY
          lda     CMD_STATUS
          cmp     #$08
-         bne     @LCFAC
-         dec     PTR_c8d7-1
-         bne     @LCF96
+         bne     @not_busy
+         dec     $c8d6
+         bne     @busy_loop
          dec     $c8cd
-         bne     @LCF96
-@LCFAC:  lda     #$77
+         bne     @busy_loop
+@not_busy:
+         lda     #$77
          sta     INIT_FLAG
-@LCFB1:  lda     CMD_STATUS
+@FN3_end:
+         lda     CMD_STATUS
          sta     RET_CODE
          rts
 

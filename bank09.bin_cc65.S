@@ -34,7 +34,7 @@ LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
 RX_LEN_LO =      $c8e4      ;bytes read if call successfull
 RX_LEN_HI =      $c8e5      ;bytes read if call successfull
 IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
-BLKSIZE_H =      $c92f      ;byte1 of block size
+BLKSIZE_H =      $c92f      ;byte1 of block size - reverse endian
 LDIO_SIZE_LO =   $c9ee
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
@@ -87,11 +87,11 @@ LCC00:   lda     SCSI_CDB_CMD
          bne     CALL_FN_5C
 CALL_FN_6C:
          lda     #$6c
-         jmp     CALL_FN_X9
+         jmp     CALL_FN_X9 ;CALL_FN_6C
 
 CALL_FN_5C:
          lda     #$5c
-         jmp     CALL_FN_X9
+         jmp     CALL_FN_X9 ;CALL_FN_5C
 
 LCC68:   lda     REG_IO_DRQ,x
          bpl     @LCC8D
@@ -222,7 +222,7 @@ CALL_FN_00:
 CALL_FN_X9:
          ldx     #$09
          ldy     SAVE_Y
-         jsr     BANKSWITCH
+         jsr     BANKSWITCH ;CALL_FN_X9
          rts
 
 LCD55:   lda     DEV_STATUS
@@ -236,11 +236,11 @@ LCD55:   lda     DEV_STATUS
 
 CALL_FN_61:
          lda     #$61
-         jmp     CALL_FN_X9
+         jmp     CALL_FN_X9 ;CALL_FN_61
 
 CALL_FN_71:
          lda     #$71
-         jmp     CALL_FN_X9
+         jmp     CALL_FN_X9 ;CALL_FN_71
 
          .byte   $a9
          .byte   $54
@@ -298,7 +298,7 @@ LCDAB:   lda     $c92d
          rts
 
 LCDC1:   lda     #$30
-         jmp     CALL_FN_X9
+         jmp     CALL_FN_X9 ;CALL_FN_30
 
 LCDC6:   ldy     #$00
          ldx     SAVE_Y
@@ -387,27 +387,27 @@ FN_39:   lda     IIgs_PDMA
 @LCE71:  ldy     SAVE_Y
          rts
 
-FN_49:   lda     #$01
+FN_49:   lda     #$01       ;Send REQUEST_SENSE and store result at $c901
          sta     TMP_PTR_L
          lda     #$c9
          sta     TMP_PTR_H
          lda     #$00
-         sta     TMP_PTR_VH
+         sta     TMP_PTR_VH ;TMP_PTR=$c901
          lda     #$67
-         jsr     CALL_FN_X9
-         ldy     #$02
+         jsr     CALL_FN_X9 ;CALL_FN_67 - save TMP_PTR
+         ldy     #$02       ;the pointer is copied to fake a PD command
          lda     TMP_PTR_L
-         sta     (TMP_PTR_L),y
+         sta     (TMP_PTR_L),y ;TMP_PTR_L[2]=TMP_PTR_L
          iny
          lda     TMP_PTR_H
-         sta     (TMP_PTR_L),y
+         sta     (TMP_PTR_L),y ;TMP_PTR_L[3]=TMP_PTR_H
          iny
          lda     #$00
-         sta     (TMP_PTR_L),y
+         sta     (TMP_PTR_L),y ;TMP_PTR_L[4]=0;
          lda     #$b3
-         jsr     CALL_FN_X9
+         jsr     CALL_FN_X9 ;CALL_FN_B3 - Send REQUEST_SENSE
          lda     #$77
-         jsr     CALL_FN_X9
+         jsr     CALL_FN_X9 ;CALL_FN_77 - Restore TMP_PTR
          rts
 
 LCEA1:   lda     #$00

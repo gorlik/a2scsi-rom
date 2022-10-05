@@ -58,7 +58,7 @@ CMD_STATUS        @ $C81E   ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 SCSI_RD_c81f      @ $C81F   ; SCSI STATUS or MESSAGE return from FN_04 
 UNK_c820          @ $C820   ; 0xff if PIO ?
 SAVE_ENTRY_SP     @ $C821   ; stack pointer saved at the PD/SM entry point
-BLKSIZE_H2        @ $C822   ; byte1 of block size copy
+BLKSIZE_H2        @ $C822   ; copy of byte1 of block size
 ; c823
 PART_START        @ $C824 3 ; partition start (3 bytes) seems to be in reverse endian (?)
 UNK_c827          @ $C827 3 ; 3-byte unknown in reverse endian as the above
@@ -88,19 +88,20 @@ PD_PAR_BLK_HI_CPY @ $C8C1     ;PRODOS input parameter Block hi
 ; c8c2
 ; ...
 ; c8c5
-TEMP_c8c6         @ $C8C6   ;unknown
+; TMP_c8c6         @ $C8C6   ; local TEMP variable - different for each bank
 BLK_c8c7          @ $C8C7 2 ; saved PRODOS BLOCK from input parameters
-; c8c9
+UNK_c8c9          @ $C8C9   ; 
 TEMP_c8ca         @ $C8CA   ; TEMP_BUF_PTR?
 ; c8cb
 UNK_c8cc          @ $C8CC   ;unknown
 ; c8cd
-; c8ce
-UNK_c8cf          @ $C8CF   ; unknown
-PTR_c8d0          @ $C8D0 2 ; temp pointer storage (?)
+NUM_PART          @ $C8CE   ; number of partition on the device - only used in bank 07
+UNK_c8cf          @ $C8CF   ; $00 if failed to read Partition Map. $ff if PM detected
+TEMP_c8d0         @ $C8D0 2 ; temp int storage (size of DDM block?)
 ; c8d2
 ; ...
-; c8d6
+; c8d5
+TMP_COUNT         @ $C8D6   ; temp counter - only used in bank 07
 PTR_c8d7          @ $C8D7 2 ; temp pointer storage (?)
 ; c8d9
 TEMP_c8da         @ $C8DA   ;unknown
@@ -112,12 +113,12 @@ BOOT_SEQ          @ $C8E3   ;$55 if in boot process
 RX_LEN_LO         @ $C8E4   ;bytes read if call successfull
 RX_LEN_HI         @ $C8E5   ;bytes read if call successfull
 SAVE_SP_CMD       @ $C8E6   ; saved Smartport COMMAND number
-; c8e7
+SAVE_XFER_MODE_ALT   @ $C8E7   ; saved XFER_MODE ? - seems used only in bank 7 as a temp
 SAVE_SP_UNIT      @ $C8E8   ; saved Smartport UNIT number
 ; c8e9
 ; ...
 ; c8ec
-SAVE_SP2          @ $C8ED   ;saved SP
+SAVE_SP2          @ $C8ED   ;saved SP - also used a random temp
 TEMP_HI           @ $C8EE   ;generic 16-bit temp high byte
 TEMP_LO           @ $C8EF   ;generic 16-bit temp low byte
 ; c8f0
@@ -125,7 +126,7 @@ TEMP_LO           @ $C8EF   ;generic 16-bit temp low byte
 ; c8f2
 IIgs_PDMA         @ $C8F3   ;0x01 if IIgs PDMA
 UNK_c8f4          @ $C8F4   ;unknown
-buf_c8f5          @ $C8F5   ;unknown
+buf_c8f5          @ $C8F5   ; seems to be some sort of 12 byte structure ???
 ; c8f6
 ; ...
 ; c914
@@ -135,18 +136,18 @@ TEMP_c915         @ $C915   ;unknown
 ; c91e
 SAVE_XFER_MODE    @ $C91F   ;
 ; c920
-UNK_c921          @ $C921   ;unknown
-UNK_c922          @ $C922   ;unknown
+TEMP_VH           @ $C921   ;unknown
+TEMP_XH           @ $C922   ;unknown
 ; c923
 ; ...
 ; c92e
-BLKSIZE_H         @ $C92F   ;byte1 of block size
-BLKSIZE_L         @ $C930   ;byte0 of block size
+BLKSIZE_H         @ $C92F   ;byte1 of block size - reverse endian
+BLKSIZE_L         @ $C930   ;byte0 of block size - reverse endian
 
 ; SCSI Device Information Block Table 
 ; 7 entries, 27 ($1B) bytes per entry
 ; 189 total size
-DBITAB_BASE   @ $C931   ;start of DIBTAB (extends to $C9ED)
+DIBTAB_BASE   @ $C931   ;start of DIBTAB (extends to $C9ED)
 
 LDIO_SIZE_LO      @ $C9EE   ;
 ; c9ef

@@ -119,7 +119,13 @@
 "Comments":{
 "280":"CALL_FN_D3",
 "315":"CALL_FN_40",
-"327":"CALL_FN_30"},
+"327":"CALL_FN_30",
+"897":"Get Status and Message",
+"903":"SCSI_STATUS_BUSY",
+"905":"branch if status not busy",
+"909":"bug???",
+"918":"Keep trying until not busy",
+"920":"CALL_FN_A3 - send CMD_TEST_UNIT_READY"},
 
 "LongComments":{
 "-2147483647":{
@@ -312,6 +318,27 @@
 "Value":52598,
 "Source":"User",
 "Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"945":{
+"Label":"FN3_end",
+"Value":53169,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"918":{
+"Label":"busy_loop",
+"Value":53142,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"940":{
+"Label":"not_busy",
+"Value":53164,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -490,6 +517,18 @@
 "SymbolRef":{
 "Label":"TCD0F",
 "Part":"High"}},
+
+"915":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Hex",
+"SymbolRef":null},
+
+"930":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Hex",
+"SymbolRef":null},
 
 "962":{
 "Length":2,
