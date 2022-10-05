@@ -51,14 +51,14 @@ RX_LEN_LO =      $c8e4      ;bytes read if call successfull
 RX_LEN_HI =      $c8e5      ;bytes read if call successfull
 SAVE_SP_UNIT =   $c8e8      ; saved Smartport UNIT number
 IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
-BLKSIZE_H =      $c92f      ;byte1 of block size
-BLKSIZE_L =      $c930      ;byte0 of block size
+BLKSIZE_H =      $c92f      ;byte1 of block size - reverse endian
+BLKSIZE_L =      $c930      ;byte0 of block size - reverse endian
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 
          .org    $cc00
          .a8
          .i8
-FN_04:   jsr     WAIT_FOR_REQ ;Get STATUS and MESSAGE
+FN_04:   jsr     WAIT_FOR_REQ ;Get STATUS or MESSAGE byte into $c81f
          bcs     RET_FAIL_27_ALT
          lda     REG_5380_STAT2,y
          and     #$08       ;read phasematch
@@ -222,16 +222,16 @@ TCCCF:   lda     SAVE_SP_UNIT
 @LCD4B:  jmp     LCDBE
 
 @LCD4E:  lda     #$1a
-CALL_FN_Y4:
+CALL_FN_X4:
          ldx     #$04
          ldy     SAVE_Y
-         jsr     BANKSWITCH
+         jsr     BANKSWITCH ;CALL_FN_X4
          rts
 
 TCD59:   lda     SAVE_SP_UNIT
          beq     LCD66
          lda     #$0a
-         jsr     CALL_FN_Y4
+         jsr     CALL_FN_X4
          jmp     LCDBE
 
 LCD66:   lda     #$11
@@ -276,7 +276,7 @@ TCDB9:   lda     #$21
          jmp     LCF8A
 
 LCDBE:   lda     #$12
-         jsr     CALL_FN_Y4
+         jsr     CALL_FN_X4
          lda     RET_CODE
          bne     @LCDCC
          lda     #$00
@@ -289,7 +289,7 @@ LCDBE:   lda     #$12
 
 CALL_FN_62:
          lda     #$62
-LCDD6:   jmp     CALL_FN_Y4
+LCDD6:   jmp     CALL_FN_X4
 
          .byte   $00
          .byte   $01
@@ -391,7 +391,7 @@ FN_64:   lda     REG_5380_STAT,y
          .byte   $60
 
 FN_44:   lda     #$a3       ;call SEND_CMD_TEST_UNIT_READY and return $00
-         jsr     CALL_FN_Y4 ;CALL_FN_A3
+         jsr     CALL_FN_X4 ;CALL_FN_A3
          lda     #$00
          sta     RET_CODE
          rts
@@ -619,14 +619,15 @@ BANKSWITCH:
          inx
          lda     FN_TABLE,x
          sta     TMP_PTR1+1
-         jsr     @LCFF9
+         jsr     DO_CALL_FN
          pla
          and     #$0f
          sta     REG_IO_BANK_SEL,y
          clc
          rts
 
-@LCFF9:  jmp     (TMP_PTR1)
+DO_CALL_FN:
+         jmp     (TMP_PTR1)
 
          .byte   $02
          .byte   $31

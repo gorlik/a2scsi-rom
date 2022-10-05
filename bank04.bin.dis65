@@ -132,7 +132,7 @@
 },
 
 "Comments":{
-"0":"Get STATUS and MESSAGE",
+"0":"Get STATUS or MESSAGE byte into $c81f",
 "8":"read phasematch",
 "10":"branch if phase mismatch",
 "12":"read one byte from scsi bus",
@@ -154,6 +154,7 @@
 "109":"branch if timeout on REQ deassertion",
 "113":"deassert ACK and disable DATA bus",
 "156":"branch if std Smartport call",
+"341":"CALL_FN_X4",
 "495":"wait for REQ deassertion (with timeout)",
 "503":"timeout waiting for REQ",
 "515":"req deasserted",
@@ -272,7 +273,7 @@
 "LabelAnno":"None"},
 
 "336":{
-"Label":"CALL_FN_Y4",
+"Label":"CALL_FN_X4",
 "Value":52560,
 "Source":"User",
 "Type":"GlobalAddr",
@@ -479,6 +480,13 @@
 "Value":53052,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"1017":{
+"Label":"DO_CALL_FN",
+"Value":53241,
+"Source":"User",
+"Type":"GlobalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
