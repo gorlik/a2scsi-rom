@@ -545,10 +545,11 @@ FN_BF:   lda     #$ca
          jsr     CALL_FN_XF ;CALL_FN_9A
          lda     $ca00
          and     #$10
-         beq     @LCFA4
+         beq     ERROR_2F   ;branch if device not online
          rts
 
-@LCFA4:  lda     #$2f
+ERROR_2F:
+         lda     #$2f
          bne     CALL_FN_60_RET
 
 CALL_FN_60_RET:

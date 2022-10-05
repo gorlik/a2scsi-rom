@@ -176,6 +176,7 @@
 "886":"C=0 if NATIVE",
 "891":"not extended call",
 "921":"CALL_FN_9A",
+"929":"branch if device not online",
 "954":"SCSI BOOT ERROR"},
 
 "LongComments":{
@@ -488,6 +489,13 @@
 "Value":52842,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"932":{
+"Label":"ERROR_2F",
+"Value":53156,
+"Source":"User",
+"Type":"GlobalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
