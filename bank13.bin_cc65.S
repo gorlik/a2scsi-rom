@@ -8,10 +8,14 @@ TMP_PTR_H =      $f7
 TMP_PTR_VH =     $f8
 TMP_PTR_XH =     $f9
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
+BUF_PTR_H =      $fb
 BUF_PTR_VH =     $fc
 REG_5380_MODE_SEL = $c002   ; RW Mode select register
+REG_5380_STAT2 = $c005      ; R Bus and status register
+REG_IO_PDMA_DACK = $c008    ; RW PDMA/DACK
 REG_IO_BANK_SEL = $c00a     ; W memory bank select
 REG_IO_5380_RST = $c00b     ; W 5380 Reset
+REG_IO_DRQ =     $c00e      ; R read DRQ on bit7
 CYAREG   =       $c036      ;RW Configure Your Apple
 TCOUNT_B0 =      $c801      ; timeout counter LSB
 TCOUNT_B2 =      $c802      ; timeout counter MSB
@@ -19,6 +23,7 @@ TCOUNT_B1 =      $c803      ; timeout counter middle byte when using 24-bit coun
 XFER_MODE =      $c804      ; 0x00 IIe PDMA, 0x01 IIgs PDMA, 0x02-0xff PIO 
 SAVE_CYAREG =    $c808      ; saved value of CYAREG
 TMP_c80a =       $c80a      ; unknown
+RET_CODE =       $c80b      ; 
 BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
 SCSI_CDB_CMD =   $c80e      ; SCSI CDB buffer
 SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
@@ -27,24 +32,24 @@ UNK_c820 =       $c820      ; 0xff if PIO ?
 UNK_c827 =       $c827      ; 3-byte unknown in reverse endian as the above
 TEMP_c8ca =      $c8ca      ; TEMP_BUF_PTR?
 UNK_c8cc =       $c8cc      ;unknown
-SAVE_SP2 =       $c8ed      ;saved SP
+SAVE_SP2 =       $c8ed      ;saved SP - also used a random temp
 IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
 SAVE_XFER_MODE = $c91f
-UNK_c921 =       $c921      ;unknown
+TEMP_VH  =       $c921      ;unknown
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
 
          .org    $cc00
          .a8
          .i8
-TCC00:   lda     #$86
+FN_0D:   lda     #$86
          ldy     #$00
          sty     TMP_c80a
          sta     (TMP_PTR0),y
          iny
          iny
          jsr     @LCC73
-         jsr     TCD3D
+         jsr     FN_4D
          jsr     @LCC84
          jsr     LCDC7
          lda     #$00
@@ -170,15 +175,15 @@ TCC00:   lda     #$86
          lda     TMP_PTR0
          sta     SAVE_XFER_MODE
          lda     TMP_PTR0+1
-         sta     UNK_c921-1
+         sta     TEMP_VH-1
          lda     #$9c
-         jsr     LCDBE
+         jsr     CALL_FN_XD ;CALL_FN_9C
          lda     #$35
          ldy     #$0e
          sta     (TMP_PTR0),y
          lda     SAVE_XFER_MODE
          sta     TMP_PTR0
-         lda     UNK_c921-1
+         lda     TEMP_VH-1
          sta     TMP_PTR0+1
          pla
          tay
@@ -218,7 +223,7 @@ TCC00:   lda     #$86
 @LCD3B:  .byte   $02
          .byte   $00
 
-TCD3D:   tya
+FN_4D:   tya
          pha
          ldx     #$03
 @LCD41:  lda     BUF_PTR_L,x
@@ -255,7 +260,7 @@ TCD3D:   tya
          iny
          sta     (TMP_PTR_L),y
          lda     #$93
-         jsr     LCDBE
+         jsr     CALL_FN_XD ;CALL_FN_93
          ldx     #$03
 @LCD8D:  lda     $c82c,x
          sta     BUF_PTR_L,x
@@ -286,9 +291,10 @@ TCD3D:   tya
          .byte   $58
          .byte   $cf
 
-LCDBE:   ldy     SAVE_Y
+CALL_FN_XD:
+         ldy     SAVE_Y
          ldx     #$0d
-         jsr     LCFCC
+         jsr     BANKSWITCH
          rts
 
 LCDC7:   tya
@@ -332,10 +338,10 @@ LCDC7:   tya
          tay
          rts
 
-TCE08:   lda     #$15
-         jsr     LCDBE
+FN_1D:   lda     #$15
+         jsr     CALL_FN_XD ;CALL_FN_15
          lda     #$bf
-         jsr     LCDBE
+         jsr     CALL_FN_XD ;CALL_FN_BF
          lda     UNK_c827
          beq     @LCE1F
          lda     #$ff
@@ -343,15 +349,15 @@ TCE08:   lda     #$15
          sta     UNK_c827+2
 @LCE1F:  rts
 
-TCE20:   tsx
+FN_2D:   tsx
          stx     SAVE_SP2
          ldy     #$00
          txa
          cmp     #$60
          bcs     @LCE33
          lda     #$b5
-         jsr     LCDBE
-         jmp     @LCE90
+         jsr     CALL_FN_XD ;CALL_FN_B5
+         jmp     LCE90
 
 @LCE33:  sbc     #$22
          tax
@@ -362,13 +368,13 @@ TCE20:   tsx
          inx
          inx
          lda     SCSI_CDB_CMD
-@LCE40:  lda     @LCE9C,y
+@LCE40:  lda     code_fragment,y
          sta     $0100,x
          inx
          iny
          cpy     #$08
          bne     @LCE58
-         jsr     @LCF14
+         jsr     IS_NATIVE_MODE_REQ2
          bcs     @LCE58
          lda     #$97
          sta     $0100,x
@@ -387,52 +393,35 @@ TCE20:   tsx
          sty     TCOUNT_B1
          lda     #$02
          sta     TCOUNT_B2
-         jsr     @LCF04
+         jsr     SET_NATIVE_IF_NEEDED
          jmp     (TMP_PTR0)
 
-         .byte   $ea
-         .byte   $20
-         .byte   $14
-         .byte   $cf
-         .byte   $b0
-         .byte   $02
-         .byte   $38
-.macro   HiAscii Arg
-         .repeat .strlen(Arg), I
-         .byte   .strat(Arg, I) | $80
-         .endrep
-.endmacro
-         HiAscii "{.mH"
-         .byte   $9a
-         .byte   $ad
-         .byte   $08
-         .byte   $c8
-         .byte   $8d
-         .byte   $36
-         .byte   $c0
-
-@LCE90:  lda     #$00
+LCE7E:   nop
+         jsr     IS_NATIVE_MODE_REQ2
+         bcs     @LCE86
+         sec
+         xce
+@LCE86:  ldx     SAVE_SP2
+         txs
+         lda     SAVE_CYAREG
+         sta     CYAREG
+LCE90:   lda     #$00
          ldy     SAVE_Y
          sta     REG_IO_5380_RST,y
          sta     REG_5380_MODE_SEL,y
          rts
 
-@LCE9C:  .byte   $bd
-         .byte   $0e
-         .byte   $c0
-         .byte   $10
-         .byte   $0b
-         .byte   $bd
-         .byte   $08
-         .byte   $c0
-         .byte   $91
-         HiAscii "zHPs"
-         .byte   $4c
-         .byte   $ce
-         .byte   $ce
-         .byte   $4c
-         .byte   $ba
-         .byte   $ce
+code_fragment:
+         lda     REG_IO_DRQ,x ;this fragment is copied on the stack
+         bpl     @LCEAC
+         lda     REG_IO_PDMA_DACK,x
+         sta     (BUF_PTR_L),y
+         iny
+         bne     code_fragment
+         jmp     @LCECE
+
+@LCEAC:  jmp     @LCEBA
+
          .byte   $bd
          .byte   $0e
          .byte   $c0
@@ -444,58 +433,33 @@ TCE20:   tsx
          .byte   $18
          .byte   $90
          .byte   $f5
-         .byte   $ce
-         .byte   $01
-         .byte   $c8
-         .byte   $d0
-         .byte   $05
-         .byte   $ce
-         .byte   $03
-         .byte   $c8
-         .byte   $f0
-         .byte   $22
-         .byte   $bd
-         .byte   $05
-         .byte   $c0
-         .byte   $29
-         .byte   $08
-         .byte   $f0
-         .byte   $20
-         .byte   $6c
-         .byte   $19
-         .byte   $00
-         .byte   $ce
-         .byte   $02
-         .byte   $c8
-         .byte   $f0
-         .byte   $09
-         .byte   $e6
-         .byte   $fb
-         .byte   $d0
-         .byte   $02
-         .byte   $e6
-         .byte   $fc
-         .byte   $6c
-         .byte   $19
-         .byte   $00
-         .byte   $a9
-         .byte   $13
-         .byte   $18
-         .byte   $65
-         .byte   $19
-         .byte   $85
-         .byte   $19
-         .byte   $6c
-         .byte   $19
-         .byte   $00
-         .byte   $a9
-         .byte   $27
-         .byte   $8d
-         .byte   $0b
-         .byte   $c8
-         .byte   $4c
-         .byte   $7e
-         .byte   $ce
+
+@LCEBA:  dec     TCOUNT_B0
+         bne     @LCEC4
+         dec     TCOUNT_B1
+         beq     @LCEE6
+@LCEC4:  lda     REG_5380_STAT2,x
+         and     #$08
+         beq     @LCEEB
+         jmp     (TMP_PTR0)
+
+@LCECE:  dec     TCOUNT_B2
+         beq     @LCEDC
+         inc     BUF_PTR_H
+         bne     @LCED9
+         inc     BUF_PTR_VH
+@LCED9:  jmp     (TMP_PTR0)
+
+@LCEDC:  lda     #$13
+         clc
+         adc     TMP_PTR0
+         sta     TMP_PTR0
+         jmp     (TMP_PTR0)
+
+@LCEE6:  lda     #$27
+         sta     RET_CODE
+@LCEEB:  jmp     LCE7E
+
          .byte   $a2
          .byte   $ff
          .byte   $ca
@@ -511,10 +475,12 @@ TCE20:   tsx
          .byte   $18
          .byte   $60
 
-@LCEFC:  sec
+set_carry_return:
+         sec
          rts
 
-@LCEFE:  clc
+SET_NATIVE:
+         clc
          xce
          rts
 
@@ -522,9 +488,10 @@ TCE20:   tsx
          .byte   $fb
          .byte   $60
 
-@LCF04:  jsr     @LCF14
-         bcs     @LCEFC
-         jmp     @LCEFE
+SET_NATIVE_IF_NEEDED:
+         jsr     IS_NATIVE_MODE_REQ2
+         bcs     set_carry_return ;just return should be ok
+         jmp     SET_NATIVE
 
          .byte   $20
          .byte   $14
@@ -535,29 +502,32 @@ TCE20:   tsx
          .byte   $01
          .byte   $cf
 
-@LCF14:  lda     CALL_TYPE
+IS_NATIVE_MODE_REQ2:
+         lda     CALL_TYPE  ;this one is reverse return value vs the one in bank 15
          and     #$40
-         beq     @LCEFC
+         beq     set_carry_return ;branch if not ext call
          lda     IIgs_PDMA
          cmp     #$01
-         bne     @LCEFC
+         bne     set_carry_return ;branch if not IIgs
          clc
          rts
 
-TCF24:   lda     XFER_MODE
-         cmp     #$03
-         bne     @LCF3D
+FN_3D:   lda     XFER_MODE  ;auto select XFER_MODE
+         cmp     #$03       ;if(XFER_MODE==3) overrides the auto selection - not documented in manual
+         bne     end_sel_xfer_mode
          lda     IIgs_PDMA
          cmp     #$01
-         bne     @LCF38
-         sta     XFER_MODE
-         jmp     @LCF3D
+         bne     SET_XFER_MODE_IIe_PDMA
+         sta     XFER_MODE  ;set XFER_MODE IIgs PDMA
+         jmp     end_sel_xfer_mode
 
-@LCF38:  lda     #$00
+SET_XFER_MODE_IIe_PDMA:
+         lda     #$00
          sta     XFER_MODE
-@LCF3D:  rts
+end_sel_xfer_mode:
+         rts
 
-TCF3E:   lda     #$ff
+FN_5D:   lda     #$ff
          sta     UNK_c820
          lda     XFER_MODE
          sta     TMP_c80a
@@ -579,12 +549,13 @@ TCF3E:   lda     #$ff
          .byte   $4c
          .byte   $cc
          .byte   $cf
-LCF62:   .word   TCC00
-         .word   TCE08
-         .word   TCE20
-         .word   TCF24
-         .word   TCD3D
-         .word   TCF3E
+FN_TABLE:
+         .word   FN_0D
+         .word   FN_1D
+         .word   FN_2D
+         .word   FN_3D
+         .word   FN_4D
+         .word   FN_5D
          .byte   $ea
          .byte   $ea
          .byte   $ea
@@ -679,7 +650,8 @@ LCF62:   .word   TCC00
          .byte   $ea
          .byte   $ea
          .byte   $ea
-LCFCC:   stx     BSW_SAVE_X
+BANKSWITCH:
+         stx     BSW_SAVE_X
          tax
          lda     BSW_SAVE_X
          pha
@@ -694,19 +666,20 @@ LCFCC:   stx     BSW_SAVE_X
          ror     A
          ror     A
          tax
-         lda     LCF62,x
+         lda     FN_TABLE,x
          sta     TMP_PTR1
          inx
-         lda     LCF62,x
+         lda     FN_TABLE,x
          sta     TMP_PTR1+1
-         jsr     @LCFF9
+         jsr     DO_CALL_FN
          pla
          and     #$0f
          sta     REG_IO_BANK_SEL,y
          clc
          rts
 
-@LCFF9:  jmp     (TMP_PTR1)
+DO_CALL_FN:
+         jmp     (TMP_PTR1)
 
          .byte   $00
          .byte   $00

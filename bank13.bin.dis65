@@ -55,6 +55,11 @@
 "Hint":"Code"},
 
 {
+"Low":668,
+"High":668,
+"Hint":"Code"},
+
+{
 "Low":804,
 "High":804,
 "Hint":"Code"},
@@ -72,7 +77,19 @@
 },
 
 "Comments":{
-},
+"244":"CALL_FN_9C",
+"392":"CALL_FN_93",
+"522":"CALL_FN_15",
+"527":"CALL_FN_BF",
+"557":"CALL_FN_B5",
+"668":"this fragment is copied on the stack",
+"775":"just return should be ok",
+"788":"this one is reverse return value vs the one in bank 15",
+"793":"branch if not ext call",
+"800":"branch if not IIgs",
+"804":"auto select XFER_MODE",
+"807":"if(XFER_MODE==3) overrides the auto selection - not documented in manual",
+"818":"set XFER_MODE IIgs PDMA"},
 
 "LongComments":{
 "-2147483647":{
@@ -86,46 +103,130 @@
 
 "UserLabels":{
 "0":{
-"Label":"TCC00",
+"Label":"FN_0D",
 "Value":52224,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "520":{
-"Label":"TCE08",
+"Label":"FN_1D",
 "Value":52744,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "544":{
-"Label":"TCE20",
+"Label":"FN_2D",
 "Value":52768,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "804":{
-"Label":"TCF24",
+"Label":"FN_3D",
 "Value":53028,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "317":{
-"Label":"TCD3D",
+"Label":"FN_4D",
 "Value":52541,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "830":{
-"Label":"TCF3E",
+"Label":"FN_5D",
 "Value":53054,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"}},
+"LabelAnno":"None"},
+
+"668":{
+"Label":"code_fragment",
+"Value":52892,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"866":{
+"Label":"FN_TABLE",
+"Value":53090,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"972":{
+"Label":"BANKSWITCH",
+"Value":53196,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"1017":{
+"Label":"DO_CALL_FN",
+"Value":53241,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"764":{
+"Label":"set_carry_return",
+"Value":52988,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"788":{
+"Label":"IS_NATIVE_MODE_REQ2",
+"Value":53012,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"766":{
+"Label":"SET_NATIVE",
+"Value":52990,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"772":{
+"Label":"SET_NATIVE_IF_NEEDED",
+"Value":52996,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"824":{
+"Label":"SET_XFER_MODE_IIe_PDMA",
+"Value":53048,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"829":{
+"Label":"end_sel_xfer_mode",
+"Value":53053,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"446":{
+"Label":"CALL_FN_XD",
+"Value":52670,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"656":{
+"Label":"FN_2D_end",
+"Value":52880,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"}},
 
 "OperandFormats":{
 "866":{
@@ -133,7 +234,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCC00",
+"Label":"FN_0D",
 "Part":"Low"}},
 
 "868":{
@@ -141,7 +242,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCE08",
+"Label":"FN_1D",
 "Part":"Low"}},
 
 "870":{
@@ -149,7 +250,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCE20",
+"Label":"FN_2D",
 "Part":"Low"}},
 
 "872":{
@@ -157,7 +258,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCF24",
+"Label":"FN_3D",
 "Part":"Low"}},
 
 "874":{
@@ -165,7 +266,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD3D",
+"Label":"FN_4D",
 "Part":"Low"}},
 
 "876":{
@@ -173,7 +274,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCF3E",
+"Label":"FN_5D",
 "Part":"Low"}}},
 
 "LvTables":{
