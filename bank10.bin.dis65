@@ -77,17 +77,20 @@
 },
 
 "Comments":{
+"8":"TMP_PTR0=\u0026DIBTAB[DEV_IDX]",
 "19":"CALL_FN_7F",
 "110":"CALL_FN_0D",
-"124":"TMP_PTR0=\u0026DIBTAB[SDAT_IDX]",
+"124":"TMP_PTR0=\u0026DIBTAB[DEV_IDX]",
 "127":"offset of DIBTAB from $C900",
 "133":"add 27 (size of DIBTAB entry)",
 "142":"19,1a contain $c9xx (address of selected DIBTAB entry)",
 "148":"check for DIBTAB entry ID",
+"160":"lookup DIBTAB[DEV_IDX], set DEV_STATUS and copy BLK_SIZE",
 "168":"CALL_FN_6F",
-"188":"memcpy(BUF_PTR_L, TMP_PTR0+1, 4 or 5)",
-"191":"copies dibtab device status and block size",
-"211":"needed?",
+"174":"TMP_PTR0=\u0026DIBTAB[DEV_IDX]",
+"182":"Set DEV_STATUS, copy BLKSIZE to BUF_PTR+1",
+"188":"SET DEV_STATUS and copies dibtab device status and block size to *BUF_PTR",
+"191":"memcpy(BUF_PTR_L, TMP_PTR0+1, 4 or 5)",
 "218":"put device status in $c9f3",
 "246":"CALL_FN_AF",
 "346":"REQ \u0026 IO asserted",
@@ -99,7 +102,10 @@
 "595":"FILL CDB with MODE SELECT command",
 "606":"CALL_FN_8B",
 "671":"clear SCSI CDB",
-"700":"CALL_FN_3E",
+"677":"CALL_FN_AF - BUS_FREE",
+"680":"Do Phases without BUS_FREE- both of the above can be replaced with FN_00",
+"693":"clear bit 4 (device offline)",
+"700":"CALL_FN_3E - Get status and message. Check device not busy",
 "865":"save $fa..$fd to $c8ee and $c921",
 "886":"load $fa..$fd from $c8ee and $c921",
 "909":"SCSI REQUEST_SENSE",
@@ -266,7 +272,7 @@
 "LabelAnno":"None"},
 
 "154":{
-"Label":"DIBTAB_NOT_FOUND",
+"Label":"DIBTAB_ERROR",
 "Value":52378,
 "Source":"User",
 "Type":"GlobalAddr",
@@ -413,7 +419,7 @@
 "LabelAnno":"None"},
 
 "671":{
-"Label":"FN_2A_loop",
+"Label":"clear_cdb_loop",
 "Value":52895,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
@@ -487,9 +493,52 @@
 "Value":52853,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"138":{
+"Label":"entry_found",
+"Value":52362,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"129":{
+"Label":"next_entry",
+"Value":52353,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"116":{
+"Label":"ERROR_IOERROR",
+"Value":52340,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"698":{
+"Label":"bus_free_ok",
+"Value":52922,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"754":{
+"Label":"FN_2A_end",
+"Value":52978,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
+"116":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"P8E_IO_ERR",
+"Part":"Low"}},
+
 "142":{
 "Length":2,
 "Format":"NumericLE",

@@ -1,6 +1,8 @@
 ; Target assembler: cc65 v2.18.0 [--target none -C bank10.bin_cc65.cfg]
 ; 6502bench SourceGen v1.8.3
          .setcpu "65816"
+P8E_IO_ERR =     $27        ;I/O error
+
 TMP_PTR0 =       $19        ; temporary ZP pointer 
 TMP_PTR1 =       $1b        ; temporary ZP pointer 
 TMP_PTR_L =      $f6        ; temporary ZP long pointer
@@ -32,9 +34,9 @@ TEMP_HI  =       $c8ee      ;generic 16-bit temp high byte
 TEMP_LO  =       $c8ef      ;generic 16-bit temp low byte
 IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
 TEMP_c915 =      $c915      ;unknown
-UNK_c921 =       $c921      ;unknown
-UNK_c922 =       $c922      ;unknown
-BLKSIZE_H =      $c92f      ;byte1 of block size
+TEMP_VH  =       $c921      ;unknown
+TEMP_XH  =       $c922      ;unknown
+BLKSIZE_H =      $c92f      ;byte1 of block size - reverse endian
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 
          .org    $cc00
@@ -43,7 +45,7 @@ DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 FN_0A:   jsr     DIBTAB_LOOKUP
          bcc     @entry_found_0a
          jsr     CALL_FN_0D
-         jsr     DIBTAB_LOOKUP
+         jsr     DIBTAB_LOOKUP ;TMP_PTR0=&DIBTAB[DEV_IDX]
 @entry_found_0a:
          jsr     FN_7A
          jsr     FN_2A
@@ -106,30 +108,33 @@ CALL_FN_0D:
          .byte   $0b
          .byte   $c0
 
-LCC74:   lda     #$27
+ERROR_IOERROR:
+         lda     #P8E_IO_ERR
          ldy     SAVE_Y
          jmp     CALL_FN_60_RET
 
 DIBTAB_LOOKUP:
-         ldx     DEV_IDX    ;TMP_PTR0=&DIBTAB[SDAT_IDX]
+         ldx     DEV_IDX    ;TMP_PTR0=&DIBTAB[DEV_IDX]
          lda     #$31       ;offset of DIBTAB from $C900
-@LCC81:  dex
-         bmi     @LCC8A
+next_entry:
+         dex
+         bmi     entry_found
          clc
          adc     #$1b       ;add 27 (size of DIBTAB entry)
-         jmp     @LCC81
+         jmp     next_entry
 
-@LCC8A:  sta     TMP_PTR0
+entry_found:
+         sta     TMP_PTR0
          lda     #$c9
          sta     TMP_PTR0+1 ;19,1a contain $c9xx (address of selected DIBTAB entry)
          ldy     #$00
          lda     (TMP_PTR0),y
          cmp     #$86       ;check for DIBTAB entry ID
-         bne     DIBTAB_NOT_FOUND
+         bne     DIBTAB_ERROR
          clc
          rts
 
-DIBTAB_NOT_FOUND:
+DIBTAB_ERROR:
          sec
          rts
 
@@ -137,21 +142,21 @@ restore_y_return:
          ldy     SAVE_Y
          rts
 
-FN_1A:   jsr     FN_6A
+FN_1A:   jsr     FN_6A      ;lookup DIBTAB[DEV_IDX], set DEV_STATUS and copy BLK_SIZE
          jsr     FN_2A
          lda     #$6f
          jsr     CALL_FN_XA ;CALL_FN_6F
          jmp     restore_y_return
 
-FN_6A:   jsr     DIBTAB_LOOKUP
+FN_6A:   jsr     DIBTAB_LOOKUP ;TMP_PTR0=&DIBTAB[DEV_IDX]
          bcc     @entry_found_6a
          jsr     CALL_FN_0D
 @entry_found_6a:
-         jsr     FN_8A
+         jsr     FN_8A      ;Set DEV_STATUS, copy BLKSIZE to BUF_PTR+1
          jmp     restore_y_return
 
-FN_8A:   lda     CALL_TYPE  ;memcpy(BUF_PTR_L, TMP_PTR0+1, 4 or 5)
-         and     #$40       ;copies dibtab device status and block size
+FN_8A:   lda     CALL_TYPE  ;SET DEV_STATUS and copies dibtab device status and block size to *BUF_PTR
+         and     #$40       ;memcpy(BUF_PTR_L, TMP_PTR0+1, 4 or 5)
          beq     @FN_8A_not_ext
          lda     IIgs_PDMA
          bne     @FN_8A_IIgs
@@ -164,7 +169,7 @@ FN_8A:   lda     CALL_TYPE  ;memcpy(BUF_PTR_L, TMP_PTR0+1, 4 or 5)
          lda     (TMP_PTR0),y
          dey
          sta     (BUF_PTR_L),y
-         tya                ;needed?
+         tya
          bne     @FN_8A_loop1
          ldy     #$01
          lda     (TMP_PTR0),y
@@ -356,7 +361,7 @@ LCE3A:   jsr     CALL_00_DoPhases
          bne     LCE4E
          rts
 
-LCE4E:   jmp     LCC74
+LCE4E:   jmp     ERROR_IOERROR
 
 FN_5A:   ldx     #$06
 @cpy_loop:
@@ -410,30 +415,31 @@ FN_2A:   ldy     #$00
          ldy     #$06
          sty     SCSI_CMD_LEN
          lda     #$00
-@FN_2A_loop:
+@clear_cdb_loop:
          sta     SCSI_CDB_CMD,y ;clear SCSI CDB
          dey
-         bpl     @FN_2A_loop
-         jsr     FN_3A
-         jsr     CALL_FN_B0
+         bpl     @clear_cdb_loop
+         jsr     FN_3A      ;CALL_FN_AF - BUS_FREE
+         jsr     CALL_FN_B0 ;Do Phases without BUS_FREE- both of the above can be replaced with FN_00
          lda     RET_CODE
-         beq     @LCEBA
+         beq     @bus_free_ok
          lda     TEMP_c915
          and     #$ef
-         sta     TEMP_c915
-         bne     @LCEF2
-@LCEBA:  lda     #$3e
-         jsr     CALL_FN_XA ;CALL_FN_3E
+         sta     TEMP_c915  ;clear bit 4 (device offline)
+         bne     @FN_2A_end
+@bus_free_ok:
+         lda     #$3e
+         jsr     CALL_FN_XA ;CALL_FN_3E - Get status and message. Check device not busy
          lda     RET_CODE
          bne     @LCEFD
 @LCEC4:  ldy     #$17
          lda     (TMP_PTR0),y
          cmp     #$06
-         bne     @LCEF2
+         bne     @FN_2A_end
          jsr     SAVE_FA_FD
          jsr     LCE26
          lda     RET_CODE
-         bne     @LCEF2
+         bne     @FN_2A_end
          ldy     #$02
          jsr     LDA_BUF_PTR_Y
          jsr     LOAD_FA_FD
@@ -445,7 +451,8 @@ FN_2A:   ldy     #$00
 @LCEEA:  lda     TEMP_c915
          ora     #$04
 @LCEEF:  sta     TEMP_c915
-@LCEF2:  jsr     ST_c915_BUF_PTR_Y
+@FN_2A_end:
+         jsr     ST_c915_BUF_PTR_Y
          lda     #$00
          sta     RET_CODE
          jmp     restore_y_return
@@ -454,7 +461,7 @@ FN_2A:   ldy     #$00
          jsr     LCF8D
          jsr     LCE29
          lda     RET_CODE
-         bne     @LCEF2
+         bne     @FN_2A_end
          ldy     #$0c
          jsr     LDA_BUF_PTR_Y
          jsr     LOAD_FA_FD
@@ -465,7 +472,7 @@ FN_2A:   ldy     #$00
 @LCF1C:  sta     TEMP_c915
          bne     @LCEC4
 @LCF21:  cmp     #$28
-         bne     @LCEF2
+         bne     @FN_2A_end
          lda     TEMP_c915
          ora     #$11
          bne     @LCF1C
@@ -516,9 +523,9 @@ SAVE_FA_FD:
          lda     BUF_PTR_H
          sta     TEMP_LO
          lda     BUF_PTR_VH
-         sta     UNK_c921
+         sta     TEMP_VH
          lda     BUF_PTR_XH
-         sta     UNK_c922
+         sta     TEMP_XH
          rts
 
 LOAD_FA_FD:
@@ -527,9 +534,9 @@ LOAD_FA_FD:
          sta     BUF_PTR_L
          lda     TEMP_LO
          sta     BUF_PTR_H
-         lda     UNK_c921
+         lda     TEMP_VH
          sta     BUF_PTR_VH
-         lda     UNK_c922
+         lda     TEMP_XH
          sta     BUF_PTR_XH
          pla
          rts
