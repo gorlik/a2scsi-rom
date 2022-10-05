@@ -132,8 +132,15 @@
 },
 
 "Comments":{
+"121":"CALL_FN_7C",
+"225":"CALL_FN_9C",
 "511":"set RAM BANK 01",
-"517":"set ram bank 00"},
+"517":"set ram bank 00",
+"521":"CALL_B1_c806",
+"538":"CALL_FN_XB",
+"563":"CALL_FN_40",
+"575":"CALL_FN_30",
+"650":"should be bmi"},
 
 "LongComments":{
 "-2147483647":{
@@ -298,6 +305,69 @@
 "Value":52739,
 "Source":"User",
 "Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"1017":{
+"Label":"DO_CALL_FN",
+"Value":53241,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"926":{
+"Label":"CALL_FN_60_RET",
+"Value":53150,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"533":{
+"Label":"CALL_FN_XB",
+"Value":52757,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"531":{
+"Label":"CALL_FN_00",
+"Value":52755,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"618":{
+"Label":"ERROR_IOERROR",
+"Value":52842,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"623":{
+"Label":"SET_TIMEOUT_03",
+"Value":52847,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"637":{
+"Label":"DEC_TIMEOUT",
+"Value":52861,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"217":{
+"Label":"SET_NATIVE",
+"Value":52441,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"220":{
+"Label":"SET_EMULATION",
+"Value":52444,
+"Source":"User",
+"Type":"GlobalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -445,11 +515,33 @@
 "Label":"Patch1Call",
 "Part":"High"}},
 
+"487":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"P8E_IO_ERR",
+"Part":"Low"}},
+
 "502":{
 "Length":3,
 "Format":"NumericLE",
 "SubFormat":"Hex",
 "SymbolRef":null},
+
+"524":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Hex",
+"SymbolRef":null},
+
+"618":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"P8E_IO_ERR",
+"Part":"Low"}},
 
 "883":{
 "Length":1,

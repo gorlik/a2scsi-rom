@@ -94,7 +94,7 @@ FN_0B:   jsr     LCE90
          jsr     FN_2B
          ldy     SAVE_Y
          lda     #$7c
-         jmp     LCE15
+         jmp     CALL_FN_XB ;CALL_FN_7C
 
 @LCC7C:  lda     #$01
          sta     XFER_MODE
@@ -149,7 +149,7 @@ FN_0B:   jsr     LCE90
          rts
 
 FN_1B:   lda     #$9c
-         jsr     LCE15
+         jsr     CALL_FN_XB ;CALL_FN_9C
          ldy     #$02
          lda     (TMP_PTR_L),y
          sta     TIMEOUT
@@ -250,7 +250,7 @@ FN_5B:   lda     CALL_TYPE
 
 TCD8C:   jsr     LCD9E
          jsr     LCEA7
-LCD92:   jsr     LCE13
+LCD92:   jsr     CALL_FN_00
          jsr     LCE56
          jsr     LCE3D
          jmp     LCDE2
@@ -262,10 +262,10 @@ LCD9E:   lda     DEV_STATUS
 
 @LCDA6:  ldy     SAVE_Y
          lda     #$21
-         jmp     LCF9E
+         jmp     CALL_FN_60_RET
 
 TCDAE:   jsr     LCEB6
-         jsr     LCE13
+         jsr     CALL_FN_00
          jsr     LCE42
          jsr     LCE1E
          rts
@@ -290,7 +290,7 @@ LCDDF:   jsr     LCD92
 LCDE2:   lda     RET_CODE
          beq     @LCDEC
          lda     #$27
-         jmp     LCF9E
+         jmp     CALL_FN_60_RET
 
 @LCDEC:  rts
 
@@ -318,10 +318,12 @@ FN_6B:   jsr     SET_RAM_BANK_01
          jsr     SET_RAM_BANK_00
          rts
 
-LCE13:   lda     #$00
-LCE15:   ldx     #$0b
+CALL_FN_00:
+         lda     #$00
+CALL_FN_XB:
+         ldx     #$0b
          ldy     SAVE_Y
-         jsr     BANKSWITCH
+         jsr     BANKSWITCH ;CALL_FN_XB
          rts
 
 LCE1E:   ldy     SAVE_Y
@@ -332,13 +334,13 @@ LCE1E:   ldy     SAVE_Y
          lda     #$03
          sta     XFER_MODE
          lda     #$40
-         jsr     LCE15
+         jsr     CALL_FN_XB ;CALL_FN_40
          lda     TMP_c80a
          sta     XFER_MODE
          rts
 
 LCE3D:   lda     #$30
-         jmp     LCE15
+         jmp     CALL_FN_XB ;CALL_FN_30
 
 LCE42:   jsr     LCE6F
 @LCE45:  lda     REG_5380_STAT,y
@@ -363,7 +365,7 @@ LCE56:   jsr     LCE6F
 @LCE69:  rts
 
 LCE6A:   lda     #$27
-         jmp     LCF9E
+         jmp     CALL_FN_60_RET
 
 LCE6F:   lda     #$ff
          sta     TCOUNT_B0
@@ -531,7 +533,8 @@ FN_4B:   lda     #$06
          bne     @bus_busy
 @ret:    rts
 
-LCF9E:   sta     RET_CODE
+CALL_FN_60_RET:
+         sta     RET_CODE
          lda     #$60
          ldx     #$00
          jmp     BANKSWITCH
@@ -577,14 +580,15 @@ BANKSWITCH:
          inx
          lda     FN_TABLE,x
          sta     TMP_PTR1+1
-         jsr     @LCFF9
+         jsr     DO_CALL_FN
          pla
          and     #$0f
          sta     REG_IO_BANK_SEL,y
          clc
          rts
 
-@LCFF9:  jmp     (TMP_PTR1)
+DO_CALL_FN:
+         jmp     (TMP_PTR1)
 
          .byte   $00
          .byte   $00
