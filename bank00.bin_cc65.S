@@ -216,22 +216,23 @@ FN_90_PRODOS_Read:
 FN_10_DataXin:
          jsr     FN_00_DoPhases
 FN_40:   lda     REG_5380_STAT,y
-         and     #$1c
-         cmp     #$04
-         beq     @B_CD23    ;branch if DATA IN phase
+         and     #$1c       ;MSG_IO_CD_MASK
+         cmp     #$04       ;data in Phase
+         beq     @Read_data ;branch if DATA IN phase
          lda     REG_5380_STAT,y
          cmp     #$6c
-         beq     @FN_40_timeout ;branch if STATUS phase
+         beq     @FN_40_end ;branch if STATUS phase
          jsr     CALL_FN_42 ;decrement TIMEOUT
          lda     TCOUNT_B2
-         beq     @FN_40_timeout
+         beq     @FN_40_end
          bne     FN_40
 
-@B_CD23: lda     #$01
+@Read_data:
+         lda     #$01
          jsr     CALL_FN_X0 ;CALL_FN_01 - data read (?)
-@FN_40_timeout:
+@FN_40_end:
          jsr     FN_A0      ;get STATUS and MESSAGE IN
-         jmp     B_CDD7
+         jmp     CMD_end
 
 FN_A0:   jsr     SET_TIMEOUT
 FN_30:   lda     REG_5380_STAT,y
@@ -271,7 +272,7 @@ FN_30:   lda     REG_5380_STAT,y
          rts
 
 CALL_FN_3A_DUP:
-         lda     #$3a
+         lda     #$3a       ;BUS_FREE
          jmp     CALL_FN_X0 ;CALL_FN_3A_DUP
 
 CALL_FN_42:
@@ -282,13 +283,13 @@ PRODOS_WRITE:
          lda     DEV_STATUS
          cmp     #$b4
          beq     ERROR_NOWRITE
-         jsr     CALL_FN_3A_DUP
+         jsr     CALL_FN_3A_DUP ;BUS_FREE
          jsr     SCSI_WRITE_CMD
 FN_20:   jsr     FN_00_DoPhases
 FN_50:   lda     #$11
          jsr     CALL_FN_X0 ;CALL_FN_11 (Data Xout)
          jsr     FN_A0      ;get STATUS and MESSAGE
-         jmp     B_CDD7
+         jmp     CMD_end
 
 ERROR_NOWRITE:
          lda     #P8E_WRITE_PROT
@@ -323,15 +324,15 @@ ret_ok:  lda     #$00
 PRODOS_FORMAT:
          lda     #$06
          jsr     CALL_FN_X0 ;CALL_FN_06
-B_CDD7:  lda     PD_PAR_BUF_HI
+CMD_end: lda     PD_PAR_BUF_HI
          cmp     #$08       ;trying to detect boot ???
-         beq     PD_cmd_end ;branch if PD_BUF_H==$08
+         beq     RESTORE_ZP_RET ;branch if PD_BUF_H==$08
          lda     INIT_FLAG
          cmp     #$77
-         bne     PD_cmd_end ;branch if not init (also during boot)
+         bne     RESTORE_ZP_RET ;branch if not init (also during boot)
          lda     RET_CODE
          bne     scsi_cmd_end ;branch if RET_CODE!=0
-PD_cmd_end:
+RESTORE_ZP_RET:
          jsr     CALL_FN_12 ;restore ZP and return
          lda     #$00
          clc
@@ -339,10 +340,10 @@ PD_cmd_end:
 
 scsi_cmd_end:
          lda     SCSI_CDB_CMD
-         beq     PD_cmd_end ;end if SCSI CMD==TEST_UNIT_READY
+         beq     RESTORE_ZP_RET ;end if SCSI CMD==TEST_UNIT_READY
          lda     SAVE_SP_CMD_B
          cmp     #$04       ;smartport CMD Control
-         beq     PD_cmd_end ;end if smartport CMD==Control
+         beq     RESTORE_ZP_RET ;end if smartport CMD==Control
          lda     RET_CODE
          cmp     #$02
          beq     CALL_FN_16_and_end
@@ -351,7 +352,7 @@ scsi_cmd_end:
 CALL_FN_16_and_end:
          lda     #$16
          jsr     CALL_FN_X0 ;CALL_FN_16
-         jmp     PD_cmd_end
+         jmp     RESTORE_ZP_RET
 
 SCSI_READ_CMD:
          jsr     CALL_FN_84 ;copy PD_PAR_BUF into BUF_PTR

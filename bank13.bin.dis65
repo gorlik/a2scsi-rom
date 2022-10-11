@@ -77,8 +77,17 @@
 },
 
 "Comments":{
+"7":"at this point TMP_PTR0 points to DIBTAB[DEV_IDX]",
+"115":"copy BLK_SIZE from $c825 ???",
 "244":"CALL_FN_9C",
-"392":"CALL_FN_93",
+"327":"SAVE BUF_PTR to $c82c",
+"336":"SAVE TMP_PTR0",
+"356":"SAVE TMP_PTR (all 4 bytes)",
+"365":"set TMP_PTR to $ca00",
+"392":"CALL_FN_93 - INQUIRY",
+"403":"RESTORE BUF_PTR",
+"413":"RESTORE TMP_PTR0",
+"433":"RESTORE TMP_PTR (4 bytes)",
 "522":"CALL_FN_15",
 "527":"CALL_FN_BF",
 "557":"CALL_FN_B5",
@@ -89,7 +98,8 @@
 "800":"branch if not IIgs",
 "804":"auto select XFER_MODE",
 "807":"if(XFER_MODE==3) overrides the auto selection - not documented in manual",
-"818":"set XFER_MODE IIgs PDMA"},
+"818":"set XFER_MODE IIgs PDMA",
+"830":"FORCE PIO MODE"},
 
 "LongComments":{
 "-2147483647":{
@@ -173,7 +183,7 @@
 "LabelAnno":"None"},
 
 "764":{
-"Label":"set_carry_return",
+"Label":"sec_rts",
 "Value":52988,
 "Source":"User",
 "Type":"GlobalAddr",
@@ -224,6 +234,27 @@
 "656":{
 "Label":"FN_2D_end",
 "Value":52880,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"115":{
+"Label":"CPY_BLK_SIZE",
+"Value":52339,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"397":{
+"Label":"rest_BP",
+"Value":52621,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"321":{
+"Label":"save_BP",
+"Value":52545,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},

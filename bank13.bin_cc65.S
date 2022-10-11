@@ -21,6 +21,7 @@ TCOUNT_B0 =      $c801      ; timeout counter LSB
 TCOUNT_B2 =      $c802      ; timeout counter MSB
 TCOUNT_B1 =      $c803      ; timeout counter middle byte when using 24-bit counter
 XFER_MODE =      $c804      ; 0x00 IIe PDMA, 0x01 IIgs PDMA, 0x02-0xff PIO 
+TMP_c807 =       $c807      ; save BUF_PTR_VH ???
 SAVE_CYAREG =    $c808      ; saved value of CYAREG
 TMP_c80a =       $c80a      ; unknown
 RET_CODE =       $c80b      ; 
@@ -30,14 +31,13 @@ SAVE_Y   =       $c81a      ; slot adress (n+8)<<4
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 UNK_c820 =       $c820      ; 0xff if PIO ?
 UNK_c827 =       $c827      ; 3-byte unknown in reverse endian as the above
-TEMP_c8ca =      $c8ca      ; TEMP_BUF_PTR?
-UNK_c8cc =       $c8cc      ;unknown
+TEMP_PTR_c8ca =  $c8ca      ; TEMP_BUF_PTR?
 SAVE_SP2 =       $c8ed      ;saved SP - also used a random temp
-IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
+IS_IIgs  =       $c8f3      ;0x01 if IIgs
 SAVE_XFER_MODE = $c91f
 TEMP_VH  =       $c921      ;unknown
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
-TIMEOUT  =       $c9f6      ; each unit is 1.25s
+PTR_SAVE =       $c9f4      ; TMP PTR save location
 
          .org    $cc00
          .a8
@@ -45,12 +45,12 @@ TIMEOUT  =       $c9f6      ; each unit is 1.25s
 FN_0D:   lda     #$86
          ldy     #$00
          sty     TMP_c80a
-         sta     (TMP_PTR0),y
+         sta     (TMP_PTR0),y ;at this point TMP_PTR0 points to DIBTAB[DEV_IDX]
          iny
          iny
-         jsr     @LCC73
+         jsr     CPY_BLK_SIZE
          jsr     FN_4D
-         jsr     @LCC84
+         jsr     LCC84
          jsr     LCDC7
          lda     #$00
          sta     TMP_c80a
@@ -89,17 +89,18 @@ FN_0D:   lda     #$86
          iny
          dec     TMP_c80a
          bne     @LCC59
-@LCC61:  jsr     @LCCCC
+@LCC61:  jsr     LCCCC
          ldx     #$01
 @LCC66:  iny
-         lda     @LCD3B,x
+         lda     LCD3B,x
          sta     (TMP_PTR0),y
          dex
          bpl     @LCC66
          ldy     SAVE_Y
          rts
 
-@LCC73:  ldx     #$02
+CPY_BLK_SIZE:
+         ldx     #$02       ;copy BLK_SIZE from $c825 ???
 @LCC75:  lda     UNK_c827,x
          sta     (TMP_PTR0),y
          iny
@@ -110,7 +111,7 @@ FN_0D:   lda     #$86
          iny
          rts
 
-@LCC84:  iny
+LCC84:   iny
          tya
          pha
          ldx     #$00
@@ -156,7 +157,7 @@ FN_0D:   lda     #$86
 @LCCC8:  lda     #$00
          beq     @LCCAA
 
-@LCCCC:  lda     DEV_STATUS
+LCCCC:   lda     DEV_STATUS
          cmp     #$b4
          bne     @LCCD7
          lda     #$05
@@ -220,32 +221,33 @@ FN_0D:   lda     #$86
          .byte   $4c
          .byte   $58
          .byte   $cf
-@LCD3B:  .byte   $02
+LCD3B:   .byte   $02
          .byte   $00
 
 FN_4D:   tya
          pha
          ldx     #$03
-@LCD41:  lda     BUF_PTR_L,x
+@save_BP:
+         lda     BUF_PTR_L,x
          sta     $c82c,x
          dex
-         bpl     @LCD41
+         bpl     @save_BP   ;SAVE BUF_PTR to $c82c
          lda     TMP_PTR0
-         sta     $c9f4
+         sta     PTR_SAVE
          lda     TMP_PTR0+1
-         sta     TIMEOUT-1
+         sta     PTR_SAVE+1 ;SAVE TMP_PTR0
          lda     TMP_PTR_L
-         sta     TEMP_c8ca
+         sta     TEMP_PTR_c8ca
          lda     TMP_PTR_H
-         sta     UNK_c8cc-1
+         sta     TEMP_PTR_c8ca+1
          lda     TMP_PTR_VH
          sta     $c925
          lda     TMP_PTR_XH
-         sta     $c926
+         sta     $c926      ;SAVE TMP_PTR (all 4 bytes)
          lda     #$00
          sta     TMP_PTR_L
          lda     #$ca
-         sta     TMP_PTR_H
+         sta     TMP_PTR_H  ;set TMP_PTR to $ca00
          ldy     #$02
          lda     TMP_PTR_L
          sta     (TMP_PTR_L),y
@@ -260,24 +262,25 @@ FN_4D:   tya
          iny
          sta     (TMP_PTR_L),y
          lda     #$93
-         jsr     CALL_FN_XD ;CALL_FN_93
+         jsr     CALL_FN_XD ;CALL_FN_93 - INQUIRY
          ldx     #$03
-@LCD8D:  lda     $c82c,x
+@rest_BP:
+         lda     $c82c,x
          sta     BUF_PTR_L,x
          dex
-         bpl     @LCD8D
-         lda     $c9f4
+         bpl     @rest_BP   ;RESTORE BUF_PTR
+         lda     PTR_SAVE
          sta     TMP_PTR0
-         lda     TIMEOUT-1
-         sta     TMP_PTR0+1
-         lda     TEMP_c8ca
+         lda     PTR_SAVE+1
+         sta     TMP_PTR0+1 ;RESTORE TMP_PTR0
+         lda     TEMP_PTR_c8ca
          sta     TMP_PTR_L
-         lda     UNK_c8cc-1
+         lda     TEMP_PTR_c8ca+1
          sta     TMP_PTR_H
          lda     $c925
          sta     TMP_PTR_VH
          lda     $c926
-         sta     TMP_PTR_XH
+         sta     TMP_PTR_XH ;RESTORE TMP_PTR (4 bytes)
          pla
          tay
          rts
@@ -357,7 +360,7 @@ FN_2D:   tsx
          bcs     @LCE33
          lda     #$b5
          jsr     CALL_FN_XD ;CALL_FN_B5
-         jmp     LCE90
+         jmp     FN_2D_end
 
 @LCE33:  sbc     #$22
          tax
@@ -405,7 +408,8 @@ LCE7E:   nop
          txs
          lda     SAVE_CYAREG
          sta     CYAREG
-LCE90:   lda     #$00
+FN_2D_end:
+         lda     #$00
          ldy     SAVE_Y
          sta     REG_IO_5380_RST,y
          sta     REG_5380_MODE_SEL,y
@@ -475,8 +479,7 @@ code_fragment:
          .byte   $18
          .byte   $60
 
-set_carry_return:
-         sec
+sec_rts: sec
          rts
 
 SET_NATIVE:
@@ -490,7 +493,7 @@ SET_NATIVE:
 
 SET_NATIVE_IF_NEEDED:
          jsr     IS_NATIVE_MODE_REQ2
-         bcs     set_carry_return ;just return should be ok
+         bcs     sec_rts    ;just return should be ok
          jmp     SET_NATIVE
 
          .byte   $20
@@ -505,17 +508,17 @@ SET_NATIVE_IF_NEEDED:
 IS_NATIVE_MODE_REQ2:
          lda     CALL_TYPE  ;this one is reverse return value vs the one in bank 15
          and     #$40
-         beq     set_carry_return ;branch if not ext call
-         lda     IIgs_PDMA
+         beq     sec_rts    ;branch if not ext call
+         lda     IS_IIgs
          cmp     #$01
-         bne     set_carry_return ;branch if not IIgs
+         bne     sec_rts    ;branch if not IIgs
          clc
          rts
 
 FN_3D:   lda     XFER_MODE  ;auto select XFER_MODE
          cmp     #$03       ;if(XFER_MODE==3) overrides the auto selection - not documented in manual
          bne     end_sel_xfer_mode
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          cmp     #$01
          bne     SET_XFER_MODE_IIe_PDMA
          sta     XFER_MODE  ;set XFER_MODE IIgs PDMA
@@ -527,14 +530,14 @@ SET_XFER_MODE_IIe_PDMA:
 end_sel_xfer_mode:
          rts
 
-FN_5D:   lda     #$ff
+FN_5D:   lda     #$ff       ;FORCE PIO MODE
          sta     UNK_c820
          lda     XFER_MODE
          sta     TMP_c80a
          lda     #$03
          sta     XFER_MODE
          lda     BUF_PTR_VH
-         sta     SAVE_CYAREG-1
+         sta     TMP_c807
          lda     #$00
          sta     BUF_PTR_VH
          rts

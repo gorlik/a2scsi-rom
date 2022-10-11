@@ -57,7 +57,7 @@ IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
          .org    $cc00
          .a8
          .i8
-FN_01:   jsr     COPY_PD_BLK ;some sort of DATA READ
+FN_01:   jsr     COPY_PD_BLK ;Receive SCSI DATA to BUF_PTR
          lda     XFER_MODE
          beq     @FN_01_2ePDMA ;IIe PDMA
          cmp     #$01

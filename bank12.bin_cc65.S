@@ -41,7 +41,7 @@ UNK_c827 =       $c827      ; 3-byte unknown in reverse endian as the above
 BLK_c8c7 =       $c8c7      ; saved PRODOS BLOCK from input parameters
 LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
 BOOT_SEQ =       $c8e3      ;$55 if in boot process
-IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
+IS_IIgs  =       $c8f3      ;0x01 if IIgs
 DIBTAB_BASE =    $c931      ;start of DIBTAB (extends to $C9ED)
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
@@ -103,7 +103,7 @@ FN_1C:   lda     CALL_TYPE  ;add partition start to BLK number
 @FN_1C_smartport:
          and     #$40
          beq     @FN_1C_not_ext
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          cmp     #$01
          beq     @FN_1C_2gs
          ldy     #$06
@@ -481,7 +481,7 @@ SET_FAST_MODE:
          lda     CALL_TYPE
          and     #$40
          beq     @end_fast_mode ;branch if not ext call
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          beq     @end_fast_mode ;branch if not IIgs
          lda     SAVE_CYAREG
          ora     #$80       ;Speed bit mask
@@ -493,7 +493,7 @@ RESTORE_SPEED_REG:
          lda     CALL_TYPE
          and     #$40
          beq     @end_restore_speed ;branch if not ext call
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          beq     @end_restore_speed ;branch if not IIgs
          lda     SAVE_CYAREG
          sta     CYAREG
@@ -503,7 +503,7 @@ RESTORE_SPEED_REG:
 
 FN_8C:   lda     #$00       ;detect IIgs
          sta     XFER_MODE
-         sta     IIgs_PDMA
+         sta     IS_IIgs
          php
          sei
          lda     SLTROMSEL  ;save SLTROMSEL value
@@ -521,7 +521,7 @@ FN_8C:   lda     #$00       ;detect IIgs
          sta     SLTROMSEL
          lda     #$01
          sta     XFER_MODE
-         sta     IIgs_PDMA
+         sta     IS_IIgs
          lda     BOOT_SEQ
          cmp     #$55
          bne     @LCF9D

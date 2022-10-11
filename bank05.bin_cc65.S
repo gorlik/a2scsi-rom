@@ -36,14 +36,14 @@ PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse e
 UNK_c827 =       $c827      ; 3-byte unknown in reverse endian as the above
 SDAT_BASE =      $c831      ;start of SDAT table (extends to $C8A7)
 CUR_DEV_ID =     $c8c6      ;current DEV ID being scanned
-TEMP_c8ca =      $c8ca      ; TEMP_BUF_PTR?
+TEMP_PTR_c8ca =  $c8ca      ; TEMP_BUF_PTR?
 UNK_c8cc =       $c8cc      ;unknown
 UNK_c8cf =       $c8cf      ; $00 if failed to read Partition Map. $ff if PM detected
 PTR_c8d7 =       $c8d7      ; temp pointer storage (?)
 PTR_c8df =       $c8df      ;unknown
 BLK_c8e1 =       $c8e1      ;unknown
 BOOT_SEQ =       $c8e3      ;$55 if in boot process
-IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
+IS_IIgs  =       $c8f3      ;0x01 if IIgs
 UNK_c8f4 =       $c8f4      ;unknown
 BLKSIZE_H =      $c92f      ;byte1 of block size - reverse endian
 BLKSIZE_L =      $c930      ;byte0 of block size - reverse endian
@@ -63,7 +63,7 @@ DISABLE_NATIVE_IF_NEEDED:
          lda     CALL_TYPE
          and     #$40
          beq     @DISABLE_NATIVE_end ;branch if not ext call
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          beq     @DISABLE_NATIVE_end ;branch if not IIgs
          sec
          xce                ;disable native mode
@@ -94,17 +94,17 @@ SET_BUFPTR_CA00:
          rts
 
 RESTORE_BUF_PTR_c8ca:
-         lda     TEMP_c8ca
+         lda     TEMP_PTR_c8ca
          sta     BUF_PTR_L
-         lda     TEMP_c8ca+1
+         lda     $c8cb
          sta     BUF_PTR_H
          rts
 
 SAVE_BUF_PTR_c8ca:
          lda     BUF_PTR_L
-         sta     TEMP_c8ca
+         sta     TEMP_PTR_c8ca
          lda     BUF_PTR_H
-         sta     TEMP_c8ca+1
+         sta     $c8cb
          rts
 
          .byte   $a5
@@ -130,26 +130,26 @@ FN_95:   inc     UNK_c8f4   ;fill table entry (???)
          lda     BUF_PTR_L
          sta     PTR_c8d7
          lda     BUF_PTR_H
-         sta     PTR_c8d7+1 ;copy BUF_PTR to PTR_c8d7
+         sta     PTR_c8d7+1 ;SAVE BUF_PTR to PTR_c8d7
          lda     PD_PAR_BLK_LO
          sta     BLK_c8e1
          lda     PD_PAR_BLK_HI
-         sta     BLK_c8e1+1 ;copy BLK number to BLK_c8e1
+         sta     BLK_c8e1+1 ;SAVE BLK number to BLK_c8e1
          lda     #$56
-         jsr     CALL_FN_X5 ;CALL_FN_56
+         jsr     CALL_FN_X5 ;CALL_FN_56 - WAIT TEST_UNIT_READY
          lda     #$37
          jsr     CALL_FN_X5 ;CALL_FN_37
          lda     UNK_c8cf
          bne     @LCCDD
          lda     #$57
-         jsr     CALL_FN_X5 ;CALL_FN_57
+         jsr     CALL_FN_X5 ;CALL_FN_57 - return first empty SDAT entry in TMP_PTR0
          lda     TMP_PTR0
          sta     BUF_PTR_L
          lda     TMP_PTR0+1
-         sta     BUF_PTR_H
+         sta     BUF_PTR_H  ;BUF_PTR=TMP_PTR0
          lda     #$86
          ldx     #$00
-         sta     (BUF_PTR_L,x)
+         sta     (BUF_PTR_L,x) ;write SDAT signature
          inc     BUF_PTR_L
          lda     BUF_PTR_L
          sta     TMP_PTR_L
@@ -157,7 +157,7 @@ FN_95:   inc     UNK_c8f4   ;fill table entry (???)
          sta     TMP_PTR_H
          lda     #$00
          sta     TMP_PTR_VH
-         sta     TMP_PTR_XH
+         sta     TMP_PTR_XH ;TMP_PTR=++BUF_PTR;
          ldy     #$02
          lda     TMP_PTR_L
          sta     (TMP_PTR_L),y
@@ -167,7 +167,7 @@ FN_95:   inc     UNK_c8f4   ;fill table entry (???)
          ldy     SAVE_Y
          jsr     SAVE_BUF_PTR_c8ca
          lda     #$c3
-         jsr     CALL_FN_X5 ;CALL_FN_C3
+         jsr     CALL_FN_X5 ;CALL_FN_C3 - READ CAPACITY
          jsr     CLR_PART_START
          jsr     RESTORE_BUF_PTR_c8ca
          ldx     #$02
@@ -176,23 +176,23 @@ FN_95:   inc     UNK_c8f4   ;fill table entry (???)
          sta     (BUF_PTR_L),y
          dey
          dex
-         bpl     @LCCC8
+         bpl     @LCCC8     ;copy PART_START to SDAT
          lda     SEL_TARGET
          ldy     #$0c
-         sta     (BUF_PTR_L),y
+         sta     (BUF_PTR_L),y ;copy SEL_TARGET to SDAT
          iny
          lda     #$0c
-         sta     (BUF_PTR_L),y
+         sta     (BUF_PTR_L),y ;set device TIMOEUT in SDAT
 @LCCDD:  jsr     RESTORE_BUF_PTR_c8df
          ldy     SAVE_Y
          lda     PTR_c8d7
          sta     BUF_PTR_L
          lda     PTR_c8d7+1
-         sta     BUF_PTR_H
+         sta     BUF_PTR_H  ;RESTORE BUF_PTR from c8d7
          lda     BLK_c8e1
          sta     PD_PAR_BLK_LO
          lda     BLK_c8e1+1
-         sta     PD_PAR_BLK_HI
+         sta     PD_PAR_BLK_HI ;RESTORE PD_PAR_BLK from BLK_c8e1
          ldy     SAVE_Y
          rts
 
@@ -326,7 +326,7 @@ CALL_FN_1C:
          jsr     CALL_FN_X5 ;CALL_FN_1C
          rts
 
-FN_15:   lda     IIgs_PDMA
+FN_15:   lda     IS_IIgs
          cmp     #$01
          bne     @not_2gs
          lda     CYAREG
@@ -339,20 +339,22 @@ FN_15:   lda     IIgs_PDMA
          jsr     CALL_FN_X5 ;CALL_FN_6A - copy info from DIBTAB[DEV_IDX] to $ca00
          rts
 
-FN_45:   ldx     $00        ;next boot device ???
-         bne     @LCE12
+FN_45:   ldx     $00        ;next boot device or error if last
+         bne     BOOT_ERROR
          ldx     $01
          cpx     ACTV_PERIP_SLOT
-         bne     @LCE12
+         bne     BOOT_ERROR
          lda     #$80
-         bne     @LCE14     ;CALL_FN_80
+         bne     JSR_BANKSWITCH ;CALL_FN_80 - Next boot device
 
-@LCE12:  lda     #$22
-@LCE14:  jsr     BANKSWITCH ;CALL_FN_22
-FN_25:   jsr     LCEC8
-FN_75:   jsr     LCE31
-FN_85:   jsr     GET_UNK_c827_FROM_PTR0_2
-         lda     IIgs_PDMA
+BOOT_ERROR:
+         lda     #$22
+JSR_BANKSWITCH:
+         jsr     BANKSWITCH ;CALL_FN_22 - FN_4F - print "SCSI BOOT ERROR" and run basic
+FN_25:   jsr     PD_UNIT_TO_IDX
+FN_75:   jsr     SDAT_LOOKUP ;TMP_PTR0=&SDAT[DEV_IDX]
+FN_85:   jsr     GET_UNK_c827_FROM_PTR0_2 ;UNK_c827=BLK_COUNT from SDAT entry pointed by TMP_PTR0
+         lda     IS_IIgs
          cmp     #$01
          bne     @not_2gs
          lda     CYAREG
@@ -361,23 +363,24 @@ FN_85:   jsr     GET_UNK_c827_FROM_PTR0_2
          ldy     SAVE_Y
          rts
 
-LCE31:   jsr     COPY_PD_UNIT
+SDAT_LOOKUP:
+         jsr     COPY_PD_UNIT
          lda     #$31
          sta     TMP_PTR0
          lda     #$c8
          sta     TMP_PTR0+1 ;TMP_PTR0=SDAT_BASE
          lda     #$01
-         sta     TCOUNT_B0
-         ldx     #$06
-         ldy     #$00
+         sta     TCOUNT_B0  ;TCOUNT_B0=0
+         ldx     #$06       ;for(x=6;x>=0;x--) unclear why it count backwards as calling ADJUST will reverse again
+         ldy     #$00       ;unclear why it count backwards
 @SDAT_loop:
          lda     (TMP_PTR0),y ;search for device at the DEV_IDX position in SDAT ????
          cmp     #$86
          bne     @SDAT_next_entry ;branch if SDAT entry is invalid
          lda     DEV_IDX
          cmp     TCOUNT_B0
-         beq     ADJUST_DEV_IDX_X_REV_RET
-         inc     TCOUNT_B0
+         beq     ADJUST_DEV_IDX_X_REV_RET ;branch if TCOUNT_B0==DEV_IDX
+         inc     TCOUNT_B0  ;TCOUNT++
 @SDAT_next_entry:
          lda     TMP_PTR0
          clc
@@ -406,7 +409,7 @@ LCE31:   jsr     COPY_PD_UNIT
          sbc     #$02
          sta     DEV_IDX
          bmi     ERROR_NODRIVE_DUP ;branch if DEV_IDX<0
-         bpl     LCE31
+         bpl     SDAT_LOOKUP
 
 ERROR_NODRIVE_DUP:
          lda     CALL_TYPE  ;likely unnecessary function
@@ -455,7 +458,8 @@ GET_UNK_c827_FROM_PTR0_2:
          bpl     @cpy_loop_3b
          rts
 
-LCEC8:   jsr     COPY_PD_UNIT ;seems code to find the DEV_IDX from the prodos unit
+PD_UNIT_TO_IDX:
+         jsr     COPY_PD_UNIT ;convert the prodos UNIT # and store it to DEV_IDX 1..4
          lda     PD_UNIT    ;will fail if called from a smartport path
          clc
          sbc     #$80
@@ -464,15 +468,15 @@ LCEC8:   jsr     COPY_PD_UNIT ;seems code to find the DEV_IDX from the prodos un
 @LCED5:  stx     DEV_IDX
          lda     SAVE_Y
          cmp     #$d0
-         bne     @LCEED
+         bne     @rts
          lda     PD_UNIT
          and     #$7f
          cmp     #$20
-         bne     @LCEED
+         bne     @rts
          inx
          inx
          stx     DEV_IDX
-@LCEED:  rts
+@rts:    rts
 
 @LCEEE:  ldx     #$02
          bne     @LCED5
@@ -566,13 +570,14 @@ ENABLE_NATIVE_IF_NEEDED:
 
 FN_B5:   lda     CALL_TYPE  ;DMA read
          and     #$40
-         beq     CALL_FN_81 ;branch if not ext call
+         beq     CALL_FN_81 ;branch if not ext call - DMA Read IIe
          lda     #$3c
-         bne     LCF94      ;CALL_FN_3C
+         bne     CALL_FN_X5_NEAR ;CALL_FN_3C - DMA Read IIgs
 
 CALL_FN_81:
-         lda     #$81
-LCF94:   jmp     CALL_FN_X5 ;CALL_FN_81
+         lda     #$81       ;CALL_FN_81 - DMA Read
+CALL_FN_X5_NEAR:
+         jmp     CALL_FN_X5
 
 CALL_FN_60_RET:
          sta     RET_CODE

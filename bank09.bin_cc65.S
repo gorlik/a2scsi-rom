@@ -1,6 +1,8 @@
 ; Target assembler: cc65 v2.18.0 [--target none -C bank09.bin_cc65.cfg]
 ; 6502bench SourceGen v1.8.3
          .setcpu "65816"
+SCSI_CMD_READ6 = $08
+
 TMP_PTR1 =       $1b        ; temporary ZP pointer 
 TMP_PTR_L =      $f6        ; temporary ZP long pointer
 TMP_PTR_H =      $f7
@@ -33,9 +35,10 @@ UNK_c827 =       $c827      ; 3-byte unknown in reverse endian as the above
 LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
 RX_LEN_LO =      $c8e4      ;bytes read if call successfull
 RX_LEN_HI =      $c8e5      ;bytes read if call successfull
-IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
+IS_IIgs  =       $c8f3      ;0x01 if IIgs
 BLKSIZE_H =      $c92f      ;byte1 of block size - reverse endian
 LDIO_SIZE_LO =   $c9ee
+TMP_c9f1 =       $c9f1      ; 2-byte temp
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
 
@@ -43,22 +46,22 @@ TIMEOUT  =       $c9f6      ; each unit is 1.25s
          .a8
          .i8
 LCC00:   lda     SCSI_CDB_CMD
-         cmp     #$08
-         bne     @LCC46
-         jsr     CALL_FN_61
+         cmp     #SCSI_CMD_READ6
+         bne     @not_read
+         jsr     CALL_FN_61 ;prepare DMA receive
          lda     #$00
          tay
-         sta     $c9f1
-         sta     DEV_STATUS-1
+         sta     TMP_c9f1
+         sta     TMP_c9f1+1
          lda     $c9ef
          beq     @LCC45
          tsx
          cpx     #$60
          bcc     @LCC22
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          bne     @LCC3A
 @LCC22:  ldx     SAVE_Y
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          beq     @LCC36
          lda     CALL_TYPE
          and     #$40
@@ -75,23 +78,24 @@ LCC00:   lda     SCSI_CDB_CMD
          jsr     CALL_FN_X9 ;CALL_FN_3F
 @LCC45:  rts
 
-@LCC46:  jsr     CALL_FN_71
+@not_read:
+         jsr     CALL_FN_71 ;prepare DMA Send
          lda     #$00
          tay
-         sta     $c9f1
-         sta     DEV_STATUS-1
+         sta     TMP_c9f1
+         sta     TMP_c9f1+1
          lda     CALL_TYPE
          and     #$40
-         beq     CALL_FN_6C
-         lda     IIgs_PDMA
-         bne     CALL_FN_5C
+         beq     CALL_FN_6C ;branch if not ext
+         lda     IS_IIgs
+         bne     CALL_FN_5C ;branch if IIgs
 CALL_FN_6C:
          lda     #$6c
-         jmp     CALL_FN_X9 ;CALL_FN_6C
+         jmp     CALL_FN_X9 ;DMA Write type 3
 
 CALL_FN_5C:
          lda     #$5c
-         jmp     CALL_FN_X9 ;CALL_FN_5C
+         jmp     CALL_FN_X9 ;CALL_FN_5C - DMA Write IIgs
 
 LCC68:   lda     REG_IO_DRQ,x
          bpl     @LCC8D
@@ -104,8 +108,8 @@ LCC68:   lda     REG_IO_DRQ,x
          inc     BUF_PTR_H
          bne     @LCC80
          inc     BUF_PTR_VH
-@LCC80:  inc     DEV_STATUS-1
-         lda     DEV_STATUS-1
+@LCC80:  inc     TMP_c9f1+1
+         lda     TMP_c9f1+1
          cmp     $c9ef
          bne     LCC68
          beq     @LCCA0
@@ -123,7 +127,7 @@ LCC68:   lda     REG_IO_DRQ,x
          rts
 
 @LCCA2:  sec
-         sty     $c9f1
+         sty     TMP_c9f1
          rts
 
          .byte   $a2
@@ -304,7 +308,7 @@ LCDC6:   ldy     #$00
          ldx     SAVE_Y
 @LCDCB:  lda     REG_IO_DRQ,x
          bpl     @LCE04
-         lda     $c9f1
+         lda     TMP_c9f1
          cmp     LDIO_SIZE_LO
          bne     @LCDDA
          beq     @LCE17
@@ -312,7 +316,7 @@ LCDC6:   ldy     #$00
 @LCDDA:  lda     CALL_TYPE
          and     #$40
          beq     @LCDE8
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          cmp     #$01
          beq     @LCDF0
 @LCDE8:  lda     REG_IO_PDMA_DACK,x
@@ -326,7 +330,7 @@ LCDC6:   ldy     #$00
          inc     BUF_PTR_H
          bne     @LCDFE
          inc     BUF_PTR_VH
-@LCDFE:  inc     $c9f1
+@LCDFE:  inc     TMP_c9f1
          clc
          bcc     @LCDCB
 
@@ -358,19 +362,19 @@ LCDC6:   ldy     #$00
          bcc     @LCE39
 
 @LCE38:  sec
-@LCE39:  lda     $c9f1
+@LCE39:  lda     TMP_c9f1
          sta     RX_LEN_LO
-         lda     DEV_STATUS-1
+         lda     TMP_c9f1+1
          sta     RX_LEN_HI
          rts
 
-FN_39:   lda     IIgs_PDMA
+FN_39:   lda     IS_IIgs
          sta     $c82e
          lda     #$00
-         sta     IIgs_PDMA
+         sta     IS_IIgs
          jsr     FN_49
          lda     $c82e
-         sta     IIgs_PDMA
+         sta     IS_IIgs
          ldx     #$02
          lda     $c901,x
          cmp     #$06

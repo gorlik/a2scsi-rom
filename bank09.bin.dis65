@@ -82,10 +82,14 @@
 },
 
 "Comments":{
+"7":"prepare DMA receive",
 "51":"CALL_FN_B4",
 "66":"CALL_FN_3F",
-"96":"CALL_FN_6C",
-"101":"CALL_FN_5C",
+"70":"prepare DMA Send",
+"87":"branch if not ext",
+"92":"branch if IIgs",
+"96":"DMA Write type 3",
+"101":"CALL_FN_5C - DMA Write IIgs",
 "201":"CALL_FN_07",
 "219":"FAIL_BADCTRLPARM",
 "269":"ERROR_NOWRITE",
@@ -273,9 +277,24 @@
 "Value":52318,
 "Source":"User",
 "Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"70":{
+"Label":"not_read",
+"Value":52294,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
+"3":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_READ6",
+"Part":"Low"}},
+
 "938":{
 "Length":2,
 "Format":"NumericLE",

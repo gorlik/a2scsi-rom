@@ -129,10 +129,13 @@
 "252":"PRODOS Device Size",
 "254":"PRODOS Device Status",
 "255":"LSB of the PRODOS entry point (MUST be at $CCFF)",
+"265":"DATA READ - Xin without DoPhases",
+"268":"MSG_IO_CD_MASK",
+"270":"data in Phase",
 "272":"branch if DATA IN phase",
 "279":"branch if STATUS phase",
 "281":"decrement TIMEOUT",
-"293":"CALL_FN_01 - data read (?)",
+"293":"CALL_FN_01 - data read to BUF_PTR",
 "296":"get STATUS and MESSAGE IN",
 "312":"detected STATUS phase",
 "316":"detected MESSAGE IN phase",
@@ -141,8 +144,12 @@
 "330":"read status and save it to CMD_STATUS",
 "345":"detected MESSAGE IN phase",
 "354":"set expectation for MESSAGE IN phase",
+"371":"BUS_FREE",
 "373":"CALL_FN_3A_DUP",
 "378":"Decrement TIMEOUT3",
+"388":"BUS_FREE",
+"394":"EXECUTE SCSI DATA send COMMAND",
+"397":"DATA WRITE (without DoPhases)",
 "399":"CALL_FN_11 (Data Xout)",
 "402":"get STATUS and MESSAGE",
 "416":"BUS_FREE",
@@ -522,7 +529,7 @@
 "LabelAnno":"None"},
 
 "489":{
-"Label":"PD_cmd_end",
+"Label":"RESTORE_ZP_RET",
 "Value":52713,
 "Source":"User",
 "Type":"LocalOrGlobalAddr",
@@ -676,7 +683,7 @@
 "LabelAnno":"None"},
 
 "296":{
-"Label":"FN_40_timeout",
+"Label":"FN_40_end",
 "Value":52520,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
@@ -701,6 +708,20 @@
 "Value":52632,
 "Source":"User",
 "Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"471":{
+"Label":"CMD_end",
+"Value":52695,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"291":{
+"Label":"Read_data",
+"Value":52515,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
