@@ -158,15 +158,19 @@
 "441":"CALL_FN_30 (Get Status and Message)",
 "446":"CALL_FN_00 (DoPhases)",
 "449":"unreachable code",
-"473":"CALL_FN_40",
-"491":"CALL_FN_01",
+"473":"CALL_FN_40 - READ DATA",
+"483":"same as above + wait for DATA IN",
+"489":"is CALL_FN_40 better ???",
+"491":"CALL_FN_01 - READ DATA to BUF_PTR",
 "500":"Get Status and Message",
-"508":"CALL_FN_50",
+"508":"CALL_FN_50 - Data Write and get status",
 "534":"set PIO mode",
 "538":"unreachable code",
 "582":"medium write protect bit",
 "584":"branch if media is not write protected",
 "595":"REASSIGN_BLOCKS",
+"620":"MSG, CD, IO mask",
+"622":"branch if DATA OUT phase",
 "659":"MSG_CD_IO mask",
 "661":"Command phase",
 "663":"branch if Command Phase",
@@ -479,7 +483,7 @@
 "Label":"ret_27",
 "Value":52833,
 "Source":"User",
-"Type":"GlobalAddr",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"},
 
 "929":{
@@ -553,21 +557,21 @@
 "LabelAnno":"None"},
 
 "654":{
-"Label":"WAIT_FOR_COMMAND_PHASE",
+"Label":"WAIT_FOR_DATA_IN",
 "Value":52878,
 "Source":"User",
 "Type":"GlobalAddr",
 "LabelAnno":"None"},
 
 "656":{
-"Label":"cmd_pahse_loop",
+"Label":"data_in_phase_loop",
 "Value":52880,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"},
 
 "673":{
-"Label":"cmd_phase_found",
+"Label":"data_in_phase_found",
 "Value":52897,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
@@ -625,6 +629,55 @@
 "739":{
 "Label":"ERROR_IOERROR_DUP",
 "Value":52963,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"465":{
+"Label":"READ_DATA_PIO",
+"Value":52689,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"462":{
+"Label":"READ_DATA_PIO_TIMEOUT",
+"Value":52686,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"615":{
+"Label":"WAIT_FOR_DATA_OUT",
+"Value":52839,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"632":{
+"Label":"wait_dout_timeout",
+"Value":52856,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"617":{
+"Label":"wait_dout_loop",
+"Value":52841,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"483":{
+"Label":"READ_DATA_PIO_WAIT",
+"Value":52707,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"503":{
+"Label":"WRITE_DATA_PIO",
+"Value":52727,
 "Source":"User",
 "Type":"GlobalAddr",
 "LabelAnno":"None"}},

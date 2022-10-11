@@ -48,7 +48,7 @@ UNK_c8cc =       $c8cc      ;unknown
 SAVE_SP_UNIT =   $c8e8      ; saved Smartport UNIT number
 TEMP_HI  =       $c8ee      ;generic 16-bit temp high byte
 TEMP_LO  =       $c8ef      ;generic 16-bit temp low byte
-IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
+IS_IIgs  =       $c8f3      ;0x01 if IIgs
 buf_c8f5 =       $c8f5      ; seems to be some sort of 12 byte structure ???
 SAVE_XFER_MODE = $c91f
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
@@ -129,7 +129,7 @@ FN_D3:   jsr     WRITE_PROT_CHECK
 
 FN_B3:   jsr     LOAD_CDB_REQUEST_SENSE ;REQUEST_SENSE
          jsr     CALL_00_Do_Phases
-         jmp     LCDE3
+         jmp     READ_DATA_PIO_WAIT
 
 FN_93:   jsr     LOAD_CDB_INQUIRY
          jsr     CALL_00_Do_Phases
@@ -137,7 +137,7 @@ FN_93:   jsr     LOAD_CDB_INQUIRY
          sta     TEMP_HI
          lda     PD_PAR_BLK_HI
          sta     TEMP_LO
-         jsr     LCDCE
+         jsr     READ_DATA_PIO_TIMEOUT
          lda     TEMP_HI
          sta     PD_PAR_BLK_LO
          lda     TEMP_LO
@@ -150,7 +150,7 @@ FN_C3:   jsr     LOAD_CDB_READ_CAPACITY
          sta     TEMP_HI
          lda     BUF_PTR_H
          sta     TEMP_LO
-         jsr     LCDCE
+         jsr     READ_DATA_PIO_TIMEOUT
          lda     TEMP_HI
          sta     BUF_PTR_L
          lda     TEMP_LO
@@ -252,7 +252,7 @@ COPY_BUF_PTR:
          lda     CALL_TYPE
          and     #$40
          beq     @std_call
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          bne     @copy_long_buf_ptr
 @std_call:
          ldy     #$02
@@ -314,26 +314,30 @@ CALL_00_Do_Phases:
          .byte   $a9
          .byte   $cd
 
-LCDCE:   lda     TIMEOUT
+READ_DATA_PIO_TIMEOUT:
+         lda     TIMEOUT
+READ_DATA_PIO:
          sta     TCOUNT_B2
          jsr     SET_PIO_MODE
          lda     #$40
-         jsr     CALL_FN_X3 ;CALL_FN_40
+         jsr     CALL_FN_X3 ;CALL_FN_40 - READ DATA
          lda     SAVE_XFER_MODE
          sta     XFER_MODE
          rts
 
-LCDE3:   jsr     SET_PIO_MODE
-         jsr     WAIT_FOR_COMMAND_PHASE
-         lda     #$01
-         jsr     CALL_FN_X3 ;CALL_FN_01
+READ_DATA_PIO_WAIT:
+         jsr     SET_PIO_MODE ;same as above + wait for DATA IN
+         jsr     WAIT_FOR_DATA_IN
+         lda     #$01       ;is CALL_FN_40 better ???
+         jsr     CALL_FN_X3 ;CALL_FN_01 - READ DATA to BUF_PTR
          lda     SAVE_XFER_MODE
          sta     XFER_MODE
          jmp     CALL_FN_30 ;Get Status and Message
 
-LCDF7:   jsr     SET_PIO_MODE
+WRITE_DATA_PIO:
+         jsr     SET_PIO_MODE
          lda     #$50
-         jsr     CALL_FN_X3 ;CALL_FN_50
+         jsr     CALL_FN_X3 ;CALL_FN_50 - Data Write and get status
          lda     SAVE_XFER_MODE
          sta     XFER_MODE
          rts
@@ -394,25 +398,28 @@ FN_03_DoStatus:
          jsr     WRITE_PROT_CHECK
          jsr     LOAD_CDB_REASSIGN_BLOCKS ;REASSIGN_BLOCKS
          jsr     CALL_00_Do_Phases
-         jsr     LCE67
+         jsr     WAIT_FOR_DATA_OUT
          bcs     ret_27
-         jmp     LCDF7
+         jmp     WRITE_DATA_PIO
 
 ret_27:  lda     #$27
          sta     RET_CODE
          rts
 
-LCE67:   ldx     #$03
-@LCE69:  lda     REG_5380_STAT,y
-         and     #$1c
-         beq     @LCE78
+WAIT_FOR_DATA_OUT:
+         ldx     #$03
+@wait_dout_loop:
+         lda     REG_5380_STAT,y
+         and     #$1c       ;MSG, CD, IO mask
+         beq     @wait_dout_timeout ;branch if DATA OUT phase
          jsr     DELAY_10000
          dex
-         bne     @LCE69
+         bne     @wait_dout_loop
          sec
          rts
 
-@LCE78:  clc
+@wait_dout_timeout:
+         clc
          rts
 
 DELAY_10000:
@@ -427,20 +434,20 @@ DELAY_10000:
          ldy     SAVE_Y
          rts
 
-WAIT_FOR_COMMAND_PHASE:
+WAIT_FOR_DATA_IN:
          ldx     #$02
-@cmd_pahse_loop:
+@data_in_phase_loop:
          lda     REG_5380_STAT,y
          and     #$1c       ;MSG_CD_IO mask
          cmp     #$04       ;Command phase
-         beq     @cmd_phase_found ;branch if Command Phase
+         beq     @data_in_phase_found ;branch if Command Phase
          jsr     DELAY_10000
          dex
-         bne     @cmd_pahse_loop
+         bne     @data_in_phase_loop
          sec
          rts
 
-@cmd_phase_found:
+@data_in_phase_found:
          clc
          rts
 
@@ -450,7 +457,7 @@ FN_23:   jsr     LOAD_CDB_MODE_SENSE6 ;MODE_SENSE
          jsr     CALL_00_Do_Phases
          lda     SCSI_CDB_LEN
          beq     JMP_FN_30  ;branch if CMD lenght is 0 (nothing to transfer)
-         jsr     LCDCE
+         jsr     READ_DATA_PIO_TIMEOUT
          rts
 
 JMP_FN_30:
@@ -472,7 +479,7 @@ FN_53:   jsr     LOAD_CDB_READ_DEFECT
          beq     @LCEDA
          bne     @LCEC8
 
-@LCED7:  jmp     LCDCE
+@LCED7:  jmp     READ_DATA_PIO_TIMEOUT
 
 @LCEDA:  jsr     CALL_FN_30
          lda     RET_CODE
@@ -511,7 +518,7 @@ FN_F3:   jsr     ZERO_CMD_BUF6 ;Send REQUEST SENSE command
          lda     #$1c
          sta     SCSI_CDB_LEN
          jsr     CALL_00_Do_Phases ;Do_Phases
-         jsr     LCDCE
+         jsr     READ_DATA_PIO_TIMEOUT
          rts
 
          .byte   $18        ;seems unreachable code
