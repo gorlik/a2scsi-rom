@@ -34,13 +34,14 @@ CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PR
 PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
 NUM_PART =       $c8ce      ; number of partition on the device - only used in bank 07
 UNK_c8cf =       $c8cf      ; $00 if failed to read Partition Map. $ff if PM detected
-TEMP_c8d0 =      $c8d0      ; temp int storage (size of DDM block?)
+BLOCK_SIZE =     $c8d0      ; temp int storage (size of DDM block?)
 TMP_COUNT =      $c8d6      ; temp counter - only used in bank 07
 PTR_c8d7 =       $c8d7      ; temp pointer storage (?)
-TEMP_c8da =      $c8da      ;unknown
+TEMP_c8d9 =      $c8d9      ;unknown
 SAVE_XFER_MODE_ALT = $c8e7  ; saved XFER_MODE ? - seems used only in bank 7 as a temp
-IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
-BLKSIZE_H =      $c92f      ;byte1 of block size - reverse endian
+IS_IIgs  =       $c8f3      ;0x01 if IIgs
+UNK_c92d =       $c92d
+UNK_c92e =       $c92e
 
          .org    $cc00
          .a8
@@ -152,7 +153,7 @@ LCC51:   jsr     @LCC95
          lda     CALL_TYPE
          and     #$40
          beq     @LCCA4
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          bne     @LCCCA
 @LCCA4:  lda     #$06
          sta     SCSI_CMD_LEN
@@ -249,12 +250,12 @@ ERROR_IOERROR:
          jmp     CALL_FN_60_RET
 
 FN_37:   lda     #$00
-         sta     TEMP_c8da-1
+         sta     TEMP_c8d9
          sta     UNK_c8cf
-         lda     $c92d
+         lda     UNK_c92d
          cmp     SEL_TARGET
          bne     @LCD60
-         lda     BLKSIZE_H-1
+         lda     UNK_c92e
          cmp     #$44
          beq     @LCD88
 @LCD60:  jsr     @LCD8C
@@ -264,10 +265,10 @@ FN_37:   lda     #$00
          jsr     FILL_SDAT_TABLE
          lda     SAVE_XFER_MODE_ALT
          sta     XFER_MODE
-@LCD74:  lda     $c92d
+@LCD74:  lda     UNK_c92d
          cmp     #$05
          bne     @LCD88
-         sty     $c92d
+         sty     UNK_c92d
          lda     UNK_c8cf
          bne     @LCD88
          lda     #$69
@@ -276,7 +277,7 @@ FN_37:   lda     #$00
 @LCD88:  ldy     SAVE_Y
          rts
 
-@LCD8C:  lda     BLKSIZE_H-1
+@LCD8C:  lda     UNK_c92e
          cmp     #$44
          beq     @LCDAC
          lda     #$4d
@@ -285,7 +286,7 @@ FN_37:   lda     #$00
          lda     $ca00,x
          cmp     #$05
          bne     @LCDAC
-         sta     $c92d
+         sta     UNK_c92d
          lda     #$59
          jmp     CALL_FN_X7 ;CALL_FN_59
 
@@ -339,12 +340,12 @@ FILL_SDAT_TABLE:
          jmp     @next_pdm
 
 @done_reading_pdm:
-         lda     TEMP_c8da-1
+         lda     TEMP_c8d9
          sta     UNK_c8cf
          rts
 
 NEW_SDAT_ENTRY:
-         inc     TEMP_c8da-1 ;add partition to SDAT
+         inc     TEMP_c8d9  ;add partition to SDAT
          jsr     FN_57      ;Find empty SDAT -> TMP_PTR0
          ldy     #$00
          lda     #$86
@@ -377,10 +378,10 @@ GET_PART_SIZE_START:
 FILL_SDAT_ENTRY:
          jsr     CLR_SDAT_ENTRY ;keeps signature ID intact
          ldy     #$07
-         lda     TEMP_c8d0
+         lda     BLOCK_SIZE
          sta     (TMP_PTR0),y
          iny
-         lda     TEMP_c8d0+1
+         lda     BLOCK_SIZE+1
          sta     (TMP_PTR0),y ;fill the bytes per block
          ldy     #$01
          ldx     #$00
@@ -510,10 +511,10 @@ READ_DDM:
          bne     RET_CARRY_SET_LOCAL ;not DDM block
          ldy     #$02
          lda     (BUF_PTR_L),y
-         sta     TEMP_c8d0
+         sta     BLOCK_SIZE
          iny
          lda     (BUF_PTR_L),y
-         sta     TEMP_c8d0+1 ;TEMP_c8d0 contains the size in bytes of the DDM (inverse endian)
+         sta     BLOCK_SIZE+1 ;TEMP_c8d0 contains the size in bytes of the DDM
          clc
          bcc     RET_RESTORE_Y
 

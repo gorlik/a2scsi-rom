@@ -133,7 +133,7 @@
 "779":"not DDM block",
 "784":"Check for DDM signature",
 "786":"not DDM block",
-"798":"TEMP_c8d0 contains the size in bytes of the DDM (inverse endian)",
+"798":"TEMP_c8d0 contains the size in bytes of the DDM",
 "804":"redundant",
 "854":"CALL_FN_0E",
 "899":"CALL_FN_10 Data Xin",
