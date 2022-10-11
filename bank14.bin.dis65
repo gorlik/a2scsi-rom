@@ -117,9 +117,16 @@
 },
 
 "Comments":{
+"58":"Handle SP control $20-$2A",
+"79":"subtract $20 from control code",
+"108":"$26 - Eject",
+"130":"DoPhases",
+"136":"get STATUS and MESSAGE",
 "280":"CALL_FN_D3",
 "315":"CALL_FN_40",
 "327":"CALL_FN_30",
+"360":"MSG CD IO mask",
+"362":"status phase",
 "897":"Get Status and Message",
 "903":"SCSI_STATUS_BUSY",
 "905":"branch if status not busy",
@@ -167,74 +174,74 @@
 "LabelAnno":"None"},
 
 "124":{
-"Label":"TCC7C",
+"Label":"SP_AUDIO_SEARCH",
 "Value":52348,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "166":{
-"Label":"TCCA6",
+"Label":"SP_AUDIO_PLAY",
 "Value":52390,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "175":{
-"Label":"TCCAF",
+"Label":"SP_AUDIO_PAUSE",
 "Value":52399,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "184":{
-"Label":"TCCB8",
+"Label":"SP_UNKNOWN",
 "Value":52408,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "193":{
-"Label":"TCCC1",
+"Label":"SP_AUDIO_STATUS",
 "Value":52417,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "208":{
-"Label":"TCCD0",
+"Label":"SP_AUDIO_SCAN",
 "Value":52432,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "226":{
-"Label":"TCCE2",
+"Label":"SP_READ_TOC",
 "Value":52450,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "241":{
-"Label":"TCCF1",
+"Label":"SP_READ_Q_SUBCODE",
 "Value":52465,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "256":{
-"Label":"TCD00",
+"Label":"SP_READ_HEADER",
 "Value":52480,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "271":{
-"Label":"TCD0F",
+"Label":"SP_SET_INTERLEAVE",
 "Value":52495,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "972":{
 "Label":"BANKSWITCH",
@@ -339,6 +346,118 @@
 "Value":53164,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"102":{
+"Label":"SP_FN_TABLE_L",
+"Value":52326,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"113":{
+"Label":"SP_FN_TABLE_H",
+"Value":52337,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"74":{
+"Label":"FN_1E_std_call",
+"Value":52298,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"95":{
+"Label":"FN_1E_IIgs",
+"Value":52319,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"76":{
+"Label":"load_control_code",
+"Value":52300,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"78":{
+"Label":"done_loading",
+"Value":52302,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"149":{
+"Label":"rts",
+"Value":52373,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"150":{
+"Label":"CHECK_VALID",
+"Value":52374,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"422":{
+"Label":"CLR_CDB_CMD10",
+"Value":52646,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"431":{
+"Label":"clr_cdb_loop",
+"Value":52655,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"160":{
+"Label":"CALL_FN_60_RETY",
+"Value":52384,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"158":{
+"Label":"ERROR_BADCTL",
+"Value":52382,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"130":{
+"Label":"EXECUTE_COMMAND",
+"Value":52354,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"354":{
+"Label":"WAIT_FOR_STATUS",
+"Value":52578,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"357":{
+"Label":"status_loop",
+"Value":52581,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"373":{
+"Label":"rts",
+"Value":52597,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -347,7 +466,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCC7C",
+"Label":"SP_AUDIO_SEARCH",
 "Part":"Low"}},
 
 "103":{
@@ -355,7 +474,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCA6",
+"Label":"SP_AUDIO_PLAY",
 "Part":"Low"}},
 
 "104":{
@@ -363,7 +482,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCAF",
+"Label":"SP_AUDIO_PAUSE",
 "Part":"Low"}},
 
 "105":{
@@ -371,7 +490,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCB8",
+"Label":"SP_UNKNOWN",
 "Part":"Low"}},
 
 "106":{
@@ -379,7 +498,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCC1",
+"Label":"SP_AUDIO_STATUS",
 "Part":"Low"}},
 
 "107":{
@@ -387,7 +506,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCD0",
+"Label":"SP_AUDIO_SCAN",
 "Part":"Low"}},
 
 "108":{
@@ -403,7 +522,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCE2",
+"Label":"SP_READ_TOC",
 "Part":"Low"}},
 
 "110":{
@@ -411,7 +530,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCF1",
+"Label":"SP_READ_Q_SUBCODE",
 "Part":"Low"}},
 
 "111":{
@@ -419,7 +538,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD00",
+"Label":"SP_READ_HEADER",
 "Part":"Low"}},
 
 "112":{
@@ -427,7 +546,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD0F",
+"Label":"SP_SET_INTERLEAVE",
 "Part":"Low"}},
 
 "113":{
@@ -435,7 +554,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCC7C",
+"Label":"SP_AUDIO_SEARCH",
 "Part":"High"}},
 
 "114":{
@@ -443,7 +562,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCA6",
+"Label":"SP_AUDIO_PLAY",
 "Part":"High"}},
 
 "115":{
@@ -451,7 +570,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCAF",
+"Label":"SP_AUDIO_PAUSE",
 "Part":"High"}},
 
 "116":{
@@ -459,7 +578,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCB8",
+"Label":"SP_UNKNOWN",
 "Part":"High"}},
 
 "117":{
@@ -467,7 +586,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCC1",
+"Label":"SP_AUDIO_STATUS",
 "Part":"High"}},
 
 "118":{
@@ -475,7 +594,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCD0",
+"Label":"SP_AUDIO_SCAN",
 "Part":"High"}},
 
 "119":{
@@ -491,7 +610,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCE2",
+"Label":"SP_READ_TOC",
 "Part":"High"}},
 
 "121":{
@@ -499,7 +618,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCF1",
+"Label":"SP_READ_Q_SUBCODE",
 "Part":"High"}},
 
 "122":{
@@ -507,7 +626,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD00",
+"Label":"SP_READ_HEADER",
 "Part":"High"}},
 
 "123":{
@@ -515,8 +634,16 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD0F",
+"Label":"SP_SET_INTERLEAVE",
 "Part":"High"}},
+
+"144":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"P8E_IO_ERR",
+"Part":"Low"}},
 
 "915":{
 "Length":3,

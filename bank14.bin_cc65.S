@@ -1,6 +1,8 @@
 ; Target assembler: cc65 v2.18.0 [--target none -C bank14.bin_cc65.cfg]
 ; 6502bench SourceGen v1.8.3
          .setcpu "65816"
+P8E_IO_ERR =     $27        ;I/O error
+
 TMP_PTR1 =       $1b        ; temporary ZP pointer 
 TMP_PTR_L =      $f6        ; temporary ZP long pointer
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
@@ -32,8 +34,9 @@ CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PR
 CMD_STATUS =     $c81e      ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 UNK_c820 =       $c820      ; 0xff if PIO ?
 UNK_c8cc =       $c8cc      ;unknown
-UNK_c8cf =       $c8cf      ; unknown
-IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
+NUM_PART =       $c8ce      ; number of partition on the device - only used in bank 07
+UNK_c8cf =       $c8cf      ; $00 if failed to read Partition Map. $ff if PM detected
+IS_IIgs  =       $c8f3      ;0x01 if IIgs
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 
          .org    $cc00
@@ -61,118 +64,138 @@ FN_0E:   ldy     #$30
 @LCC23:  .byte   "apple PRODO"
 @LCC2E:  .byte   "APPLE_prodos"
 
-FN_1E:   lda     CALL_TYPE
+FN_1E:   lda     CALL_TYPE  ;Handle SP control $20-$2A
          and     #$40
-         beq     @LCC4A
-         lda     IIgs_PDMA
-         bne     @LCC5F
+         beq     @FN_1E_std_call
+         lda     IS_IIgs
+         bne     @FN_1E_IIgs
          ldy     #$06
-         bne     @LCC4C
+         bne     @load_control_code
 
-@LCC4A:  ldy     #$04
-@LCC4C:  lda     (TMP_PTR_L),y
-@LCC4E:  sec
-         sbc     #$20
+@FN_1E_std_call:
+         ldy     #$04
+@load_control_code:
+         lda     (TMP_PTR_L),y
+@done_loading:
+         sec
+         sbc     #$20       ;subtract $20 from control code
          tax
-         lda     @LCC66,x
+         lda     SP_FN_TABLE_L,x
          sta     TMP_PTR1
-         lda     @LCC71,x
+         lda     SP_FN_TABLE_H,x
          sta     TMP_PTR1+1
          jmp     (TMP_PTR1)
 
-@LCC5F:  ldy     #$06
+@FN_1E_IIgs:
+         ldy     #$06
          lda     [TMP_PTR_L],y
-         jmp     @LCC4E
+         jmp     @done_loading
 
-@LCC66:  .byte   <TCC7C
-         .byte   <TCCA6
-         .byte   <TCCAF
-         .byte   <TCCB8
-         .byte   <TCCC1
-         .byte   <TCCD0
-         .byte   <FN_2E
-         .byte   <TCCE2
-         .byte   <TCCF1
-         .byte   <TCD00
-         .byte   <TCD0F
-@LCC71:  .byte   >TCC7C
-         .byte   >TCCA6
-         .byte   >TCCAF
-         .byte   >TCCB8
-         .byte   >TCCC1
-         .byte   >TCCD0
+SP_FN_TABLE_L:
+         .byte   <SP_AUDIO_SEARCH
+         .byte   <SP_AUDIO_PLAY
+         .byte   <SP_AUDIO_PAUSE
+         .byte   <SP_UNKNOWN
+         .byte   <SP_AUDIO_STATUS
+         .byte   <SP_AUDIO_SCAN
+         .byte   <FN_2E     ;$26 - Eject
+         .byte   <SP_READ_TOC
+         .byte   <SP_READ_Q_SUBCODE
+         .byte   <SP_READ_HEADER
+         .byte   <SP_SET_INTERLEAVE
+SP_FN_TABLE_H:
+         .byte   >SP_AUDIO_SEARCH
+         .byte   >SP_AUDIO_PLAY
+         .byte   >SP_AUDIO_PAUSE
+         .byte   >SP_UNKNOWN
+         .byte   >SP_AUDIO_STATUS
+         .byte   >SP_AUDIO_SCAN
          .byte   >FN_2E
-         .byte   >TCCE2
-         .byte   >TCCF1
-         .byte   >TCD00
-         .byte   >TCD0F
+         .byte   >SP_READ_TOC
+         .byte   >SP_READ_Q_SUBCODE
+         .byte   >SP_READ_HEADER
+         .byte   >SP_SET_INTERLEAVE
 
-TCC7C:   jsr     LCC96
+SP_AUDIO_SEARCH:
+         jsr     CHECK_VALID
          jsr     LCDB6
-LCC82:   jsr     CALL_FN_00
-         jsr     LCD62
-         jsr     CALL_FN_30
+EXECUTE_COMMAND:
+         jsr     CALL_FN_00 ;DoPhases
+         jsr     WAIT_FOR_STATUS
+         jsr     CALL_FN_30 ;get STATUS and MESSAGE
          lda     RET_CODE
-         beq     @LCC95
-         lda     #$27
-         jmp     LCCA0
+         beq     @rts
+         lda     #P8E_IO_ERR
+         jmp     CALL_FN_60_RETY
 
-@LCC95:  rts
+@rts:    rts
 
-LCC96:   lda     DEV_STATUS
+CHECK_VALID:
+         lda     DEV_STATUS
          cmp     #$b4
-         bne     @LCC9E
+         bne     ERROR_BADCTL
          rts
 
-@LCC9E:  lda     #$21
-LCCA0:   ldy     SAVE_Y
+ERROR_BADCTL:
+         lda     #$21
+CALL_FN_60_RETY:
+         ldy     SAVE_Y
          jmp     CALL_FN_60_RET
 
-TCCA6:   jsr     LCC96
+SP_AUDIO_PLAY:
+         jsr     CHECK_VALID
          jsr     LCDC2
-         jmp     LCC82
+         jmp     EXECUTE_COMMAND
 
-TCCAF:   jsr     LCC96
+SP_AUDIO_PAUSE:
+         jsr     CHECK_VALID
          jsr     LCDCD
-         jmp     LCC82
+         jmp     EXECUTE_COMMAND
 
-TCCB8:   jsr     LCC96
+SP_UNKNOWN:
+         jsr     CHECK_VALID
          jsr     LCDEE
-         jmp     LCC82
+         jmp     EXECUTE_COMMAND
 
-TCCC1:   jsr     LCC96
+SP_AUDIO_STATUS:
+         jsr     CHECK_VALID
          jsr     LCE01
          jsr     CALL_FN_00
          jsr     LCD4A
          jmp     LCD26
 
-TCCD0:   jsr     LCC96
+SP_AUDIO_SCAN:
+         jsr     CHECK_VALID
          jsr     LCE11
-         jmp     LCC82
+         jmp     EXECUTE_COMMAND
 
-FN_2E:   jsr     LCC96
+FN_2E:   jsr     CHECK_VALID
          jsr     LCE1C
-         jmp     LCC82
+         jmp     EXECUTE_COMMAND
 
-TCCE2:   jsr     LCC96
+SP_READ_TOC:
+         jsr     CHECK_VALID
          jsr     LCE2A
          jsr     CALL_FN_00
          jsr     LCD4A
          jmp     LCD26
 
-TCCF1:   jsr     LCC96
+SP_READ_Q_SUBCODE:
+         jsr     CHECK_VALID
          jsr     LCE68
          jsr     CALL_FN_00
          jsr     LCD4A
          jmp     LCD26
 
-TCD00:   jsr     LCC96
+SP_READ_HEADER:
+         jsr     CHECK_VALID
          jsr     LCE78
          jsr     CALL_FN_00
          jsr     LCD4A
          jmp     LCD26
 
-TCD0F:   ldy     #$02
+SP_SET_INTERLEAVE:
+         ldy     #$02
          lda     (TMP_PTR_L),y
          sta     UNK_c8cc
          lda     #$d3
@@ -216,16 +239,18 @@ LCD4A:   jsr     SET_TIMEOUT_03
 
 @LCD61:  rts
 
-LCD62:   jsr     SET_TIMEOUT_03
-@LCD65:  lda     REG_5380_STAT,y
-         and     #$1c
-         cmp     #$0c
-         beq     @LCD75
+WAIT_FOR_STATUS:
+         jsr     SET_TIMEOUT_03
+@status_loop:
+         lda     REG_5380_STAT,y
+         and     #$1c       ;MSG CD IO mask
+         cmp     #$0c       ;status phase
+         beq     @rts
          jsr     DEC_TIMEOUT3
          bcs     ERROR_IOERROR
-         bcc     @LCD65
+         bcc     @status_loop
 
-@LCD75:  rts
+@rts:    rts
 
 ERROR_IOERROR:
          lda     #$27
@@ -263,27 +288,29 @@ DEC_TIMEOUT3:
          .byte   $f0
          .byte   $05
 
-LCDA6:   lda     #$0a
+CLR_CDB_CMD10:
+         lda     #$0a
          sta     SCSI_CMD_LEN
          ldx     #$0a
          lda     #$00
-@LCDAF:  sta     SCSI_CDB_CMD,x
+@clr_cdb_loop:
+         sta     SCSI_CDB_CMD,x
          dex
-         bne     @LCDAF
+         bne     @clr_cdb_loop
          rts
 
-LCDB6:   jsr     LCDA6
+LCDB6:   jsr     CLR_CDB_CMD10
          lda     #$c8
          sta     SCSI_CDB_CMD
          jsr     LCE8E
          rts
 
-LCDC2:   jsr     LCDA6
+LCDC2:   jsr     CLR_CDB_CMD10
          lda     #$c9
          sta     SCSI_CDB_CMD
          jmp     LCE8E
 
-LCDCD:   jsr     LCDA6
+LCDCD:   jsr     CLR_CDB_CMD10
          lda     #$ca
          sta     SCSI_CDB_CMD
          jsr     LCF4A
@@ -298,7 +325,7 @@ LCDCD:   jsr     LCDA6
          sta     SCSI_CDB_LUN
 @LCDED:  rts
 
-LCDEE:   jsr     LCDA6
+LCDEE:   jsr     CLR_CDB_CMD10
          lda     #$cb
          sta     SCSI_CDB_CMD
          jsr     LCF4A
@@ -306,26 +333,26 @@ LCDEE:   jsr     LCDA6
          jsr     LCEDC
          jmp     LCEC5
 
-LCE01:   jsr     LCDA6
+LCE01:   jsr     CLR_CDB_CMD10
          lda     #$cc
          sta     SCSI_CDB_CMD
          lda     #$ff
          sta     SCSI_CDB10_8
          jmp     LCF4A
 
-LCE11:   jsr     LCDA6
+LCE11:   jsr     CLR_CDB_CMD10
          lda     #$cd
          sta     SCSI_CDB_CMD
          jmp     LCE8E
 
-LCE1C:   jsr     LCDA6
+LCE1C:   jsr     CLR_CDB_CMD10
          lda     #$c0
          sta     SCSI_CDB_CMD
          lda     #$01
          sta     SCSI_CDB_LUN
          rts
 
-LCE2A:   jsr     LCDA6
+LCE2A:   jsr     CLR_CDB_CMD10
          lda     #$c1
          sta     SCSI_CDB_CMD
          jsr     LCF4A
@@ -356,14 +383,14 @@ LCE2A:   jsr     LCDA6
          xce
          jmp     LCEC5
 
-LCE68:   jsr     LCDA6
+LCE68:   jsr     CLR_CDB_CMD10
          lda     #$c2
          sta     SCSI_CDB_CMD
          lda     #$ff
          sta     SCSI_CDB10_8
          jmp     LCF4A
 
-LCE78:   jsr     LCDA6
+LCE78:   jsr     CLR_CDB_CMD10
          lda     #$c3
          sta     SCSI_CDB_CMD
          jsr     LCF4A
@@ -415,7 +442,7 @@ LCEDC:   iny
          lda     CALL_TYPE
          and     #$40
          beq     @LCEE9
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          bne     @LCEEC
 @LCEE9:  jmp     LCF14
 
@@ -424,7 +451,7 @@ LCEDC:   iny
 LCEEF:   lda     CALL_TYPE
          and     #$40
          beq     @LCEFB
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          bne     @LCEFD
 @LCEFB:  clc
          rts
@@ -492,7 +519,7 @@ LCF30:   lda     [BUF_PTR_L],y
 LCF4A:   lda     CALL_TYPE
          and     #$40
          beq     @LCF56
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          bne     @LCF65
 @LCF56:  ldy     #$02
          lda     (TMP_PTR_L),y
@@ -527,7 +554,7 @@ FN_3E:   jsr     CALL_FN_30 ;Get Status and Message
          bne     @FN3_end   ;branch if status not busy
          lda     #$76
          sta     INIT_FLAG  ;bug???
-         sta     $c8cd
+         sta     NUM_PART-1
          sta     $c8d6
 @busy_loop:
          lda     #$a3       ;Keep trying until not busy
@@ -537,7 +564,7 @@ FN_3E:   jsr     CALL_FN_30 ;Get Status and Message
          bne     @not_busy
          dec     $c8d6
          bne     @busy_loop
-         dec     $c8cd
+         dec     NUM_PART-1
          bne     @busy_loop
 @not_busy:
          lda     #$77
