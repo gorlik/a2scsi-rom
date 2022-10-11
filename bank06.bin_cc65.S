@@ -36,9 +36,9 @@ CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PR
 CMD_STATUS =     $c81e      ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 SDAT_BASE =      $c831      ;start of SDAT table (extends to $C8A7)
 TMP_COUNTER =    $c8c6
-UNK_c8c9 =       $c8c9      ; 
+RD_ERRORS =      $c8c9      ; used only in blk 6 to count the number of read errors
 UNK_c8cf =       $c8cf      ; $00 if failed to read Partition Map. $ff if PM detected
-TEMP_c8d0 =      $c8d0      ; temp int storage (size of DDM block?)
+BLOCK_SIZE =     $c8d0      ; temp int storage (size of DDM block?)
 TEMP_c8da =      $c8da      ;unknown
 PTR_c8df =       $c8df      ;unknown
 SAVE_SP2 =       $c8ed      ;saved SP - also used a random temp
@@ -57,34 +57,36 @@ FN_06:   lda     DEV_STATUS
          lda     BUF_PTR_L
          sta     PTR_c8df
          lda     BUF_PTR_H
-         sta     PTR_c8df+1
-         jsr     FN_26
-         bcs     @LCC1C
+         sta     PTR_c8df+1 ;copy BUF_PTR to $c8df
+         jsr     FN_26      ;check if valid partition map is present
+         bcs     EXECUTE_FORMAT_PM_INIT ;branch if failed to read partition map
          rts
 
-@LCC1C:  jsr     @CALL_FN_D3 ;FORMAT_UNIT
-         jsr     LCC32
+EXECUTE_FORMAT_PM_INIT:
+         jsr     @CALL_FN_D3 ;FORMAT_UNIT
+         jsr     NEW_PM
          lda     #$0c
          jmp     CALL_FN_X6_SY ;CALL_FN_0C - Set New SDAT
 
 @CALL_FN_D3:
-         lda     #$d3
+         lda     #$d3       ;FORMAT_UNIT
 CALL_FN_X6_SY:
          ldx     #$06
          ldy     SAVE_Y
          jsr     BANKSWITCH ;CALL_FN_X6
          rts
 
-LCC32:   jsr     @LCC39
-         jsr     @LCC92
+NEW_PM:  jsr     EXEC_PARSE_READ_CAPACITY
+         jsr     CREATE_PM
          rts
 
-@LCC39:  lda     #$00
+EXEC_PARSE_READ_CAPACITY:
+         lda     #$00
          sta     BUF_PTR_L
          sta     TMP_PTR_L
          lda     #$ca
          sta     BUF_PTR_H
-         sta     TMP_PTR_H
+         sta     TMP_PTR_H  ;set BUF_PTR and TMP_PTR to $ca00
          ldy     #$02
          lda     TMP_PTR_L
          sta     (TMP_PTR_L),y
@@ -92,106 +94,112 @@ LCC32:   jsr     @LCC39
          lda     TMP_PTR_H
          sta     (TMP_PTR_L),y
          lda     #$c3
-         jsr     CALL_FN_X6_SY ;CALL_FN_C3
+         jsr     CALL_FN_X6_SY ;CALL_FN_C3 - READ_CAPACITY
          lda     #$00
          sta     BUF_PTR_L
          lda     #$ca
-         sta     BUF_PTR_H
+         sta     BUF_PTR_H  ;set BUF_PTR to $ca00
          ldy     #$03
          lda     (BUF_PTR_L),y
-         sta     $c92c
+         sta     $c92c      ;save LSB of device size at $c92c ($c929+3)
          sec
          ldx     DEV_STATUS
-         cpx     #$f8
-         beq     @LCC71
+         cpx     #$f8       ;block dev, W, R, online, fmt
+         beq     @sbc_45
          sbc     #$40
-         jmp     @LCC73
+         jmp     @sbc_40
 
-@LCC71:  sbc     #$45
-@LCC73:  sta     $c8d2,y
+@sbc_45: sbc     #$45
+@sbc_40: sta     $c8d2,y    ;store LSB of device size -$40 or -$45 depending on the value of DEV_STATUS
          dey
-@LCC77:  lda     (BUF_PTR_L),y
-         sta     $c929,y
+@sbc_loop:
+         lda     (BUF_PTR_L),y
+         sta     $c929,y    ;store byte 1..3 of device size to $c929
          sbc     #$00
-         sta     $c8d2,y
+         sta     $c8d2,y    ;store byte 1..3 of device size -$40 (or $45) to $c8d2
          dey
-         bpl     @LCC77
+         bpl     @sbc_loop
          ldy     #$06
          lda     (BUF_PTR_L),y
-         sta     TEMP_c8d0
+         sta     BLOCK_SIZE
          iny
          lda     (BUF_PTR_L),y
-         sta     TEMP_c8d0+1
+         sta     BLOCK_SIZE+1 ;store block lenght to $c8d0
          rts
 
-@LCC92:  lda     #$00
-         sta     PD_PAR_BLK_LO
-         sta     PD_PAR_BLK_HI
+CREATE_PM:
+         lda     #$00       ;build and write the partition map to the disk
+         sta     PD_PAR_BLK_LO ;could reuse SET_BLK_BLK_CLR below
+         sta     PD_PAR_BLK_HI ;set PAR_BLK to 0
          sta     BUF_PTR_L
          lda     #$ca
-         sta     BUF_PTR_H
-         jsr     @LCD0B
+         sta     BUF_PTR_H  ;set BUF_PTR to $ca00
+         jsr     CLR_BUF
          lda     #$45
          ldy     #$00
          sta     (BUF_PTR_L),y
          iny
          lda     #$52
-         sta     (BUF_PTR_L),y
-         lda     TEMP_c8d0
+         sta     (BUF_PTR_L),y ;fill DDM signature
+         lda     BLOCK_SIZE
          iny
          sta     (BUF_PTR_L),y
          iny
-         lda     TEMP_c8d0+1
-         sta     (BUF_PTR_L),y
+         lda     BLOCK_SIZE+1
+         sta     (BUF_PTR_L),y ;copy block size from TEMP_c8d0 into DDM size
          ldx     #$00
          ldy     #$04
-@LCCBC:  lda     $c929,x
+@blk_count_loop:
+         lda     $c929,x    ;copy block count from $c929
          sta     (BUF_PTR_L),y
          inx
          iny
          cpx     #$08
-         bne     @LCCBC
+         bne     @blk_count_loop
          ldy     #$11
          lda     #$01
-         sta     (BUF_PTR_L),y
+         sta     (BUF_PTR_L),y ;set DDM drive count to 1
          lda     #$1f
          jsr     CALL_FN_X6_SY ;CALL_FN_1F
-         jsr     @LCCF3
+         jsr     EXECUTE_WRITE ;WRITE DDM in block 0
          lda     #$01
-         jsr     @LCCFB
+         jsr     SET_BLK_BLK_CLR
          lda     #$2f
          jsr     CALL_FN_X6_SY ;CALL_FN_2F
-         jsr     @LCCF3
+         jsr     EXECUTE_WRITE ;WRITE MASTER PDM in block 1
          lda     #$02
-         jsr     @LCCFB
+         jsr     SET_BLK_BLK_CLR
          lda     #$0f
          jsr     CALL_FN_X6_SY ;CALL_FN_0F
-         jsr     @LCCF3
+         jsr     EXECUTE_WRITE ;WRITE PDM ENTRY in block 2
          ldy     SAVE_Y
          rts
 
-@LCCF3:  jsr     LCD27
+EXECUTE_WRITE:
+         jsr     FILL_CMD_WRITE6
          lda     #$20
          jmp     CALL_FN_X6_SY ;CALL_FN_20
 
-@LCCFB:  sta     PD_PAR_BLK_LO
+SET_BLK_BLK_CLR:
+         sta     PD_PAR_BLK_LO ;set PAR_BLK to A, set BUF_PTR to $ca00, clear $ca00 buffer
          lda     #$00
          sta     PD_PAR_BLK_HI
          sta     BUF_PTR_L
          lda     #$ca
          sta     BUF_PTR_H
-         jsr     @LCD0B
+         jsr     CLR_BUF
          rts
 
-@LCD0B:  lda     #$00
+CLR_BUF: lda     #$00       ;clear 256 bytes at BUF_PTR
          tay
-@LCD0E:  sta     (BUF_PTR_L),y
+@clr_buf_loop:
+         sta     (BUF_PTR_L),y
          iny
-         bne     @LCD0E
+         bne     @clr_buf_loop
          rts
 
-FN_26:   lda     #$47
-         jsr     CALL_FN_X6_SY ;CALL_FN_47
+FN_26:   lda     #$47       ;try to read DDM and PDM
+         jsr     CALL_FN_X6_SY ;CALL_FN_47 - READ DDM and MASTER PDM
          lda     UNK_c8cf
          beq     @ret_fail
          clc
@@ -207,10 +215,12 @@ FN_26:   lda     #$47
          .byte   $2c
          .byte   $cd
 
-LCD27:   lda     #$0a
-         jmp     @LCD2C
+FILL_CMD_WRITE6:
+         lda     #SCSI_CMD_WRITE6
+         jmp     FILL_SCSI_CDB
 
-@LCD2C:  sta     SCSI_CDB_CMD
+FILL_SCSI_CDB:
+         sta     SCSI_CDB_CMD
          lda     #$06
          sta     SCSI_CMD_LEN
          lda     #$00
@@ -248,52 +258,55 @@ LCD27:   lda     #$0a
 
 FN_16:   lda     SCSI_CDB_CMD
          cmp     #SCSI_CMD_READ6
-         beq     @FN_16_READ6 ;branch if SCSI READ6 command
+         beq     @FN_16_read ;branch if SCSI READ6 command
          cmp     #SCSI_CMD_WRITE6 ;redundant ???
          rts
 
-@FN_16_READ6:
+@FN_16_read:
          lda     #$00
          sta     RET_CODE
          jsr     COPY_CMD_c81b
-         jsr     LCDAC
-         bcs     @LCD8C
-         jsr     LCE3C
-         bcc     @LCD85
-         jsr     LCE63
-         bcc     @LCD85
+         jsr     CHECK_REQ_SENSE
+         bcs     @LCD8C     ;branch if sense error
+         jsr     TRY_10_RD
+         bcc     @FN_16_ret_ok
+         jsr     TRY_10_WR_RD
+         bcc     @FN_16_ret_ok
          jsr     LCE80
          bcs     ERROR_IOERROR
-@LCD85:  clc
+@FN_16_ret_ok:
+         clc
          lda     #$00
          sta     RET_CODE
          rts
 
 @LCD8C:  jsr     SET_BUF_PTR_CA00
          lda     SAVE_SP_CMD_B
-         cmp     #$0a
-         beq     @LCD9D
-         jsr     LCEA0
+         cmp     #SCSI_CMD_WRITE6
+         beq     @FN_16_write
+         jsr     READ_BLK
          bcs     ERROR_IOERROR
-         bcc     @LCD85
+         bcc     @FN_16_ret_ok
 
-@LCD9D:  jsr     LCEB9
-         bcc     @LCD85
+@FN_16_write:
+         jsr     WRITE_BLK_CA00
+         bcc     @FN_16_ret_ok
 ERROR_IOERROR:
          lda     #P8E_IO_ERR
          jmp     CALL_FN_60_RET
 
 CALL_FN_49:
-         lda     #$49       ;load REQUEST_SENSE at $c901
+         lda     #$49       ;send REQUEST_SENSE and store res at $c901
          jmp     CALL_FN_X6_SY ;CALL_FN_49
 
-LCDAC:   jsr     CALL_FN_49 ;load REQUEST_SENSE at $c901
+CHECK_REQ_SENSE:
+         jsr     CALL_FN_49 ;send REQUEST_SENSE and store res at $c901
          ldx     #$02
          lda     $c901,x    ;get SENSE KEY
          cmp     #$06
-         beq     FN_66      ;SENSE_KEY==UNIT_ATTENTION
+         beq     FN_66      ;if(SENSE_KEY==UNIT_ATTENTION) jmp PROCESS_ASC
          cmp     #$02
-         beq     FN_66      ;SENSE_KEY==NOT_READY
+         beq     FN_66      ;if(SENSE_KEY==NOT_READY) jmp PROCESS_ASC
          and     #$07       ;likely a bug - the mask for sense key should be $F
          cmp     #$01
          beq     @recoverable ;branch if recoverable error
@@ -376,31 +389,33 @@ DELAY_C0FF:
          tay
          rts
 
-LCE3C:   lda     #$00
-         sta     UNK_c8c9
+TRY_10_RD:
+         lda     #$00       ;try 10 Reads. fail if all failed
+         sta     RD_ERRORS
          sta     TMP_COUNTER ;TEMP_c8c6 count from 0 to 9
-@loop1:  jsr     LCE9D
-         bcc     @LCE4C
-         inc     UNK_c8c9
-@LCE4C:  inc     TMP_COUNTER
+@loop1:  jsr     READ_BLK_CA00
+         bcc     @skip      ;branch if read ok
+         inc     RD_ERRORS
+@skip:   inc     TMP_COUNTER
          lda     TMP_COUNTER
          cmp     #$0a
          bne     @loop1
-         lda     UNK_c8c9
+         lda     RD_ERRORS
          cmp     #$0a
-         beq     @io_error
+         beq     @io_error  ;error if all read tries failed
          cmp     #$05       ;useful?
          rts
 
 @io_error:
          jmp     ERROR_IOERROR
 
-LCE63:   lda     #$00
+TRY_10_WR_RD:
+         lda     #$00       ;try 10 WR/RD, fail if any failed
          sta     TMP_COUNTER ;TEMP_c8c6 count from 0 to 9
-@loop2:  jsr     LCEB9
-         bcs     @LCE7E
-         jsr     LCE9D
-         bcs     @LCE7E
+@loop2:  jsr     WRITE_BLK_CA00
+         bcs     @ret_error
+         jsr     READ_BLK_CA00
+         bcs     @ret_error
          inc     TMP_COUNTER
          lda     TMP_COUNTER
          cmp     #$0a
@@ -408,7 +423,8 @@ LCE63:   lda     #$00
          clc
          rts
 
-@LCE7E:  sec
+@ret_error:
+         sec
          rts
 
 LCE80:   lda     #$21
@@ -417,20 +433,22 @@ LCE80:   lda     #$21
          jsr     CALL_FN_X6 ;CALL_FN_3D - auto select XFER_MODE
          lda     RET_CODE
          bne     @LCE9B
-         jsr     LCEB9
+         jsr     WRITE_BLK_CA00
          bcs     @LCE95
          rts
 
-@LCE95:  jsr     LCE63
+@LCE95:  jsr     TRY_10_WR_RD
          bcs     LCE80
          rts
 
 @LCE9B:  sec
          rts
 
-LCE9D:   jsr     SET_BUF_PTR_CA00
-LCEA0:   lda     #$41
-         jsr     CALL_FN_X6_SY ;CALL_FN_41
+READ_BLK_CA00:
+         jsr     SET_BUF_PTR_CA00 ;read block at LBA $cddb to buf at $ca00
+READ_BLK:
+         lda     #$41
+         jsr     CALL_FN_X6_SY ;CALL_FN_41 - LOAD CDB READ6 - 1 block from LBA at $c8db
          jsr     CALL_FN_00 ;Do Phases
          jsr     CALL_FN_01 ;Data Xin
          lda     #$a0
@@ -444,9 +462,10 @@ CHECK_STATUS_RET:
 @ret_ok: clc
          rts
 
-LCEB9:   jsr     SET_BUF_PTR_CA00
+WRITE_BLK_CA00:
+         jsr     SET_BUF_PTR_CA00 ;write block at $ca00 to LBA at $c8db
          lda     #$51
-         jsr     CALL_FN_X6_SY ;CALL_FN_51
+         jsr     CALL_FN_X6_SY ;CALL_FN_51 - LOAD CDB WRITE6 - 1 block from LBA at $c8db
          jsr     CALL_FN_00 ;Do Phases
          jsr     CALL_FN_11 ;Data Xout
          lda     #$a0
@@ -454,7 +473,7 @@ LCEB9:   jsr     SET_BUF_PTR_CA00
          jmp     CHECK_STATUS_RET
 
 CALL_FN_00:
-         lda     #$00
+         lda     #$00       ;DoPhases
 CALL_FN_X6:
          ldx     #$06
          jsr     BANKSWITCH ;CALL_FN_X6
@@ -462,11 +481,11 @@ CALL_FN_X6:
 
 CALL_FN_01:
          lda     #$01
-         bne     CALL_FN_X6 ;CALL_FN_01
+         bne     CALL_FN_X6 ;CALL_FN_01 - READ data to BUF_PTR
 
 CALL_FN_11:
          lda     #$11
-         bne     CALL_FN_X6 ;CALL_FN_11
+         bne     CALL_FN_X6 ;CALL_FN_11 - Data Xout
 
 SET_BUF_PTR_CA00:
          lda     #$00
@@ -484,13 +503,13 @@ FN_46:   lda     #$02       ;try to call FN_36 twice
          sta     TEMP_c8da
 @loop3:  lda     #$00
          sta     RET_CODE
-         jsr     FN_36
+         jsr     FN_36      ;BUS_FREE and TEST_UNIT_READY
          bcc     @LCF03     ;call to FN_36 was successfull
          dec     TEMP_c8da
          bne     @loop3     ;loop one more time
 @LCF03:  rts
 
-FN_36:   jsr     LCF21      ;CALL_FN_3A
+FN_36:   jsr     LCF21      ;CALL_FN_3A - BUS_FREE
          bcs     RET_EC_27
          jsr     SCSI_ARBITRATE_ALT
          bcs     RET_EC_27

@@ -90,23 +90,50 @@
 
 "Comments":{
 "7":"ERROR NOWRITE",
+"19":"copy BUF_PTR to $c8df",
+"22":"check if valid partition map is present",
+"25":"branch if failed to read partition map",
 "28":"FORMAT_UNIT",
 "36":"CALL_FN_0C - Set New SDAT",
+"39":"FORMAT_UNIT",
 "46":"CALL_FN_X6",
-"82":"CALL_FN_C3",
+"67":"set BUF_PTR and TMP_PTR to $ca00",
+"82":"CALL_FN_C3 - READ_CAPACITY",
+"91":"set BUF_PTR to $ca00",
+"97":"save LSB of device size at $c92c ($c929+3)",
+"104":"block dev, W, R, online, fmt",
+"115":"store LSB of device size -$40 or -$45 depending on the value of DEV_STATUS",
+"121":"store byte 1..3 of device size to $c929",
+"126":"store byte 1..3 of device size -$40 (or $45) to $c8d2",
+"142":"store block lenght to $c8d0",
+"146":"build and write the partition map to the disk",
+"148":"could reuse SET_BLK_BLK_CLR below",
+"150":"set PAR_BLK to 0",
+"156":"set BUF_PTR to $ca00",
+"170":"fill DDM signature",
+"182":"copy block size from TEMP_c8d0 into DDM size",
+"188":"copy block count from $c929",
+"203":"set DDM drive count to 1",
 "207":"CALL_FN_1F",
+"210":"WRITE DDM in block 0",
 "220":"CALL_FN_2F",
+"223":"WRITE MASTER PDM in block 1",
 "233":"CALL_FN_0F",
+"236":"WRITE PDM ENTRY in block 2",
 "248":"CALL_FN_20",
-"278":"CALL_FN_47",
+"251":"set PAR_BLK to A, set BUF_PTR to $ca00, clear $ca00 buffer",
+"267":"clear 256 bytes at BUF_PTR",
+"276":"try to read DDM and PDM",
+"278":"CALL_FN_47 - READ DDM and MASTER PDM",
 "356":"branch if SCSI READ6 command",
 "358":"redundant ???",
-"423":"load REQUEST_SENSE at $c901",
+"372":"branch if sense error",
+"423":"send REQUEST_SENSE and store res at $c901",
 "425":"CALL_FN_49",
-"428":"load REQUEST_SENSE at $c901",
+"428":"send REQUEST_SENSE and store res at $c901",
 "433":"get SENSE KEY",
-"438":"SENSE_KEY==UNIT_ATTENTION",
-"442":"SENSE_KEY==NOT_READY",
+"438":"if(SENSE_KEY==UNIT_ATTENTION) jmp PROCESS_ASC",
+"442":"if(SENSE_KEY==NOT_READY) jmp PROCESS_ASC",
 "444":"likely a bug - the mask for sense key should be $F",
 "448":"branch if recoverable error",
 "464":"process ASC from SENSE_DATA at $c901",
@@ -115,27 +142,36 @@
 "507":"CALL_FN_0C",
 "512":"number of retrys",
 "517":"CALL_FN_A3 - SEND CMD_TEST_UNIT_READY",
+"528":"send REQUEST sense and store in $c901",
+"572":"try 10 Reads. fail if all failed",
 "577":"TEMP_c8c6 count from 0 to 9",
+"583":"branch if read ok",
+"603":"error if all read tries failed",
 "605":"useful?",
+"611":"try 10 WR/RD, fail if any failed",
 "613":"TEMP_c8c6 count from 0 to 9",
 "642":"CALL_FN_21",
 "647":"CALL_FN_3D - auto select XFER_MODE",
-"674":"CALL_FN_41",
+"669":"read block at LBA $cddb to buf at $ca00",
+"674":"CALL_FN_41 - LOAD CDB READ6 - 1 block from LBA at $c8db",
 "677":"Do Phases",
 "680":"Data Xin",
 "685":"CALL_FN_A0 - Get status and message",
 "688":"check status",
-"702":"CALL_FN_51",
+"697":"write block at $ca00 to LBA at $c8db",
+"702":"CALL_FN_51 - LOAD CDB WRITE6 - 1 block from LBA at $c8db",
 "705":"Do Phases",
 "708":"Data Xout",
 "713":"CALL_FN_A0 - Get status and message",
+"719":"DoPhases",
 "723":"CALL_FN_X6",
-"729":"CALL_FN_01",
-"733":"CALL_FN_11",
+"729":"CALL_FN_01 - READ data to BUF_PTR",
+"733":"CALL_FN_11 - Data Xout",
 "751":"try to call FN_36 twice",
+"761":"BUS_FREE and TEST_UNIT_READY",
 "764":"call to FN_36 was successfull",
 "769":"loop one more time",
-"772":"CALL_FN_3A",
+"772":"CALL_FN_3A - BUS_FREE",
 "789":"CALL_FN_44",
 "804":"seems redundant as the same is in the calling function",
 "812":"reset arbitrate bit",
@@ -362,7 +398,7 @@
 "LabelAnno":"None"},
 
 "361":{
-"Label":"FN_16_READ6",
+"Label":"FN_16_read",
 "Value":52585,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
@@ -499,6 +535,174 @@
 "Value":52677,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"300":{
+"Label":"FILL_SCSI_CDB",
+"Value":52524,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"295":{
+"Label":"FILL_CMD_WRITE6",
+"Value":52519,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"267":{
+"Label":"CLR_BUF",
+"Value":52491,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"270":{
+"Label":"clr_buf_loop",
+"Value":52494,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"188":{
+"Label":"blk_count_loop",
+"Value":52412,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"243":{
+"Label":"EXECUTE_WRITE",
+"Value":52467,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"251":{
+"Label":"SET_BLK_BLK_CLR",
+"Value":52475,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"146":{
+"Label":"CREATE_PM",
+"Value":52370,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"119":{
+"Label":"sbc_loop",
+"Value":52343,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"57":{
+"Label":"EXEC_PARSE_READ_CAPACITY",
+"Value":52281,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"115":{
+"Label":"sbc_40",
+"Value":52339,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"113":{
+"Label":"sbc_45",
+"Value":52337,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"50":{
+"Label":"NEW_PM",
+"Value":52274,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"28":{
+"Label":"EXECUTE_FORMAT_PM_INIT",
+"Value":52252,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"389":{
+"Label":"FN_16_ret_ok",
+"Value":52613,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"413":{
+"Label":"FN_16_write",
+"Value":52637,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"697":{
+"Label":"WRITE_BLK_CA00",
+"Value":52921,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"669":{
+"Label":"READ_BLK_CA00",
+"Value":52893,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"672":{
+"Label":"READ_BLK",
+"Value":52896,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"428":{
+"Label":"CHECK_REQ_SENSE",
+"Value":52652,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"588":{
+"Label":"skip",
+"Value":52812,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"638":{
+"Label":"ret_error",
+"Value":52862,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"572":{
+"Label":"TRY_10_RD",
+"Value":52796,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"611":{
+"Label":"TRY_10_WR_RD",
+"Value":52835,
+"Source":"User",
+"Type":"GlobalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -510,6 +714,14 @@
 "Label":"P8E_WRITE_PROT",
 "Part":"Low"}},
 
+"295":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_WRITE6",
+"Part":"Low"}},
+
 "354":{
 "Length":2,
 "Format":"NumericLE",
@@ -519,6 +731,14 @@
 "Part":"Low"}},
 
 "358":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_WRITE6",
+"Part":"Low"}},
+
+"402":{
 "Length":2,
 "Format":"NumericLE",
 "SubFormat":"Symbol",
