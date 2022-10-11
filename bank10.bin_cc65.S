@@ -18,7 +18,7 @@ TCOUNT_B2 =      $c802      ; timeout counter MSB
 TCOUNT_B1 =      $c803      ; timeout counter middle byte when using 24-bit counter
 XFER_MODE =      $c804      ; 0x00 IIe PDMA, 0x01 IIgs PDMA, 0x02-0xff PIO 
 SEL_TARGET =     $c806      ; SCSI (BUS?) ID of selected target
-SAVE_CYAREG =    $c808      ; saved value of CYAREG
+TMP_c807 =       $c807      ; save BUF_PTR_VH ???
 INIT_FLAG =      $c809      ; card initialized flag (init=$77)
 TMP_c80a =       $c80a      ; unknown
 RET_CODE =       $c80b      ; 
@@ -32,7 +32,7 @@ RX_LEN_LO =      $c8e4      ;bytes read if call successfull
 RX_LEN_HI =      $c8e5      ;bytes read if call successfull
 TEMP_HI  =       $c8ee      ;generic 16-bit temp high byte
 TEMP_LO  =       $c8ef      ;generic 16-bit temp low byte
-IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
+IS_IIgs  =       $c8f3      ;0x01 if IIgs
 TEMP_c915 =      $c915      ;unknown
 TEMP_VH  =       $c921      ;unknown
 TEMP_XH  =       $c922      ;unknown
@@ -42,41 +42,43 @@ DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
          .org    $cc00
          .a8
          .i8
-FN_0A:   jsr     DIBTAB_LOOKUP
+FN_0A:   jsr     DIBTAB_LOOKUP ;TMP_PTR0=&DIBTAB[DEV_IDX]
          bcc     @entry_found_0a
          jsr     CALL_FN_0D
          jsr     DIBTAB_LOOKUP ;TMP_PTR0=&DIBTAB[DEV_IDX]
 @entry_found_0a:
-         jsr     FN_7A
-         jsr     FN_2A
+         jsr     FN_7A      ;copy DIBTAB entry from TMP_PTR0 to BUF_PTR omitting signature
+         jsr     FN_2A      ;EXECUTE TEST_UNIT_READY (special tape handling)
          lda     #$7f
          jsr     CALL_FN_XA ;CALL_FN_7F
          jmp     restore_y_return
 
-FN_7A:   lda     #$1a
+FN_7A:   lda     #$1a       ;copy DIBTAB entry at TMP_PTR0 to BUF_PTR omitting signature
          sta     RX_LEN_LO
          ldy     #$00
-         sty     RX_LEN_HI
+         sty     RX_LEN_HI  ;RX_LEN=$001a (size of DIBTAB entry)
          lda     CALL_TYPE
          and     #$40
-         beq     @LCC2F
-         lda     IIgs_PDMA
-         bne     @LCC5D
-@LCC2F:  iny
+         beq     @std_call  ;branch if not ext call
+         lda     IS_IIgs
+         bne     IIgs       ;branch if IIgs detected
+@std_call:
+         iny
          lda     (TMP_PTR0),y
-         sta     DEV_STATUS
+         sta     DEV_STATUS ;DEV_STATUS=DIBTAB.dev_status
          dey
          sta     (BUF_PTR_L),y
          cpy     #$04
          bne     @LCC41
          lda     CALL_TYPE
-         beq     @LCC48
+         beq     std_sp_call
 @LCC41:  iny
          cpy     #$1a
-         beq     @LCC5A
-         bne     @LCC2F
+         beq     FN_7A_end
+         bne     @std_call
 
-@LCC48:  iny
+std_sp_call:
+         iny
          dec     RX_LEN_LO
          iny
 @LCC4D:  lda     (TMP_PTR0),y
@@ -88,9 +90,10 @@ FN_7A:   lda     #$1a
          iny
          cpy     #$1b
          bne     @LCC4D
-@LCC5A:  jmp     restore_y_return
+FN_7A_end:
+         jmp     restore_y_return
 
-@LCC5D:  ldy     #$01
+IIgs:    ldy     #$01
 @LCC5F:  lda     (TMP_PTR0),y
          dey
          sta     [BUF_PTR_L],y
@@ -98,7 +101,7 @@ FN_7A:   lda     #$1a
          iny
          cpy     #$1b
          bne     @LCC5F
-         beq     @LCC5A
+         beq     FN_7A_end
 
 CALL_FN_0D:
          lda     #$0d
@@ -142,8 +145,8 @@ restore_y_return:
          ldy     SAVE_Y
          rts
 
-FN_1A:   jsr     FN_6A      ;lookup DIBTAB[DEV_IDX], set DEV_STATUS and copy BLK_SIZE
-         jsr     FN_2A
+FN_1A:   jsr     FN_6A      ;tmp_PTR0=&DIBTAB[DEV_IDX], set DEV_STATUS and copy BLK_SIZE
+         jsr     FN_2A      ;EXECUTE TEST_UNIT_READY (special tape handling)
          lda     #$6f
          jsr     CALL_FN_XA ;CALL_FN_6F
          jmp     restore_y_return
@@ -158,8 +161,8 @@ FN_6A:   jsr     DIBTAB_LOOKUP ;TMP_PTR0=&DIBTAB[DEV_IDX]
 FN_8A:   lda     CALL_TYPE  ;SET DEV_STATUS and copies dibtab device status and block size to *BUF_PTR
          and     #$40       ;memcpy(BUF_PTR_L, TMP_PTR0+1, 4 or 5)
          beq     @FN_8A_not_ext
-         lda     IIgs_PDMA
-         bne     @FN_8A_IIgs
+         lda     IS_IIgs
+         bne     @FN_8A_IIgs ;branch if IIgs
          ldy     #$05
          bne     @FN_8A_loop1
 
@@ -197,7 +200,7 @@ FN_4A:   ldy     #$02
          lda     CALL_TYPE
          and     #$40
          beq     @LCD07
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          bne     LCD42
 @LCD07:  lda     (TMP_PTR_L),y
          sta     $c82a
@@ -206,9 +209,9 @@ FN_4A:   ldy     #$02
          sta     $c82b
 FN_AA:   ldy     #$07
          jsr     SET_TIMEOUT_0C
-         jsr     LCE26
+         jsr     EXECUTE_MODE_SENSE
          jsr     LCE37
-         lda     SAVE_CYAREG-1
+         lda     TMP_c807
          sta     BUF_PTR_VH
          lda     INIT_FLAG
          cmp     #$77
@@ -230,29 +233,31 @@ LCD42:   lda     [TMP_PTR_L],y
          sta     $c82b
          jmp     FN_AA
 
-LCD50:   jsr     SET_TIMEOUT_0C
-@LCD53:  lda     REG_5380_STAT,y
+WAIT_DATA_IN:
+         jsr     SET_TIMEOUT_0C
+@wait_din_loop:
+         lda     REG_5380_STAT,y
          and     #$3c
          cmp     #$24
-         beq     LCD78      ;REQ & IO asserted
+         beq     clc_rts    ;branch if data in phase - (REQ & IO asserted)
          cmp     #$2c
-         beq     LCD79      ;REQ & IO & CD asserted
+         beq     rts1       ;branch if status phsase - REQ & IO & CD asserted
          jsr     DEC_TIMEOUT
-         bcs     LCD79
-         bcc     @LCD53
+         bcs     rts1
+         bcc     @wait_din_loop
 
 DEC_TIMEOUT:
          dec     TCOUNT_B0
-         bne     LCD78
+         bne     clc_rts
          dec     TCOUNT_B2
-         bne     LCD78
+         bne     clc_rts
          dec     TCOUNT_B1
-         bne     LCD78
+         bne     clc_rts
          sec
          rts
 
-LCD78:   clc
-LCD79:   rts
+clc_rts: clc
+rts1:    rts
 
 SET_TIMEOUT_0C:
          lda     #$00
@@ -267,9 +272,9 @@ LCD8B:   jsr     SET_TIMEOUT_0C
 @LCD8E:  lda     REG_5380_STAT,y
          and     #$1c
          cmp     #$00
-         beq     LCD78
+         beq     clc_rts
          jsr     DEC_TIMEOUT
-         bcs     LCD79
+         bcs     rts1
          bcc     @LCD8E
 
 CALL_00_DoPhases:
@@ -280,34 +285,38 @@ CALL_FN_XA:
          jmp     BANKSWITCH
 
 CALL_FN_B0:
-         lda     #$b0
+         lda     #$b0       ;DoPhases (no BUS_FREE)
          bne     CALL_FN_XA
 
 CALL_FN_30:
          lda     #$30       ;Get STATUS and MESSAGE
          bne     CALL_FN_XA
 
-LCDB0:   jsr     CALL_FN_5D
-         lda     #$01       ;CALL_FN_01
-LCDB5:   jsr     CALL_FN_XA
+READ_PIO:
+         jsr     CALL_FN_5D ;FORCE_PIO_MODE
+         lda     #$01       ;CALL_FN_01 - read DATA to BUF_PTR
+CALL_FN_XA_REST:
+         jsr     CALL_FN_XA ;CALL_FN_XA
          lda     TMP_c80a
-         sta     XFER_MODE
+         sta     XFER_MODE  ;restore XFER_MODE from c80a (saved in FN_5D)
          rts
 
-LCDBF:   jsr     CALL_FN_5D
+WRITE_PIO:
+         jsr     CALL_FN_5D ;FORCE_PIO_MODE
          lda     #$11
-         bne     LCDB5      ;CALL_FN_11
+         bne     CALL_FN_XA_REST ;CALL_FN_11_restore - Data Xout + restore XFER_MODE
 
 CALL_FN_5D:
-         lda     #$5d
+         lda     #$5d       ;FORCE_PIO_MODE
          jmp     CALL_FN_XA
 
 LCDCB:   ldx     #$06
-@LCDCD:  lda     MODE_SELECT_DATA,x
+@mode_sel_cpy:
+         lda     MODE_SELECT_DATA,x
          sta     SCSI_CMD_LEN,x
          dex
-         bpl     @LCDCD
-         jsr     LCE1D
+         bpl     @mode_sel_cpy ;copy MODE_SELECT_CMD to CDB
+         jsr     BUF_PTR_CA00
          lda     $c82a
          sta     $ca0a
          lda     $c82b
@@ -334,34 +343,39 @@ LCDCB:   ldx     #$06
 
 SCSI_CMD_1A:
          ldx     #$06
-@LCE14:  lda     MODE_SENSE_DATA,x
+@mode_sense_cpy:
+         lda     MODE_SENSE_DATA,x
          sta     SCSI_CMD_LEN,x
          dex
-         bpl     @LCE14
-LCE1D:   lda     #$00
+         bpl     @mode_sense_cpy
+BUF_PTR_CA00:
+         lda     #$00
          sta     BUF_PTR_L
          lda     #$ca
          sta     BUF_PTR_H  ;$FB,$FB point to $CA00
          rts
 
-LCE26:   jsr     SCSI_CMD_1A
-LCE29:   jsr     CALL_00_DoPhases
-         jsr     LCD50
-         bcs     LCE4E
-         jsr     LCDB0
-         jmp     CALL_FN_30
+EXECUTE_MODE_SENSE:
+         jsr     SCSI_CMD_1A ;MODE_SENSE
+SEND_CMD_RD_STATUS:
+         jsr     CALL_00_DoPhases
+         jsr     WAIT_DATA_IN
+         bcs     IOERROR_NEAR
+         jsr     READ_PIO
+         jmp     CALL_FN_30 ;get STATUS ans MESSAGE
 
 LCE37:   jsr     LCDCB
 LCE3A:   jsr     CALL_00_DoPhases
          jsr     LCD8B
-         bcs     LCE4E
-         jsr     LCDBF
+         bcs     IOERROR_NEAR
+         jsr     WRITE_PIO
          jsr     CALL_FN_30
          lda     RET_CODE
-         bne     LCE4E
+         bne     IOERROR_NEAR
          rts
 
-LCE4E:   jmp     ERROR_IOERROR
+IOERROR_NEAR:
+         jmp     ERROR_IOERROR
 
 FN_5A:   ldx     #$06
 @cpy_loop:
@@ -374,7 +388,7 @@ FN_5A:   ldx     #$06
          lda     CALL_TYPE
          and     #$40
          beq     @not_etx
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          bne     @native_path
          ldy     #$07
          bne     @emulation_path
@@ -409,79 +423,82 @@ MODE_SENSE_DATA:
          .byte   $50
          .byte   $00
 
-FN_2A:   ldy     #$00
+FN_2A:   ldy     #$00       ;EXECUTE TEST_UNIT_READY and handle tape device
          jsr     LDA_BUF_PTR_Y
-         sta     TEMP_c915
+         sta     TEMP_c915  ;store dev_status to TEMP_c915
          ldy     #$06
          sty     SCSI_CMD_LEN
          lda     #$00
 @clear_cdb_loop:
          sta     SCSI_CDB_CMD,y ;clear SCSI CDB
          dey
-         bpl     @clear_cdb_loop
+         bpl     @clear_cdb_loop ;CMD TEST_UNIT_READY
          jsr     FN_3A      ;CALL_FN_AF - BUS_FREE
          jsr     CALL_FN_B0 ;Do Phases without BUS_FREE- both of the above can be replaced with FN_00
-         lda     RET_CODE
-         beq     @bus_free_ok
+         lda     RET_CODE   ;EXECUTE CMD TEST_UNIT_READY
+         beq     @cmd_ok    ;branch if TEST_UNIT_READY successfull
          lda     TEMP_c915
          and     #$ef
-         sta     TEMP_c915  ;clear bit 4 (device offline)
-         bne     @FN_2A_end
-@bus_free_ok:
-         lda     #$3e
+         sta     TEMP_c915  ;clear bit 4 (device offline) if TEST_UNIT_READY failed
+         bne     FN_2A_end
+@cmd_ok: lda     #$3e
          jsr     CALL_FN_XA ;CALL_FN_3E - Get status and message. Check device not busy
          lda     RET_CODE
-         bne     @LCEFD
-@LCEC4:  ldy     #$17
-         lda     (TMP_PTR0),y
-         cmp     #$06
-         bne     @FN_2A_end
+         bne     CHECK_REQUEST_SENSE ;branch if status failed
+TAPE_SENSE:
+         ldy     #$17
+         lda     (TMP_PTR0),y ;load device type from DIBTAB
+         cmp     #$06       ;device type tape drive
+         bne     FN_2A_end  ;branch if not tape
          jsr     SAVE_FA_FD
-         jsr     LCE26
+         jsr     EXECUTE_MODE_SENSE
          lda     RET_CODE
-         bne     @FN_2A_end
+         bne     FN_2A_end
          ldy     #$02
-         jsr     LDA_BUF_PTR_Y
+         jsr     LDA_BUF_PTR_Y ;get sense key
          jsr     LOAD_FA_FD
-         and     #$80
-         bne     @LCEEA
+         and     #$80       ;filemark mask
+         bne     @set_write_protect ;branch if filemark==1
          lda     TEMP_c915
-         and     #$fb
-         bne     @LCEEF
-@LCEEA:  lda     TEMP_c915
+         and     #$fb       ;clear write protect bit
+         bne     @store_dev_status ;branch always
+@set_write_protect:
+         lda     TEMP_c915
          ora     #$04
-@LCEEF:  sta     TEMP_c915
-@FN_2A_end:
+@store_dev_status:
+         sta     TEMP_c915
+FN_2A_end:
          jsr     ST_c915_BUF_PTR_Y
          lda     #$00
          sta     RET_CODE
          jmp     restore_y_return
 
-@LCEFD:  jsr     SAVE_FA_FD
-         jsr     LCF8D
-         jsr     LCE29
+CHECK_REQUEST_SENSE:
+         jsr     SAVE_FA_FD
+         jsr     SCSI_CMD_03 ;REQUEST_SENSE
+         jsr     SEND_CMD_RD_STATUS ;EXECUTE_CDB_CMD
          lda     RET_CODE
-         bne     @FN_2A_end
+         bne     FN_2A_end  ;branch if sense ok
          ldy     #$0c
-         jsr     LDA_BUF_PTR_Y
+         jsr     LDA_BUF_PTR_Y ;get ASC
          jsr     LOAD_FA_FD
-         cmp     #$b0
-         bne     @LCF21
+         cmp     #$b0       ;unknown vendor specific ASC
+         bne     @LCF21     ;branch if ASC!=$b0
          lda     TEMP_c915
-         and     #$ee
-@LCF1C:  sta     TEMP_c915
-         bne     @LCEC4
-@LCF21:  cmp     #$28
-         bne     @FN_2A_end
+         and     #$ee       ;clear ONLINE and DISK_SWITCH flags
+@LCF1C:  sta     TEMP_c915  ;set device offline
+         bne     TAPE_SENSE
+@LCF21:  cmp     #$28       ;UNIT ATTENTION - not-ready to ready transition (format complete) ???
+         bne     FN_2A_end
          lda     TEMP_c915
          ora     #$11
-         bne     @LCF1C
+         bne     @LCF1C     ;always branch
 
 LDA_BUF_PTR_Y:
          lda     CALL_TYPE
          and     #$40
          beq     @LDA_BUF_PTR_std
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          bne     @LDA_BUF_PTR_ext
 @LDA_BUF_PTR_std:
          lda     (BUF_PTR_L),y
@@ -501,7 +518,7 @@ ST_c915_BUF_PTR_Y:
          lda     CALL_TYPE
          and     #$40
          beq     @ST_BUF_PTR_std
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          bne     @ST_BUF_PTR_ext
 @ST_BUF_PTR_std:
          lda     TEMP_c915
@@ -541,7 +558,8 @@ LOAD_FA_FD:
          pla
          rts
 
-LCF8D:   ldy     #$06       ;SCSI REQUEST_SENSE
+SCSI_CMD_03:
+         ldy     #$06       ;SCSI REQUEST_SENSE
 @req_sense_copy_loop:
          lda     REQ_SENSE_DATA,y ;fill SCSI CDB from ROM data
          sta     SCSI_CMD_LEN,y
@@ -549,7 +567,7 @@ LCF8D:   ldy     #$06       ;SCSI REQUEST_SENSE
          bpl     @req_sense_copy_loop
          lda     #$00
          sta     BUF_PTR_VH
-         jmp     LCE1D
+         jmp     BUF_PTR_CA00
 
 REQ_SENSE_DATA:
          .byte   $06

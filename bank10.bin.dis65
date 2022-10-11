@@ -77,35 +77,78 @@
 },
 
 "Comments":{
+"0":"TMP_PTR0=\u0026DIBTAB[DEV_IDX]",
 "8":"TMP_PTR0=\u0026DIBTAB[DEV_IDX]",
+"11":"copy DIBTAB entry from TMP_PTR0 to BUF_PTR omitting signature",
+"14":"EXECUTE TEST_UNIT_READY (special tape handling)",
 "19":"CALL_FN_7F",
+"25":"copy DIBTAB entry at TMP_PTR0 to BUF_PTR omitting signature",
+"32":"RX_LEN=$001a (size of DIBTAB entry)",
+"40":"branch if not ext call",
+"45":"branch if IIgs detected",
+"50":"DEV_STATUS=DIBTAB.dev_status",
 "110":"CALL_FN_0D",
 "124":"TMP_PTR0=\u0026DIBTAB[DEV_IDX]",
 "127":"offset of DIBTAB from $C900",
 "133":"add 27 (size of DIBTAB entry)",
 "142":"19,1a contain $c9xx (address of selected DIBTAB entry)",
 "148":"check for DIBTAB entry ID",
-"160":"lookup DIBTAB[DEV_IDX], set DEV_STATUS and copy BLK_SIZE",
+"160":"tmp_PTR0=\u0026DIBTAB[DEV_IDX], set DEV_STATUS and copy BLK_SIZE",
+"163":"EXECUTE TEST_UNIT_READY (special tape handling)",
 "168":"CALL_FN_6F",
 "174":"TMP_PTR0=\u0026DIBTAB[DEV_IDX]",
 "182":"Set DEV_STATUS, copy BLKSIZE to BUF_PTR+1",
 "188":"SET DEV_STATUS and copies dibtab device status and block size to *BUF_PTR",
 "191":"memcpy(BUF_PTR_L, TMP_PTR0+1, 4 or 5)",
+"198":"branch if IIgs",
 "218":"put device status in $c9f3",
 "246":"CALL_FN_AF",
-"346":"REQ \u0026 IO asserted",
-"350":"REQ \u0026 IO \u0026 CD asserted",
+"346":"branch if data in phase - (REQ \u0026 IO asserted)",
+"350":"branch if status phsase - REQ \u0026 IO \u0026 CD asserted",
+"424":"DoPhases (no BUS_FREE)",
 "428":"Get STATUS and MESSAGE",
-"435":"CALL_FN_01",
-"452":"CALL_FN_11",
+"432":"FORCE_PIO_MODE",
+"435":"CALL_FN_01 - read DATA to BUF_PTR",
+"437":"CALL_FN_XA",
+"443":"restore XFER_MODE from c80a (saved in FN_5D)",
+"447":"FORCE_PIO_MODE",
+"452":"CALL_FN_11_restore - Data Xout + restore XFER_MODE",
+"454":"FORCE_PIO_MODE",
+"468":"copy MODE_SELECT_CMD to CDB",
 "547":"$FB,$FB point to $CA00",
+"550":"MODE_SENSE",
+"564":"get STATUS ans MESSAGE",
 "595":"FILL CDB with MODE SELECT command",
 "606":"CALL_FN_8B",
+"656":"EXECUTE TEST_UNIT_READY and handle tape device",
+"661":"store dev_status to TEMP_c915",
 "671":"clear SCSI CDB",
+"675":"CMD TEST_UNIT_READY",
 "677":"CALL_FN_AF - BUS_FREE",
 "680":"Do Phases without BUS_FREE- both of the above can be replaced with FN_00",
-"693":"clear bit 4 (device offline)",
+"683":"EXECUTE CMD TEST_UNIT_READY",
+"686":"branch if TEST_UNIT_READY successfull",
+"693":"clear bit 4 (device offline) if TEST_UNIT_READY failed",
 "700":"CALL_FN_3E - Get status and message. Check device not busy",
+"706":"branch if status failed",
+"710":"load device type from DIBTAB",
+"712":"device type tape drive",
+"714":"branch if not tape",
+"729":"get sense key",
+"735":"filemark mask",
+"737":"branch if filemark==1",
+"742":"clear write protect bit",
+"744":"branch always",
+"768":"REQUEST_SENSE",
+"771":"EXECUTE_CDB_CMD",
+"777":"branch if sense ok",
+"781":"get ASC",
+"787":"unknown vendor specific ASC",
+"789":"branch if ASC!=$b0",
+"794":"clear ONLINE and DISK_SWITCH flags",
+"796":"set device offline",
+"801":"UNIT ATTENTION - not-ready to ready transition (format complete) ???",
+"810":"always branch",
 "865":"save $fa..$fd to $c8ee and $c921",
 "886":"load $fa..$fd from $c8ee and $c921",
 "909":"SCSI REQUEST_SENSE",
@@ -265,7 +308,7 @@
 "LabelAnno":"None"},
 
 "532":{
-"Label":"LCE14",
+"Label":"mode_sense_cpy",
 "Value":52756,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
@@ -517,7 +560,7 @@
 "LabelAnno":"None"},
 
 "698":{
-"Label":"bus_free_ok",
+"Label":"cmd_ok",
 "Value":52922,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
@@ -528,6 +571,153 @@
 "Value":52978,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"47":{
+"Label":"std_call",
+"Value":52271,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"93":{
+"Label":"IIgs",
+"Value":52317,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"72":{
+"Label":"std_sp_call",
+"Value":52296,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"90":{
+"Label":"FN_7A_end",
+"Value":52314,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"339":{
+"Label":"wait_din_loop",
+"Value":52563,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"336":{
+"Label":"WAIT_DATA_IN",
+"Value":52560,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"377":{
+"Label":"rts",
+"Value":52601,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"376":{
+"Label":"clc_rts",
+"Value":52600,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"590":{
+"Label":"IOERROR_NEAR",
+"Value":52814,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"437":{
+"Label":"CALL_FN_XA_REST",
+"Value":52661,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"432":{
+"Label":"READ_PIO",
+"Value":52656,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"447":{
+"Label":"WRITE_PIO",
+"Value":52671,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"461":{
+"Label":"mode_sel_cpy",
+"Value":52685,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"550":{
+"Label":"EXECUTE_MODE_SENSE",
+"Value":52774,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"553":{
+"Label":"SEND_CMD_RD_STATUS",
+"Value":52777,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"541":{
+"Label":"BUF_PTR_CA00",
+"Value":52765,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"909":{
+"Label":"SCSI_CMD_03",
+"Value":53133,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"746":{
+"Label":"set_write_protect",
+"Value":52970,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"751":{
+"Label":"store_dev_status",
+"Value":52975,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"708":{
+"Label":"TAPE_SENSE",
+"Value":52932,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"765":{
+"Label":"CHECK_REQUEST_SENSE",
+"Value":52989,
+"Source":"User",
+"Type":"GlobalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
