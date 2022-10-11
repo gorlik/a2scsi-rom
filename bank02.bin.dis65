@@ -220,10 +220,10 @@
 "0":"main smartport entry",
 "3":"stack offset for address of SP inline parameters",
 "5":"should be 5 for 3 JSR but likely there is an extra push",
-"12":"add 1 to LSB to compensate for return address-1 of the JSR",
+"23":"add 1 to LSB to compensate for return address-1 of the JSR",
 "25":"TMP_PTR2 should point to the inline call parameters",
 "53":"set call type to 0x40 if extended call",
-"72":"error if address 15..24 is 0 (BUG ???)",
+"72":"error if address 16..23 is not 0 and not IIgs",
 "84":"remove extended flag from saved CMD number",
 "92":"this is plus 2 becasue ENTRY_SP is saved before the PHP (should be +1)",
 "106":"add 3 to the ret address for std calls",
@@ -239,14 +239,17 @@
 "195":"branch if Smartport CMD == $05 (Init)",
 "199":"branch if unit number != 0",
 "203":"ERROR_BADUNIT",
-"254":"CALL_FN_05",
+"217":"?????",
+"221":"start of junk ??? --------------",
+"238":"end of junk ??? -----",
+"254":"CALL_FN_05 - Init card",
 "270":"CALL_FN_85",
 "278":"CALL_FN_75",
 "283":"CALL_FN_15",
 "302":"seems redundant as CALL_FN_60_RET saves RET_CODE",
 "311":"SET NATIVE mode",
-"320":"Go back to EMUALTION mode",
-"328":"*($19)=SDAT_BASE",
+"320":"Go back to EMULATION mode",
+"334":"TMP_PTR0=SDAT_BASE",
 "371":"$00 - DeviceReset",
 "372":"$01 - Reserved",
 "373":"$02 - Reserved",
@@ -270,7 +273,7 @@
 "391":"$14 - SetTimeout",
 "392":"$15 - FormatUnit (SCSI $04)",
 "393":"$16 - ExtendedSeek (SCSI $2B)",
-"394":"$17 - ReceiveDiagnostic (SCSI $1C) - documented in the TRM - bug ???",
+"394":"$17 - ReceiveDiagnostic (SCSI $1C) - documented in the TRM as supported - bug ???",
 "395":"$18 - StartUnit (SCSI $18)",
 "396":"$19 - StopUnit (SCSI $19)",
 "397":"$1A - PreventRemoval (SCSI $1E)",
@@ -281,11 +284,31 @@
 "402":"$1F - SetNewSDAT",
 "403":"$20 - AudioSearch (SCSI $C8)",
 "404":"$21 - AudioPlay (SCSI $C9)",
+"405":"$22 - AudioPause (SCSI $CA)",
+"406":"$23 - unknown",
+"407":"$24 - AudioStatus (SCSI $CC)",
+"408":"$25 - AudioScan (SCSI $CD)",
+"409":"$26 - Eject (SCSI $C0)",
+"410":"$27 - ReadTOC (SCSI $C1)",
+"411":"$28 - ReadQSubcode (SCSI $C2)",
+"412":"$29 - ReadHeader (SCSI $C3)",
+"413":"$2A - SetInterleave (SCSI $04)",
+"509":"CALL_FN_10 - EXECUTE SCSI DATA read CMD",
+"523":"check WP flag",
+"525":"branch if not WP",
+"540":"CALL_FN_20 - EXECUTE SCSI DATA write CMD",
+"550":"set BUF_PTR to $ca00",
+"552":"CALL_FN_06 - Format unit and initialize PM if no PM detected",
+"559":"init can be done only on unit 0",
+"566":"CALL_FN_05 - Init card",
+"569":"could replace with CALL_FN_X2_RESTORE_RET",
 "587":"the following 2 are common to both code paths",
+"601":"BUF_PTR=*(TMP_PTR+2)",
 "603":"probably useless",
 "605":"seems useless",
 "608":"seems useless",
-"640":"CALL_FN_7C",
+"625":"copy LBA from $c8db to CDB",
+"640":"CALL_FN_7C - add PART_START to UNK_c827",
 "643":"(bug?) NATIVE should be set before calling this",
 "709":"process Smartport Control command ($04)",
 "741":"get the control code",
@@ -309,15 +332,16 @@
 "828":"CALL_FN_1B",
 "832":"CALL_FN_0C",
 "836":"CALL_FN_5B",
+"838":"FN_1E - handle smartport control $20..$2A",
 "845":"CALL_FN_X2_SAVE_Y",
-"850":"CALL_FN_2E",
-"854":"CALL_FN_09",
-"858":"CALL_FN_19",
+"850":"CALL_FN_2E - Eject",
+"854":"CALL_FN_09 - Smartport Read",
+"858":"CALL_FN_19 - Smartport Write",
 "862":"CALL_FN_24",
+"865":"restore ZP",
 "901":"CALL_FN_94",
-"909":"CALL_FN_6B",
-"914":"Control code $00 (DeviceReset)",
-"921":"CALL_FN_AF",
+"909":"CALL_FN_6B - jsr to B1:$c806",
+"921":"CALL_FN_AF - BUS_FREE",
 "929":"CALL_FN_4F"},
 
 "LongComments":{
@@ -374,14 +398,14 @@
 "LabelAnno":"None"},
 
 "914":{
-"Label":"TCF92",
+"Label":"SP_DEVICE_RESET",
 "Value":53138,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "904":{
-"Label":"CALL_FN_60_RET_21_ALT",
+"Label":"ERROR_BADCTL_ALT",
 "Value":53128,
 "Source":"User",
 "Type":"GlobalAddr",
@@ -598,14 +622,14 @@
 "LabelAnno":"None"},
 
 "572":{
-"Label":"CALL_FN_60_RET_11_DUP",
+"Label":"ERROR_BADUNIT_DUP",
 "Value":52796,
 "Source":"User",
 "Type":"GlobalAddr",
 "LabelAnno":"None"},
 
 "924":{
-"Label":"CALL_FN_60_RET_11_LOCAL",
+"Label":"ERROR_BADUNIT_LOCAL",
 "Value":53148,
 "Source":"User",
 "Type":"GlobalAddr",
@@ -798,6 +822,90 @@
 "Value":52360,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"487":{
+"Label":"SET_RX_LEN_0200",
+"Value":52711,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"892":{
+"Label":"RET_IOERROR",
+"Value":53116,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"887":{
+"Label":"RET_IOERROR_27",
+"Value":53111,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"865":{
+"Label":"RESTORE_ZP_RET",
+"Value":53089,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"532":{
+"Label":"do_write",
+"Value":52756,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"511":{
+"Label":"CALL_FN_X2_RESTORE_RET",
+"Value":52735,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"25":{
+"Label":"skip_inc",
+"Value":52249,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"113":{
+"Label":"call_fix_msb",
+"Value":52337,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"337":{
+"Label":"SAVE_TMP_PTR_IDX",
+"Value":52561,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"354":{
+"Label":"RESTORE_TMP_PTR_IDX",
+"Value":52578,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"260":{
+"Label":"init_done",
+"Value":52484,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"328":{
+"Label":"SET_PTR0_SDAT_BASE",
+"Value":52552,
+"Source":"User",
+"Type":"GlobalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -814,7 +922,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCF92",
+"Label":"SP_DEVICE_RESET",
 "Part":"Low"}},
 
 "372":{
@@ -822,7 +930,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"CALL_FN_60_RET_21_ALT",
+"Label":"ERROR_BADCTL_ALT",
 "Part":"Low"}},
 
 "373":{
@@ -830,7 +938,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"CALL_FN_60_RET_21_ALT",
+"Label":"ERROR_BADCTL_ALT",
 "Part":"Low"}},
 
 "374":{
@@ -838,7 +946,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"CALL_FN_60_RET_21_ALT",
+"Label":"ERROR_BADCTL_ALT",
 "Part":"Low"}},
 
 "375":{
@@ -1158,7 +1266,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCF92",
+"Label":"SP_DEVICE_RESET",
 "Part":"High"}},
 
 "415":{
@@ -1166,7 +1274,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"CALL_FN_60_RET_21_ALT",
+"Label":"ERROR_BADCTL_ALT",
 "Part":"High"}},
 
 "416":{
@@ -1174,7 +1282,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"CALL_FN_60_RET_21_ALT",
+"Label":"ERROR_BADCTL_ALT",
 "Part":"High"}},
 
 "417":{
@@ -1182,7 +1290,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"CALL_FN_60_RET_21_ALT",
+"Label":"ERROR_BADCTL_ALT",
 "Part":"High"}},
 
 "418":{
@@ -1656,6 +1764,22 @@
 "SymbolRef":{
 "Label":"SP_CMD_09_WRITE",
 "Part":"High"}},
+
+"501":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_READ6",
+"Part":"Low"}},
+
+"527":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"P8E_WRITE_PROT",
+"Part":"Low"}},
 
 "956":{
 "Length":2,
