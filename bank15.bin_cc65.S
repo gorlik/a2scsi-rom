@@ -29,8 +29,8 @@ BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
 SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 BOOT_SEQ =       $c8e3      ;$55 if in boot process
-SAVE_SP2 =       $c8ed      ;saved SP
-IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
+SAVE_SP2 =       $c8ed      ;saved SP - also used a random temp
+IS_IIgs  =       $c8f3      ;0x01 if IIgs
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 MON_SETTXT =     $fb39      ;set screen to text mode
 MON_HOME =       $fc58      ;clear screen and reset text output to top-left
@@ -41,116 +41,129 @@ MON_SETVID =     $fe93      ;reset char output handler to ROM
          .org    $cc00
          .a8
          .i8
-FN_0F:   jsr     LCCA6
+FN_0F:   jsr     INIT_PM_SIZE ;Init Partition Map entry @ BUF_PTR
          ldx     #$00
          ldy     #$30
-@LCC07:  lda     @LCC27,x
+@string_cpy1:
+         lda     String_Apple_PRODOS,x ;Fill type of partition with "Apple PRODOS"
          sta     (BUF_PTR_L),y
          inx
          iny
          cpy     #$3a
-         bne     @LCC07
+         bne     @string_cpy1
          ldy     #$10
          ldx     #$00
-@LCC16:  lda     LCC33,x
+@string_cpy2:
+         lda     String_Apple_II,x ;Fill name of partition with "APPLE II"
          sta     (BUF_PTR_L),y
          iny
          inx
          cpx     #$08
-         bne     @LCC16
+         bne     @string_cpy2
          lda     #$00
          sta     (BUF_PTR_L),y
          beq     RET_LOAD_Y
 
-@LCC27:  .byte   "Apple PRODOS"
-LCC33:   .byte   "Apple //"
+String_Apple_PRODOS:
+         .byte   "Apple PRODOS"
+String_Apple_II:
+         .byte   "Apple //"
 
 FN_1F:   lda     #$00
-         ldy     #$08
-@LCC3F:  sta     (BUF_PTR_L),y
+         ldy     #$08       ;clear range $08-$10
+@clr_loop:
+         sta     (BUF_PTR_L),y
          iny
          cpy     #$10
-         bne     @LCC3F
+         bne     @clr_loop
          ldy     #$09
          lda     #$01
-         sta     (BUF_PTR_L),y
+         sta     (BUF_PTR_L),y ;put $01 at offset $09
          iny
          iny
-         sta     (BUF_PTR_L),y
+         sta     (BUF_PTR_L),y ;put $01 at offset $0B
 RET_LOAD_Y:
          ldy     SAVE_Y
          rts
 
-FN_2F:   jsr     @LCC90
+FN_2F:   jsr     INIT_PM_TABLE
          ldx     #$00
          ldy     #$30
-@LCC5B:  lda     @LCC7D,x
+@string_cpy3:
+         lda     String_apple_part_map,x
          sta     (BUF_PTR_L),y
          inx
          iny
          cpx     #$13
-         bne     @LCC5B
+         bne     @string_cpy3
          ldy     #$10
          ldx     #$00
-@LCC6A:  lda     LCC33,x
+@string_cpy4:
+         lda     String_Apple_II,x
          sta     (BUF_PTR_L),y
          iny
          inx
          cpx     #$08
-         bne     @LCC6A
+         bne     @string_cpy4
          lda     #$00
          sta     (BUF_PTR_L),y
          ldy     SAVE_Y
          rts
 
-@LCC7D:  .byte   "Apple_partition_map"
+String_apple_part_map:
+         .byte   "Apple_partition_map"
 
-@LCC90:  jsr     LCCCE
+INIT_PM_TABLE:
+         jsr     INIT_PM_SIG
          ldy     #$0f
          lda     #$3f
-         sta     (BUF_PTR_L),y
+         sta     (BUF_PTR_L),y ;set partition size to $3f blocks
          lda     #$02
          ldy     #$0b
-         sta     (BUF_PTR_L),y
+         sta     (BUF_PTR_L),y ;set starting sector to 2
          ldy     #$57
          lda     #$3f
-         sta     (BUF_PTR_L),y
+         sta     (BUF_PTR_L),y ;set status of partition to $57
          rts
 
-LCCA6:   jsr     LCCCE
+INIT_PM_SIZE:
+         jsr     INIT_PM_SIG
          ldy     #$0c
          ldx     #$00
-@LCCAD:  lda     $c8d2,x
+@psize_loop:
+         lda     $c8d2,x    ;copy partition size into PM from $c8d2
          sta     (BUF_PTR_L),y
          iny
          inx
          cpx     #$04
-         bne     @LCCAD
+         bne     @psize_loop
          lda     #$40
          ldy     #$0b
-         sta     (BUF_PTR_L),y
+         sta     (BUF_PTR_L),y ;set PM partition start to block $40 (64)
          ldy     #$54
          ldx     #$00
-@LCCC2:  lda     $c8d2,x
+@dsize_loop:
+         lda     $c8d2,x    ;copy size of data from $c8d2
          sta     (BUF_PTR_L),y
          iny
          inx
          cpx     #$04
-         bne     @LCCC2
+         bne     @dsize_loop
          rts
 
-LCCCE:   lda     #$50
-         ldy     #$00
+INIT_PM_SIG:
+         lda     #$50       ;initialize partition map at BUF_PTR
+         ldy     #$00       ;fill partition map signature at BUF_PTR
          sta     (BUF_PTR_L),y
          iny
          lda     #$4d
          sta     (BUF_PTR_L),y
          ldy     #$07
          lda     #$02
-         sta     (BUF_PTR_L),y
+         sta     (BUF_PTR_L),y ;2 partiton in map
          lda     #$3f
          ldy     #$5b
-         sta     (BUF_PTR_L),y
+         sta     (BUF_PTR_L),y ;part status 0x3f valid, allocated, boot info, in use, readable, writeble
          rts
 
 FN_4F:   jsr     MON_SETVID ;print SCSI BOOT ERROR
@@ -205,35 +218,37 @@ RESET_5380_ALT:
          sta     REG_IO_5380_RST,y
          rts
 
-FN_7F:   jsr     LCD77
-         bcc     LCD70
+FN_7F:   jsr     CHECK_DISK_CHANGE
+         bcc     no_switch
          lda     #$0d
          jsr     CALL_FN_XF ;CALL_FN_0D
          lda     #$7a
          bne     LCD6D
 
-FN_6F:   jsr     LCD77
-         bcc     LCD70
+FN_6F:   jsr     CHECK_DISK_CHANGE
+         bcc     no_switch
          lda     #$0d
          jsr     CALL_FN_XF ;CALL_FN_0D
          lda     #$8a
 LCD6D:   jsr     CALL_FN_XF ;CALL_FN_8A
-LCD70:   jsr     LCDC8
+no_switch:
+         jsr     CPY_C916_BUF_PTR
          ldy     SAVE_Y
          rts
 
-LCD77:   ldy     #$00
+CHECK_DISK_CHANGE:
+         ldy     #$00
          jsr     IS_NATIVE_REQ
          bcc     @LCD82
          lda     [BUF_PTR_L],y
          bcs     @LCD84
 
 @LCD82:  lda     (BUF_PTR_L),y
-@LCD84:  sta     $c916
-         and     #$01
-         beq     @LCDC6
+@LCD84:  sta     $c916      ;*$c916=DEV_STATUS from partial DIBTAB copy at *BUF_PTR
+         and     #$01       ;open/disk switch flag
+         beq     @no_disk_change ;branch if disk not switched
          lda     CALL_TYPE
-         sta     $c918
+         sta     $c918      ;save CALL_TYPE
          lda     BUF_PTR_L
          sta     $c9f7
          lda     BUF_PTR_H
@@ -241,11 +256,11 @@ LCD77:   ldy     #$00
          lda     BUF_PTR_VH
          sta     $c9f9
          lda     BUF_PTR_XH
-         sta     $c9fa
+         sta     $c9fa      ;save BUF_PTR
          lda     #$0c
-         jsr     CALL_FN_XF ;CALL_FN_0C
+         jsr     CALL_FN_XF ;CALL_FN_0C - Set new SDAT
          lda     $c918
-         sta     CALL_TYPE
+         sta     CALL_TYPE  ;restore CALL_TYPE
          lda     $c9f7
          sta     BUF_PTR_L
          lda     $c9f8
@@ -253,21 +268,24 @@ LCD77:   ldy     #$00
          lda     $c9f9
          sta     BUF_PTR_VH
          lda     $c9fb
-         sta     BUF_PTR_XH
+         sta     BUF_PTR_XH ;restore BUF_PTR
          sec
          rts
 
-@LCDC6:  clc
+@no_disk_change:
+         clc
          rts
 
-LCDC8:   ldy     #$00
+CPY_C916_BUF_PTR:
+         ldy     #$00       ;copy DEV_STATUS from $c916 to BUF_PTR[0]
          jsr     IS_NATIVE_REQ
-         bcs     @LCDD5
+         bcs     @cpy_c916_native
          lda     $c916
          sta     (BUF_PTR_L),y
          rts
 
-@LCDD5:  lda     $c916
+@cpy_c916_native:
+         lda     $c916
          clc
          xce
          sta     [BUF_PTR_L],y
@@ -279,7 +297,7 @@ IS_NATIVE_REQ:
          lda     CALL_TYPE
          and     #$40
          beq     @not_native
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          bne     @native
 @not_native:
          clc
@@ -525,7 +543,7 @@ CHECK_NATIVE_REQUIRED:
          lda     CALL_TYPE  ;C=0 if NATIVE
          and     #$40
          beq     @LCF86     ;not extended call
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          cmp     #$01
          bne     @LCF86
          clc
@@ -540,9 +558,9 @@ FN_BF:   lda     #$ca
          lda     #$00
          sta     RET_CODE
          sta     TMP_PTR_L
-         sta     BUF_PTR_L
+         sta     BUF_PTR_L  ;TMP_PTR=$ca00; BUF_PTR=$ca00
          lda     #$9a
-         jsr     CALL_FN_XF ;CALL_FN_9A
+         jsr     CALL_FN_XF ;CALL_FN_9A - same as FN_2A
          lda     $ca00
          and     #$10
          beq     ERROR_2F   ;branch if device not online

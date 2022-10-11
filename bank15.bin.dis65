@@ -112,6 +112,22 @@
 },
 
 "Comments":{
+"0":"Init Partition Map entry @ BUF_PTR",
+"7":"Fill type of partition with \"Apple PRODOS\"",
+"22":"Fill name of partition with \"APPLE II\"",
+"61":"clear range $08-$10",
+"74":"put $01 at offset $09",
+"78":"put $01 at offset $0B",
+"151":"set partition size to $3f blocks",
+"157":"set starting sector to 2",
+"163":"set status of partition to $57",
+"173":"copy partition size into PM from $c8d2",
+"188":"set PM partition start to block $40 (64)",
+"194":"copy size of data from $c8d2",
+"206":"initialize partition map at BUF_PTR",
+"208":"fill partition map signature at BUF_PTR",
+"221":"2 partiton in map",
+"227":"part status 0x3f valid, allocated, boot info, in use, readable, writeble",
 "230":"print SCSI BOOT ERROR",
 "256":"output a character",
 "265":"CALL_FN_70 RUN BASIC",
@@ -127,7 +143,15 @@
 "346":"CALL_FN_0D",
 "360":"CALL_FN_0D",
 "365":"CALL_FN_8A",
-"423":"CALL_FN_0C",
+"388":"*$c916=DEV_STATUS from partial DIBTAB copy at *BUF_PTR",
+"391":"open/disk switch flag",
+"393":"branch if disk not switched",
+"398":"save CALL_TYPE",
+"418":"save BUF_PTR",
+"423":"CALL_FN_0C - Set new SDAT",
+"429":"restore CALL_TYPE",
+"450":"restore BUF_PTR",
+"456":"copy DEV_STATUS from $c916 to BUF_PTR[0]",
 "505":"branch if STATUS phase",
 "507":"Decrement TIMEOUT3",
 "534":"branch if MESSAGE IN phase",
@@ -175,7 +199,8 @@
 "865":"SET_EMULATION_MODE seems dead code",
 "886":"C=0 if NATIVE",
 "891":"not extended call",
-"921":"CALL_FN_9A",
+"917":"TMP_PTR=$ca00; BUF_PTR=$ca00",
+"921":"CALL_FN_9A - same as FN_2A",
 "929":"branch if device not online",
 "954":"SCSI BOOT ERROR"},
 
@@ -496,6 +521,132 @@
 "Value":53156,
 "Source":"User",
 "Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"206":{
+"Label":"INIT_PM_SIG",
+"Value":52430,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"173":{
+"Label":"psize_loop",
+"Value":52397,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"194":{
+"Label":"dsize_loop",
+"Value":52418,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"166":{
+"Label":"INIT_PM_SIZE",
+"Value":52390,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"39":{
+"Label":"String_Apple_PRODOS",
+"Value":52263,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"51":{
+"Label":"String_Apple_II",
+"Value":52275,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"7":{
+"Label":"string_cpy1",
+"Value":52231,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"22":{
+"Label":"string_cpy2",
+"Value":52246,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"63":{
+"Label":"clr_loop",
+"Value":52287,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"125":{
+"Label":"String_apple_part_map",
+"Value":52349,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"91":{
+"Label":"string_cpy3",
+"Value":52315,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"106":{
+"Label":"string_cpy4",
+"Value":52330,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"144":{
+"Label":"INIT_PM_TABLE",
+"Value":52368,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"375":{
+"Label":"CHECK_DISK_CHANGE",
+"Value":52599,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"454":{
+"Label":"no_disk_change",
+"Value":52678,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"456":{
+"Label":"CPY_C916_BUF_PTR",
+"Value":52680,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"469":{
+"Label":"cpy_c916_native",
+"Value":52693,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"368":{
+"Label":"no_switch",
+"Value":52592,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
