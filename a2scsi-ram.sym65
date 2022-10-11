@@ -30,6 +30,7 @@ TCOUNT_B2         @ $C802   ; timeout counter MSB
 TCOUNT_B1         @ $C803   ; timeout counter middle byte when using 24-bit counter
 XFER_MODE         @ $C804   ; 0x00 IIe PDMA, 0x01 IIgs PDMA, 0x02-0xff PIO 
 SEL_TARGET        @ $C806   ; SCSI (BUS?) ID of selected target
+TMP_c807          @ $C807   ; save BUF_PTR_VH ???
 SAVE_CYAREG       @ $C808   ; saved value of CYAREG
 INIT_FLAG         @ $C809   ; card initialized flag (init=$77)
 TMP_c80a          @ $C80A   ; unknown
@@ -90,20 +91,19 @@ PD_PAR_BLK_HI_CPY @ $C8C1     ;PRODOS input parameter Block hi
 ; c8c5
 ; TMP_c8c6         @ $C8C6   ; local TEMP variable - different for each bank
 BLK_c8c7          @ $C8C7 2 ; saved PRODOS BLOCK from input parameters
-UNK_c8c9          @ $C8C9   ; 
-TEMP_c8ca         @ $C8CA   ; TEMP_BUF_PTR?
-; c8cb
+RD_ERRORS         @ $C8C9   ; used only in blk 6 to count the number of read errors
+TEMP_PTR_c8ca     @ $C8CA 2 ; TEMP_BUF_PTR?
 UNK_c8cc          @ $C8CC   ;unknown
 ; c8cd
 NUM_PART          @ $C8CE   ; number of partition on the device - only used in bank 07
 UNK_c8cf          @ $C8CF   ; $00 if failed to read Partition Map. $ff if PM detected
-TEMP_c8d0         @ $C8D0 2 ; temp int storage (size of DDM block?)
+BLOCK_SIZE        @ $C8D0 2 ; temp int storage (size of DDM block?)
 ; c8d2
 ; ...
 ; c8d5
 TMP_COUNT         @ $C8D6   ; temp counter - only used in bank 07
 PTR_c8d7          @ $C8D7 2 ; temp pointer storage (?)
-; c8d9
+TEMP_c8d9         @ $C8D9   ;unknown
 TEMP_c8da         @ $C8DA   ;unknown
 LBA_c8db          @ $C8DB 3 ; LBA to use in CDB (?) (copied to CDB_LBA)
 ; c8de
@@ -124,7 +124,7 @@ TEMP_LO           @ $C8EF   ;generic 16-bit temp low byte
 ; c8f0
 ; c8f1
 ; c8f2
-IIgs_PDMA         @ $C8F3   ;0x01 if IIgs PDMA
+IS_IIgs           @ $C8F3   ;0x01 if IIgs
 UNK_c8f4          @ $C8F4   ;unknown
 buf_c8f5          @ $C8F5   ; seems to be some sort of 12 byte structure ???
 ; c8f6
@@ -140,7 +140,9 @@ TEMP_VH           @ $C921   ;unknown
 TEMP_XH           @ $C922   ;unknown
 ; c923
 ; ...
-; c92e
+; c92c
+UNK_c92d          @ $C92D   ;
+UNK_c92e          @ $C92E   ;
 BLKSIZE_H         @ $C92F   ;byte1 of block size - reverse endian
 BLKSIZE_L         @ $C930   ;byte0 of block size - reverse endian
 
@@ -151,11 +153,10 @@ DIBTAB_BASE   @ $C931   ;start of DIBTAB (extends to $C9ED)
 
 LDIO_SIZE_LO      @ $C9EE   ;
 ; c9ef
-; ...
-; c9f2
+; c9f0
+TMP_c9f1          @ $C9F1 2 ; 2-byte temp
 DEV_STATUS        @ $C9F3   ; seems a copy of device status from DIBTAB
-; c9f4
-; c9f5
+PTR_SAVE          @ $C9F4 2 ; TMP PTR save location
 TIMEOUT           @ $C9F6   ; each unit is 1.25s
 ; c9f7
 ; ...
