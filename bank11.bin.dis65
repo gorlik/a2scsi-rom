@@ -134,13 +134,29 @@
 "Comments":{
 "121":"CALL_FN_7C",
 "225":"CALL_FN_9C",
+"330":"handle smarport control codes $16-$1e",
+"351":"subtract $16 from the control number",
+"378":"$16 - Extended Seek",
+"379":"$17 - Receive Diag",
+"382":"$1A -",
+"386":"$1E -",
+"402":"DoPhases",
+"408":"get status and message",
+"433":"DoPhases",
+"479":"BUG???? should be jmp or fn shoul end ith rts",
 "511":"set RAM BANK 01",
 "517":"set ram bank 00",
 "521":"CALL_B1_c806",
 "538":"CALL_FN_XB",
 "563":"CALL_FN_40",
 "575":"CALL_FN_30",
-"650":"should be bmi"},
+"604":"MSG CD IO mask",
+"606":"status phase",
+"608":"branch if status phase",
+"650":"should be bmi",
+"661":"branch always",
+"852":"BUF_PTR=TMP_PTR[2]",
+"904":"WAIT_NOT_BUSY"},
 
 "LongComments":{
 "-2147483647":{
@@ -220,7 +236,7 @@
 "Label":"bus_busy",
 "Value":53134,
 "Source":"User",
-"Type":"LocalOrGlobalAddr",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"},
 
 "925":{
@@ -238,60 +254,60 @@
 "LabelAnno":"None"},
 
 "493":{
-"Label":"TCDED",
+"Label":"SP_REZERO_UNIT",
 "Value":52717,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "473":{
-"Label":"TCDD9",
+"Label":"SP_VERIFY",
 "Value":52697,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "464":{
-"Label":"TCDD0",
+"Label":"SP_ALLOW_REMOVAL",
 "Value":52688,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "455":{
-"Label":"TCDC7",
+"Label":"SP_PREVENT_REMOVAL",
 "Value":52679,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "449":{
-"Label":"TCDC1",
+"Label":"SP_STOP_UNIT",
 "Value":52673,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "443":{
-"Label":"TCDBB",
+"Label":"SP_START_UNIT",
 "Value":52667,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "430":{
-"Label":"TCDAE",
+"Label":"SP_RECV_DIAG",
 "Value":52654,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "396":{
-"Label":"TCD8C",
+"Label":"SP_EXT_SEEK",
 "Value":52620,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "509":{
 "Label":"SET_RAM_BANK_01",
@@ -368,6 +384,244 @@
 "Value":52444,
 "Source":"User",
 "Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"346":{
+"Label":"not_ext_call",
+"Value":52570,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"367":{
+"Label":"load_native",
+"Value":52591,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"350":{
+"Label":"load_done",
+"Value":52574,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"348":{
+"Label":"load_emulation",
+"Value":52572,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"492":{
+"Label":"rts",
+"Value":52716,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"668":{
+"Label":"CLR_CDB",
+"Value":52892,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"672":{
+"Label":"clr_cdb_loop",
+"Value":52896,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"656":{
+"Label":"CLR_CDB_CMD6",
+"Value":52880,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"663":{
+"Label":"CLR_CDB_CMD10",
+"Value":52887,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"716":{
+"Label":"STORE_CMD_LEN1",
+"Value":52940,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"679":{
+"Label":"CMD_SEEK10",
+"Value":52903,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"725":{
+"Label":"CMD_STOP_UNIT",
+"Value":52949,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"598":{
+"Label":"WAIT_FOR_STATUS",
+"Value":52822,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"601":{
+"Label":"staus_loop",
+"Value":52825,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"617":{
+"Label":"rts",
+"Value":52841,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"573":{
+"Label":"CALL_FN_30",
+"Value":52797,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"482":{
+"Label":"CMD_END",
+"Value":52706,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"422":{
+"Label":"ERROR_BADCTL_RET",
+"Value":52646,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"711":{
+"Label":"CMD_START_UNIT",
+"Value":52935,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"793":{
+"Label":"std_call",
+"Value":53017,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"819":{
+"Label":"IIgs",
+"Value":53043,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"781":{
+"Label":"FILL_CDB_UNK",
+"Value":53005,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"772":{
+"Label":"CMD_REZERO_UNIT",
+"Value":52996,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"752":{
+"Label":"CMD_VERIFY10",
+"Value":52976,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"414":{
+"Label":"CHECK_VALID",
+"Value":52638,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"734":{
+"Label":"CMD_PREVENT_REMOVAL",
+"Value":52958,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"743":{
+"Label":"CMD_ALLOW_REMOVAL",
+"Value":52967,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"402":{
+"Label":"EXECUTE_COMMAND",
+"Value":52626,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"479":{
+"Label":"EXECUTE_CMD_DUP",
+"Value":52703,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"861":{
+"Label":"FN_8B_std_call",
+"Value":53085,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"876":{
+"Label":"FN_8B_IIgs",
+"Value":53100,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"872":{
+"Label":"FN_8B_end",
+"Value":53096,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"378":{
+"Label":"SP_FN_TABLE_L",
+"Value":52602,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"387":{
+"Label":"SP_FN_TABLE_H",
+"Value":52611,
+"Source":"User",
+"Type":"GlobalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -376,7 +630,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD8C",
+"Label":"SP_EXT_SEEK",
 "Part":"Low"}},
 
 "379":{
@@ -384,7 +638,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDAE",
+"Label":"SP_RECV_DIAG",
 "Part":"Low"}},
 
 "380":{
@@ -392,7 +646,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDBB",
+"Label":"SP_START_UNIT",
 "Part":"Low"}},
 
 "381":{
@@ -400,7 +654,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDC1",
+"Label":"SP_STOP_UNIT",
 "Part":"Low"}},
 
 "382":{
@@ -408,7 +662,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDC7",
+"Label":"SP_PREVENT_REMOVAL",
 "Part":"Low"}},
 
 "383":{
@@ -416,7 +670,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDD0",
+"Label":"SP_ALLOW_REMOVAL",
 "Part":"Low"}},
 
 "384":{
@@ -424,7 +678,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDD9",
+"Label":"SP_VERIFY",
 "Part":"Low"}},
 
 "385":{
@@ -432,7 +686,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDED",
+"Label":"SP_REZERO_UNIT",
 "Part":"Low"}},
 
 "386":{
@@ -448,7 +702,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD8C",
+"Label":"SP_EXT_SEEK",
 "Part":"High"}},
 
 "388":{
@@ -456,7 +710,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDAE",
+"Label":"SP_RECV_DIAG",
 "Part":"High"}},
 
 "389":{
@@ -464,7 +718,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDBB",
+"Label":"SP_START_UNIT",
 "Part":"High"}},
 
 "390":{
@@ -472,7 +726,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDC1",
+"Label":"SP_STOP_UNIT",
 "Part":"High"}},
 
 "391":{
@@ -480,7 +734,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDC7",
+"Label":"SP_PREVENT_REMOVAL",
 "Part":"High"}},
 
 "392":{
@@ -488,7 +742,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDD0",
+"Label":"SP_ALLOW_REMOVAL",
 "Part":"High"}},
 
 "393":{
@@ -496,7 +750,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDD9",
+"Label":"SP_VERIFY",
 "Part":"High"}},
 
 "394":{
@@ -504,7 +758,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDED",
+"Label":"SP_REZERO_UNIT",
 "Part":"High"}},
 
 "395":{
@@ -541,6 +795,70 @@
 "SubFormat":"Symbol",
 "SymbolRef":{
 "Label":"P8E_IO_ERR",
+"Part":"Low"}},
+
+"682":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_SEEK10",
+"Part":"Low"}},
+
+"697":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_RECEIVE_DIAG",
+"Part":"Low"}},
+
+"714":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_START_STOP",
+"Part":"Low"}},
+
+"728":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_START_STOP",
+"Part":"Low"}},
+
+"737":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_PREVENT_ALLOW_REMOVAL",
+"Part":"Low"}},
+
+"746":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_PREVENT_ALLOW_REMOVAL",
+"Part":"Low"}},
+
+"755":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_VERIFY10",
+"Part":"Low"}},
+
+"775":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_REZERO_UNIT",
 "Part":"Low"}},
 
 "883":{

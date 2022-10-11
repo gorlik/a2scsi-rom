@@ -1,6 +1,14 @@
 ; Target assembler: cc65 v2.18.0 [--target none -C bank11.bin_cc65.cfg]
 ; 6502bench SourceGen v1.1.0
          .setcpu "65816"
+SCSI_CMD_REZERO_UNIT = $01
+SCSI_CMD_START_STOP = $1b
+SCSI_CMD_RECEIVE_DIAG = $1c
+SCSI_CMD_PREVENT_ALLOW_REMOVAL = $1e
+P8E_IO_ERR =     $27        ;I/O error
+SCSI_CMD_SEEK10 = $2b
+SCSI_CMD_VERIFY10 = $2f
+
 TMP_PTR0 =       $19        ; temporary ZP pointer 
 TMP_PTR1 =       $1b        ; temporary ZP pointer 
 TMP_PTR_L =      $f6        ; temporary ZP long pointer
@@ -14,7 +22,6 @@ TCOUNT_B0 =      $c801      ; timeout counter LSB
 TCOUNT_B2 =      $c802      ; timeout counter MSB
 TCOUNT_B1 =      $c803      ; timeout counter middle byte when using 24-bit counter
 XFER_MODE =      $c804      ; 0x00 IIe PDMA, 0x01 IIgs PDMA, 0x02-0xff PIO 
-SEL_TARGET =     $c806      ; SCSI (BUS?) ID of selected target
 TMP_c80a =       $c80a      ; unknown
 RET_CODE =       $c80b      ; 
 BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
@@ -31,9 +38,11 @@ CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PR
 UNK_c820 =       $c820      ; 0xff if PIO ?
 PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
 LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
-IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
-BLKSIZE_H =      $c92f      ;byte1 of block size
-BLKSIZE_L =      $c930      ;byte0 of block size
+IS_IIgs  =       $c8f3      ;0x01 if IIgs
+UNK_c92d =       $c92d
+UNK_c92e =       $c92e
+BLKSIZE_H =      $c92f      ;byte1 of block size - reverse endian
+BLKSIZE_L =      $c930      ;byte0 of block size - reverse endian
 LDIO_SIZE_LO =   $c9ee
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
@@ -41,11 +50,11 @@ TIMEOUT  =       $c9f6      ; each unit is 1.25s
          .org    $cc00
          .a8
          .i8
-FN_0B:   jsr     LCE90
+FN_0B:   jsr     CLR_CDB_CMD6
          lda     CALL_TYPE
          and     #$40
          beq     @LCC0F
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          bne     @LCC7C
 @LCC0F:  lda     #$06
          sta     SCSI_CMD_LEN
@@ -62,11 +71,11 @@ FN_0B:   jsr     LCE90
 @LCC26:  iny
          lda     (TMP_PTR_L),y
          sta     LDIO_SIZE_LO
-         sta     $c92d
+         sta     UNK_c92d
          iny
          lda     (TMP_PTR_L),y
          sta     $c9ef
-         sta     $c92e
+         sta     UNK_c92e
          ldx     #$02
          iny
          lda     (TMP_PTR_L),y
@@ -98,7 +107,7 @@ FN_0B:   jsr     LCE90
 
 @LCC7C:  lda     #$01
          sta     XFER_MODE
-         jsr     @LCCD9
+         jsr     SET_NATIVE
          ldy     #$02
          lda     [TMP_PTR_L],y
          sta     BUF_PTR_L
@@ -114,11 +123,11 @@ FN_0B:   jsr     LCE90
          iny
          lda     [TMP_PTR_L],y
          sta     LDIO_SIZE_LO
-         sta     $c92d
+         sta     UNK_c92d
          iny
          lda     [TMP_PTR_L],y
          sta     $c9ef
-         sta     $c92e
+         sta     UNK_c92e
          iny
          lda     [TMP_PTR_L],y
          clc
@@ -137,14 +146,16 @@ FN_0B:   jsr     LCE90
          sta     LBA_c8db+2
          iny
          lda     [TMP_PTR_L],y
-         jsr     @LCCDC
+         jsr     SET_EMULATION
          jmp     @LCC65
 
-@LCCD9:  clc
+SET_NATIVE:
+         clc
          xce
          rts
 
-@LCCDC:  sec
+SET_EMULATION:
+         sec
          xce
          rts
 
@@ -171,15 +182,15 @@ FN_2B:   lda     #$00
          cpy     #$11
          bne     @LCCFE
 @LCD0B:  sec
-         lda     $c92d
+         lda     UNK_c92d
          sbc     $c92b
          pha
-         lda     $c92e
+         lda     UNK_c92e
          sbc     $c92c
          bcc     @LCD23
-         sta     $c92e
+         sta     UNK_c92e
          pla
-         sta     $c92d
+         sta     UNK_c92d
          pha
 @LCD23:  pla
          pla
@@ -193,109 +204,127 @@ FN_2B:   lda     #$00
          dey
          bne     @LCD0B
          pla
-         ldy     $c92d
+         ldy     UNK_c92d
          sty     $c929
-         ldy     $c92e
+         ldy     UNK_c92e
          sty     $c92a
-         stx     $c92e
-         sta     $c92d
+         stx     UNK_c92e
+         sta     UNK_c92d
          ldy     SAVE_Y
          rts
 
-FN_5B:   lda     CALL_TYPE
+FN_5B:   lda     CALL_TYPE  ;handle smarport control codes $16-$1e
          and     #$40
-         beq     @LCD5A
-         lda     IIgs_PDMA
-         bne     @LCD6F
+         beq     @not_ext_call
+         lda     IS_IIgs
+         bne     load_native
          ldy     #$06
-         bne     @LCD5C
+         bne     @load_emulation
 
-@LCD5A:  ldy     #$04
-@LCD5C:  lda     (TMP_PTR_L),y
-@LCD5E:  sec
-         sbc     #$16
+@not_ext_call:
+         ldy     #$04
+@load_emulation:
+         lda     (TMP_PTR_L),y
+load_done:
+         sec
+         sbc     #$16       ;subtract $16 from the control number
          tax
-         lda     @LCD7A,x
+         lda     SP_FN_TABLE_L,x
          sta     TMP_PTR1
-         lda     @LCD83,x
+         lda     SP_FN_TABLE_H,x
          sta     TMP_PTR1+1
          jmp     (TMP_PTR1)
 
-@LCD6F:  clc
+load_native:
+         clc
          xce
          ldy     #$06
          lda     [TMP_PTR_L],y
          sec
          xce
-         jmp     @LCD5E
+         jmp     load_done
 
-@LCD7A:  .byte   <TCD8C
-         .byte   <TCDAE
-         .byte   <TCDBB
-         .byte   <TCDC1
-         .byte   <TCDC7
-         .byte   <TCDD0
-         .byte   <TCDD9
-         .byte   <TCDED
-         .byte   <Patch1Call
-@LCD83:  .byte   >TCD8C
-         .byte   >TCDAE
-         .byte   >TCDBB
-         .byte   >TCDC1
-         .byte   >TCDC7
-         .byte   >TCDD0
-         .byte   >TCDD9
-         .byte   >TCDED
+SP_FN_TABLE_L:
+         .byte   <SP_EXT_SEEK ;$16 - Extended Seek
+         .byte   <SP_RECV_DIAG ;$17 - Receive Diag
+         .byte   <SP_START_UNIT
+         .byte   <SP_STOP_UNIT
+         .byte   <SP_PREVENT_REMOVAL ;$1A -
+         .byte   <SP_ALLOW_REMOVAL
+         .byte   <SP_VERIFY
+         .byte   <SP_REZERO_UNIT
+         .byte   <Patch1Call ;$1E -
+SP_FN_TABLE_H:
+         .byte   >SP_EXT_SEEK
+         .byte   >SP_RECV_DIAG
+         .byte   >SP_START_UNIT
+         .byte   >SP_STOP_UNIT
+         .byte   >SP_PREVENT_REMOVAL
+         .byte   >SP_ALLOW_REMOVAL
+         .byte   >SP_VERIFY
+         .byte   >SP_REZERO_UNIT
          .byte   >Patch1Call
 
-TCD8C:   jsr     LCD9E
-         jsr     LCEA7
-LCD92:   jsr     CALL_FN_00
-         jsr     LCE56
-         jsr     LCE3D
-         jmp     LCDE2
+SP_EXT_SEEK:
+         jsr     CHECK_VALID
+         jsr     CMD_SEEK10
+EXECUTE_COMMAND:
+         jsr     CALL_FN_00 ;DoPhases
+         jsr     WAIT_FOR_STATUS
+         jsr     CALL_FN_30 ;get status and message
+         jmp     CMD_END
 
-LCD9E:   lda     DEV_STATUS
+CHECK_VALID:
+         lda     DEV_STATUS
          cmp     #$b4
-         bne     @LCDA6
+         bne     ERROR_BADCTL_RET
          rts
 
-@LCDA6:  ldy     SAVE_Y
+ERROR_BADCTL_RET:
+         ldy     SAVE_Y
          lda     #$21
          jmp     CALL_FN_60_RET
 
-TCDAE:   jsr     LCEB6
-         jsr     CALL_FN_00
+SP_RECV_DIAG:
+         jsr     LCEB6
+         jsr     CALL_FN_00 ;DoPhases
          jsr     LCE42
          jsr     LCE1E
          rts
 
-TCDBB:   jsr     LCEC7
-         jmp     LCDDF
+SP_START_UNIT:
+         jsr     CMD_START_UNIT
+         jmp     EXECUTE_CMD_DUP
 
-TCDC1:   jsr     LCED5
-         jmp     LCDDF
+SP_STOP_UNIT:
+         jsr     CMD_STOP_UNIT
+         jmp     EXECUTE_CMD_DUP
 
-TCDC7:   jsr     LCD9E
-         jsr     LCEDE
-         jmp     LCDDF
+SP_PREVENT_REMOVAL:
+         jsr     CHECK_VALID
+         jsr     CMD_PREVENT_REMOVAL
+         jmp     EXECUTE_CMD_DUP
 
-TCDD0:   jsr     LCD9E
-         jsr     LCEE7
-         jmp     LCDDF
+SP_ALLOW_REMOVAL:
+         jsr     CHECK_VALID
+         jsr     CMD_ALLOW_REMOVAL
+         jmp     EXECUTE_CMD_DUP
 
-TCDD9:   jsr     LCD9E
-         jsr     LCEF0
-LCDDF:   jsr     LCD92
-LCDE2:   lda     RET_CODE
-         beq     @LCDEC
-         lda     #$27
+SP_VERIFY:
+         jsr     CHECK_VALID
+         jsr     CMD_VERIFY10
+EXECUTE_CMD_DUP:
+         jsr     EXECUTE_COMMAND ;BUG???? should be jmp or fn shoul end ith rts
+CMD_END: lda     RET_CODE
+         beq     @rts
+         lda     #P8E_IO_ERR
          jmp     CALL_FN_60_RET
 
-@LCDEC:  rts
+@rts:    rts
 
-TCDED:   jsr     LCF04
-         jmp     LCDDF
+SP_REZERO_UNIT:
+         jsr     CMD_REZERO_UNIT
+         jmp     EXECUTE_CMD_DUP
 
 Patch1Call:
          jsr     SET_RAM_BANK_01
@@ -313,8 +342,8 @@ SET_RAM_BANK_00:
          sta     REG_IO_BANK_SEL,y ;set ram bank 00
          rts
 
-FN_6B:   jsr     SET_RAM_BANK_01
-         jsr     SEL_TARGET
+FN_6B:   jsr     SET_RAM_BANK_01 ;CALL_B1_c806
+         jsr     $c806
          jsr     SET_RAM_BANK_00
          rts
 
@@ -339,124 +368,143 @@ LCE1E:   ldy     SAVE_Y
          sta     XFER_MODE
          rts
 
-LCE3D:   lda     #$30
+CALL_FN_30:
+         lda     #$30
          jmp     CALL_FN_XB ;CALL_FN_30
 
-LCE42:   jsr     LCE6F
+LCE42:   jsr     SET_TIMEOUT_03
 @LCE45:  lda     REG_5380_STAT,y
          and     #$1c
          cmp     #$04
          beq     @LCE55
-         jsr     LCE7D
-         bcs     LCE6A
+         jsr     DEC_TIMEOUT
+         bcs     ERROR_IOERROR
          bcc     @LCE45
 
 @LCE55:  rts
 
-LCE56:   jsr     LCE6F
-@LCE59:  lda     REG_5380_STAT,y
-         and     #$1c
-         cmp     #$0c
-         beq     @LCE69
-         jsr     LCE7D
-         bcs     LCE6A
-         bcc     @LCE59
+WAIT_FOR_STATUS:
+         jsr     SET_TIMEOUT_03
+@staus_loop:
+         lda     REG_5380_STAT,y
+         and     #$1c       ;MSG CD IO mask
+         cmp     #$0c       ;status phase
+         beq     @rts       ;branch if status phase
+         jsr     DEC_TIMEOUT
+         bcs     ERROR_IOERROR
+         bcc     @staus_loop
 
-@LCE69:  rts
+@rts:    rts
 
-LCE6A:   lda     #$27
+ERROR_IOERROR:
+         lda     #P8E_IO_ERR
          jmp     CALL_FN_60_RET
 
-LCE6F:   lda     #$ff
+SET_TIMEOUT_03:
+         lda     #$ff
          sta     TCOUNT_B0
          sta     TCOUNT_B2
          lda     #$03
          sta     TCOUNT_B1
          rts
 
-LCE7D:   dec     TCOUNT_B0
+DEC_TIMEOUT:
+         dec     TCOUNT_B0
          bne     @LCE8C
          dec     TCOUNT_B2
          bne     @LCE8C
          dec     TCOUNT_B1
-         beq     @LCE8E
+         beq     @LCE8E     ;should be bmi
 @LCE8C:  clc
          rts
 
 @LCE8E:  sec
          rts
 
-LCE90:   lda     #$06
+CLR_CDB_CMD6:
+         lda     #$06
          sta     SCSI_CMD_LEN
-         bne     LCE9C
+         bne     CLR_CDB    ;branch always
 
-LCE97:   lda     #$0a
+CLR_CDB_CMD10:
+         lda     #$0a
          sta     SCSI_CMD_LEN
-LCE9C:   ldx     #$0a
+CLR_CDB: ldx     #$0a
          lda     #$00
-@LCEA0:  sta     SCSI_CDB_CMD,x
+@clr_cdb_loop:
+         sta     SCSI_CDB_CMD,x
          dex
-         bne     @LCEA0
+         bne     @clr_cdb_loop
          rts
 
-LCEA7:   jsr     LCE97
-         lda     #$2b
+CMD_SEEK10:
+         jsr     CLR_CDB_CMD10
+         lda     #SCSI_CMD_SEEK10
          sta     SCSI_CDB_CMD
          jsr     FN_8B
-         jsr     LCF0D
+         jsr     FILL_CDB_UNK
          rts
 
-LCEB6:   jsr     LCE90
-         lda     #$1c
+LCEB6:   jsr     CLR_CDB_CMD6
+         lda     #SCSI_CMD_RECEIVE_DIAG
          sta     SCSI_CDB_CMD
          lda     #$ff
          sta     SCSI_CDB_LEN
          jsr     FN_8B
          rts
 
-LCEC7:   jsr     LCE90
-         lda     #$1b
-LCECC:   sta     SCSI_CDB_CMD
+CMD_START_UNIT:
+         jsr     CLR_CDB_CMD6
+         lda     #SCSI_CMD_START_STOP
+STORE_CMD_LEN1:
+         sta     SCSI_CDB_CMD
          lda     #$01
          sta     SCSI_CDB_LEN
          rts
 
-LCED5:   jsr     LCE90
-         lda     #$1b
+CMD_STOP_UNIT:
+         jsr     CLR_CDB_CMD6
+         lda     #SCSI_CMD_START_STOP
          sta     SCSI_CDB_CMD
          rts
 
-LCEDE:   jsr     LCE90
-         lda     #$1e
-         jmp     LCECC
+CMD_PREVENT_REMOVAL:
+         jsr     CLR_CDB_CMD6
+         lda     #SCSI_CMD_PREVENT_ALLOW_REMOVAL
+         jmp     STORE_CMD_LEN1
 
          .byte   $60
 
-LCEE7:   jsr     LCE90
-         lda     #$1e
+CMD_ALLOW_REMOVAL:
+         jsr     CLR_CDB_CMD6
+         lda     #SCSI_CMD_PREVENT_ALLOW_REMOVAL
          sta     SCSI_CDB_CMD
          rts
 
-LCEF0:   jsr     LCE97
-         lda     #$2f
+CMD_VERIFY10:
+         jsr     CLR_CDB_CMD10
+         lda     #SCSI_CMD_VERIFY10
          sta     SCSI_CDB_CMD
          jsr     FN_8B
-         jsr     LCF0D
+         jsr     FILL_CDB_UNK
          lda     #$01
          sta     SCSI_CDB10_8
          rts
 
-LCF04:   jsr     LCE90
-         lda     #$01
+CMD_REZERO_UNIT:
+         jsr     CLR_CDB_CMD6
+         lda     #SCSI_CMD_REZERO_UNIT
          sta     SCSI_CDB_CMD
          rts
 
-LCF0D:   lda     CALL_TYPE
+FILL_CDB_UNK:
+         lda     CALL_TYPE
          and     #$40
-         beq     @LCF19
-         lda     IIgs_PDMA
-         bne     @LCF33
-@LCF19:  ldy     #$00
+         beq     @std_call
+         lda     IS_IIgs
+         bne     @IIgs
+@std_call:
+         ldy     #$00
          lda     (BUF_PTR_L),y
          sta     SCSI_CDB_CTRL
          iny
@@ -470,7 +518,7 @@ LCF0D:   lda     CALL_TYPE
          sta     SCSI_CDB_LBA_HI
          rts
 
-@LCF33:  clc
+@IIgs:   clc
          xce
          ldy     #$00
          lda     [BUF_PTR_L],y
@@ -489,20 +537,23 @@ LCF0D:   lda     CALL_TYPE
          rts
 
 FN_8B:   lda     CALL_TYPE
-         and     #$40
-         beq     @LCF5D
-         lda     IIgs_PDMA
-         bne     @LCF6C
-@LCF5D:  ldy     #$02
+         and     #$40       ;BUF_PTR=TMP_PTR[2]
+         beq     @FN_8B_std_call
+         lda     IS_IIgs
+         bne     @FN_8B_IIgs
+@FN_8B_std_call:
+         ldy     #$02
          lda     (TMP_PTR_L),y
          sta     BUF_PTR_L
          iny
          lda     (TMP_PTR_L),y
          sta     BUF_PTR_H
-@LCF68:  ldy     SAVE_Y
+@FN_8B_end:
+         ldy     SAVE_Y
          rts
 
-@LCF6C:  clc
+@FN_8B_IIgs:
+         clc
          xce
          ldy     #$02
          lda     [TMP_PTR_L],y
@@ -518,9 +569,9 @@ FN_8B:   lda     CALL_TYPE
          sta     BUF_PTR_XH
          sec
          xce
-         jmp     @LCF68
+         jmp     @FN_8B_end
 
-FN_4B:   lda     #$06
+FN_4B:   lda     #$06       ;WAIT_NOT_BUSY
          tax
          sta     $c830
 @bus_busy:
