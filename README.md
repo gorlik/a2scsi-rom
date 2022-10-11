@@ -17,7 +17,7 @@ ROM Bank 0 and Bank 8 are identical except the last 4 bytes.
 TIMEOUT byte order seem to be used inconsistenly in differet banks.
 Bank14 TIMEOUT decrement seems buggy.
 
-#TRM Errata
+# TRM Errata
 In Appendix B the TRM incorrectly documents some of the BANKSWITCH calls. For some calls the nibbles have been swapped.
 
 DataXin is FN_01 ($10 in TRM)
