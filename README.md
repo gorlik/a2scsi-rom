@@ -17,6 +17,13 @@ ROM Bank 0 and Bank 8 are identical except the last 4 bytes.
 TIMEOUT byte order seem to be used inconsistenly in differet banks.
 Bank14 TIMEOUT decrement seems buggy.
 
+The Apple TRM defines apple device type $06 as direct access tape drive (???). 
+This is inconsistent with the SCSI documentation as SCSI type $01 (sequential access) and all direct 
+access removable devices (SCSI type $00) that are not CD_ROMs end up as type $06.
+From the disassemby Apple type $06 is sequential access or removable direct access (the block device flag
+can be used to identify direct access (block dev ) vs. sequential (char dev)), but excludes devices
+of SCSI type $07 (Optical memory).
+
 ## TRM Errata
 In Appendix B the TRM incorrectly documents some of the BANKSWITCH calls. For some calls the nibbles have been swapped.
 ```
