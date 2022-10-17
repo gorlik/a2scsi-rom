@@ -21,7 +21,7 @@ BUF_PTR_VH    @ $FC     ;
 BUF_PTR_XH    @ $FD     ;
 
 
-;TEMP          @ $07F8   ; Unknown temp
+;TEMP          @ $07F8   ; ACTIVE_PERIP_SLOT
 
 ; CARD RAM locations in BANK 0 *******************************
 DEV_IDX           @ $C800   ; index into the SDAT/DIBTAB tables
@@ -51,20 +51,21 @@ SCSI_CDB10_9      @ $C817   ;
 SCSI_CDB12_10     @ $C818   ; additional bytes for 12 bytes CDB
 SCSI_CDB12_11     @ $C819   ;
 
-SAVE_Y            @ $C81A   ; slot adress (n+8)<<4 
-SAVE_SP_CMD_B     @ $C81B   ; saved SmartPort Command
-; c81c
+SLOT_OFFSET       @ $C81A   ; slot adress (n+8)<<4 
+SAVE_SP_CMD       @ $C81B   ; saved SmartPort Command
+; c81c - seems unused
 CALL_TYPE         @ $C81D   ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 CMD_STATUS        @ $C81E   ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 SCSI_RD_c81f      @ $C81F   ; SCSI STATUS or MESSAGE return from FN_04 
 UNK_c820          @ $C820   ; 0xff if PIO ?
 SAVE_ENTRY_SP     @ $C821   ; stack pointer saved at the PD/SM entry point
 BLKSIZE_H2        @ $C822   ; copy of byte1 of block size
-; c823
+NUM_DEVICES       @ $C823   ; number of devices (used in bank2)
 PART_START        @ $C824 3 ; partition start (3 bytes) seems to be in reverse endian (?)
 UNK_c827          @ $C827 3 ; 3-byte unknown in reverse endian as the above
 
-; c82a
+NEW_BLK_SIZE      @ $C82A 2 ; desired block size in SetBlock
+; c82c
 ; ...
 ; c830
 
@@ -96,31 +97,30 @@ TEMP_PTR_c8ca     @ $C8CA 2 ; TEMP_BUF_PTR?
 UNK_c8cc          @ $C8CC   ;unknown
 ; c8cd
 NUM_PART          @ $C8CE   ; number of partition on the device - only used in bank 07
-UNK_c8cf          @ $C8CF   ; $00 if failed to read Partition Map. $ff if PM detected
+PARTMAP_OK        @ $C8CF   ; $00 if failed to read Partition Map. non-zero if PM detected
 BLOCK_SIZE        @ $C8D0 2 ; temp int storage (size of DDM block?)
 ; c8d2
 ; ...
 ; c8d5
 TMP_COUNT         @ $C8D6   ; temp counter - only used in bank 07
 PTR_c8d7          @ $C8D7 2 ; temp pointer storage (?)
-TEMP_c8d9         @ $C8D9   ;unknown
-TEMP_c8da         @ $C8DA   ;unknown
+temp_part_count   @ $C8D9   ; temporary partition counter
+TEMP_c8da         @ $C8DA   ; unknown
 LBA_c8db          @ $C8DB 3 ; LBA to use in CDB (?) (copied to CDB_LBA)
 ; c8de
-PTR_c8df          @ $C8DF 2 ;unknown
-BLK_c8e1          @ $C8E1 2 ;unknown
-BOOT_SEQ          @ $C8E3   ;$55 if in boot process
-RX_LEN_LO         @ $C8E4   ;bytes read if call successfull
-RX_LEN_HI         @ $C8E5   ;bytes read if call successfull
-SAVE_SP_CMD       @ $C8E6   ; saved Smartport COMMAND number
+PTR_c8df          @ $C8DF 2 ; unknown
+BLK_c8e1          @ $C8E1 2 ; unknown
+BOOT_SEQ          @ $C8E3   ; $55 if in boot process
+RX_LEN_LO         @ $C8E4   ; bytes read if call successfull
+RX_LEN_HI         @ $C8E5   ; bytes read if call successfull
+SAVE_SP_CMD_TEMP  @ $C8E6   ; saved Smartport COMMAND number
 SAVE_XFER_MODE_ALT   @ $C8E7   ; saved XFER_MODE ? - seems used only in bank 7 as a temp
 SAVE_SP_UNIT      @ $C8E8   ; saved Smartport UNIT number
 ; c8e9
 ; ...
 ; c8ec
 SAVE_SP2          @ $C8ED   ;saved SP - also used a random temp
-TEMP_HI           @ $C8EE   ;generic 16-bit temp high byte
-TEMP_LO           @ $C8EF   ;generic 16-bit temp low byte
+TEMP_16           @ $C8EE 2 ;generic 16-bit temp
 ; c8f0
 ; c8f1
 ; c8f2
@@ -129,6 +129,8 @@ UNK_c8f4          @ $C8F4   ;unknown
 buf_c8f5          @ $C8F5   ; seems to be some sort of 12 byte structure ???
 ; c8f6
 ; ...
+; c910
+LBA_TEMP          @ $C911 3 ; temporary block number in bank 9
 ; c914
 TEMP_c915         @ $C915   ;unknown
 ; c916
@@ -141,8 +143,9 @@ TEMP_XH           @ $C922   ;unknown
 ; c923
 ; ...
 ; c92c
-UNK_c92d          @ $C92D   ;
-UNK_c92e          @ $C92E   ;
+UNK_LEN           @ $C92D 2 ; unknown lenght - could be reverse endian ?????
+;UNK_c92d          @ $C92D   ;
+;UNK_c92e          @ $C92E   ;
 BLKSIZE_H         @ $C92F   ;byte1 of block size - reverse endian
 BLKSIZE_L         @ $C930   ;byte0 of block size - reverse endian
 
@@ -151,8 +154,7 @@ BLKSIZE_L         @ $C930   ;byte0 of block size - reverse endian
 ; 189 total size
 DIBTAB_BASE   @ $C931   ;start of DIBTAB (extends to $C9ED)
 
-LDIO_SIZE_LO      @ $C9EE   ;
-; c9ef
+LDIO_SIZE         @ $C9EE 2 ;
 ; c9f0
 TMP_c9f1          @ $C9F1 2 ; 2-byte temp
 DEV_STATUS        @ $C9F3   ; seems a copy of device status from DIBTAB
