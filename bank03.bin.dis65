@@ -138,6 +138,9 @@
 "111":"FORMAT_UNIT",
 "114":"Do_Phases",
 "137":"REQUEST_SENSE",
+"159":"save PD_PAR_BLK",
+"162":"read inquiry data",
+"173":"restore PD_PAR_BLK",
 "215":"branch if not init",
 "226":"RESERVE",
 "240":"RELEASE",
@@ -678,6 +681,13 @@
 "503":{
 "Label":"WRITE_DATA_PIO",
 "Value":52727,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"175":{
+"Label":"ret_rts",
+"Value":52399,
 "Source":"User",
 "Type":"GlobalAddr",
 "LabelAnno":"None"}},

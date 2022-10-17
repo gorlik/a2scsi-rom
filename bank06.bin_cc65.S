@@ -30,18 +30,19 @@ SCSI_CDB_LUN =   $c80f      ;
 SCSI_CDB_LBA_HI = $c810
 SCSI_CDB_LBA_LO = $c811
 SCSI_CDB_LEN =   $c812
-SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
-SAVE_SP_CMD_B =  $c81b      ; saved SmartPort Command
+SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
+SAVE_SP_CMD =    $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 CMD_STATUS =     $c81e      ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 SDAT_BASE =      $c831      ;start of SDAT table (extends to $C8A7)
 TMP_COUNTER =    $c8c6
 RD_ERRORS =      $c8c9      ; used only in blk 6 to count the number of read errors
-UNK_c8cf =       $c8cf      ; $00 if failed to read Partition Map. $ff if PM detected
+PARTMAP_OK =     $c8cf      ; $00 if failed to read Partition Map. non-zero if PM detected
 BLOCK_SIZE =     $c8d0      ; temp int storage (size of DDM block?)
-TEMP_c8da =      $c8da      ;unknown
-PTR_c8df =       $c8df      ;unknown
+TEMP_c8da =      $c8da      ; unknown
+PTR_c8df =       $c8df      ; unknown
 SAVE_SP2 =       $c8ed      ;saved SP - also used a random temp
+UNK_LEN  =       $c92d      ; unknown lenght - could be reverse endian ?????
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 
          .org    $cc00
@@ -72,7 +73,7 @@ EXECUTE_FORMAT_PM_INIT:
          lda     #$d3       ;FORMAT_UNIT
 CALL_FN_X6_SY:
          ldx     #$06
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jsr     BANKSWITCH ;CALL_FN_X6
          rts
 
@@ -101,7 +102,7 @@ EXEC_PARSE_READ_CAPACITY:
          sta     BUF_PTR_H  ;set BUF_PTR to $ca00
          ldy     #$03
          lda     (BUF_PTR_L),y
-         sta     $c92c      ;save LSB of device size at $c92c ($c929+3)
+         sta     UNK_LEN-1  ;save LSB of device size at $c92c ($c929+3)
          sec
          ldx     DEV_STATUS
          cpx     #$f8       ;block dev, W, R, online, fmt
@@ -172,7 +173,7 @@ CREATE_PM:
          lda     #$0f
          jsr     CALL_FN_X6_SY ;CALL_FN_0F
          jsr     EXECUTE_WRITE ;WRITE PDM ENTRY in block 2
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 EXECUTE_WRITE:
@@ -200,7 +201,7 @@ CLR_BUF: lda     #$00       ;clear 256 bytes at BUF_PTR
 
 FN_26:   lda     #$47       ;try to read DDM and PDM
          jsr     CALL_FN_X6_SY ;CALL_FN_47 - READ DDM and MASTER PDM
-         lda     UNK_c8cf
+         lda     PARTMAP_OK
          beq     @ret_fail
          clc
          rts
@@ -281,7 +282,7 @@ FN_16:   lda     SCSI_CDB_CMD
          rts
 
 @LCD8C:  jsr     SET_BUF_PTR_CA00
-         lda     SAVE_SP_CMD_B
+         lda     SAVE_SP_CMD
          cmp     #SCSI_CMD_WRITE6
          beq     @FN_16_write
          jsr     READ_BLK
@@ -316,7 +317,7 @@ CHECK_REQ_SENSE:
 @recoverable:
          clc
 @sense_end:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 LDA_ASC: ldx     #$0c
@@ -340,7 +341,7 @@ LCDDF:   jsr     LCDF9
 ERROR_DISKSWITCH:
          lda     #$2e
 RET_ERROR:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jmp     CALL_FN_60_RET
 
 ERROR_OFFLINE:
@@ -358,7 +359,7 @@ FN_56:   lda     #$ff
          lda     CMD_STATUS
          beq     @FN_56_ret_ok
          jsr     DELAY_C0FF
-         jsr     CALL_FN_49
+         jsr     CALL_FN_49 ;send REQUEST sense and store in $c901
          jsr     LDA_ASC
          cmp     #$28
          beq     @FN_56_ret_ok
@@ -496,7 +497,7 @@ SET_BUF_PTR_CA00:
 
 COPY_CMD_c81b:
          lda     SCSI_CDB_CMD
-         sta     SAVE_SP_CMD_B
+         sta     SAVE_SP_CMD
          rts
 
 FN_46:   lda     #$02       ;try to call FN_36 twice

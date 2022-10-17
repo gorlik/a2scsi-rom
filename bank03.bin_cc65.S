@@ -39,15 +39,14 @@ SCSI_CDB_LUN =   $c80f      ;
 SCSI_CDB_LBA_HI = $c810
 SCSI_CDB_LEN =   $c812
 SCSI_CDB10_8 =   $c816
-SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
+SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 CMD_STATUS =     $c81e      ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 UNK_c820 =       $c820      ; 0xff if PIO ?
 SDAT_BASE =      $c831      ;start of SDAT table (extends to $C8A7)
 UNK_c8cc =       $c8cc      ;unknown
 SAVE_SP_UNIT =   $c8e8      ; saved Smartport UNIT number
-TEMP_HI  =       $c8ee      ;generic 16-bit temp high byte
-TEMP_LO  =       $c8ef      ;generic 16-bit temp low byte
+TEMP_16  =       $c8ee      ;generic 16-bit temp
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
 buf_c8f5 =       $c8f5      ; seems to be some sort of 12 byte structure ???
 SAVE_XFER_MODE = $c91f
@@ -124,7 +123,7 @@ FN_D3:   jsr     WRITE_PROT_CHECK
          bne     @LCC75
          jsr     CALL_FN_30
          lda     CMD_STATUS
-         beq     LCCAF
+         beq     ret_rts
          jmp     ERROR_IOERROR
 
 FN_B3:   jsr     LOAD_CDB_REQUEST_SENSE ;REQUEST_SENSE
@@ -134,26 +133,26 @@ FN_B3:   jsr     LOAD_CDB_REQUEST_SENSE ;REQUEST_SENSE
 FN_93:   jsr     LOAD_CDB_INQUIRY
          jsr     CALL_00_Do_Phases
          lda     PD_PAR_BLK_LO
-         sta     TEMP_HI
+         sta     TEMP_16
          lda     PD_PAR_BLK_HI
-         sta     TEMP_LO
-         jsr     READ_DATA_PIO_TIMEOUT
-         lda     TEMP_HI
+         sta     TEMP_16+1  ;save PD_PAR_BLK
+         jsr     READ_DATA_PIO_TIMEOUT ;read inquiry data
+         lda     TEMP_16
          sta     PD_PAR_BLK_LO
-         lda     TEMP_LO
-         sta     PD_PAR_BLK_HI
-LCCAF:   rts
+         lda     TEMP_16+1
+         sta     PD_PAR_BLK_HI ;restore PD_PAR_BLK
+ret_rts: rts
 
 FN_C3:   jsr     LOAD_CDB_READ_CAPACITY
          jsr     CALL_00_Do_Phases
          lda     BUF_PTR_L
-         sta     TEMP_HI
+         sta     TEMP_16
          lda     BUF_PTR_H
-         sta     TEMP_LO
+         sta     TEMP_16+1
          jsr     READ_DATA_PIO_TIMEOUT
-         lda     TEMP_HI
+         lda     TEMP_16
          sta     BUF_PTR_L
-         lda     TEMP_LO
+         lda     TEMP_16+1
          sta     BUF_PTR_H
          lda     RET_CODE
          beq     RET_SY
@@ -164,7 +163,7 @@ ERROR_IOERROR:
          lda     #P8E_IO_ERR
          jmp     CALL_FN_60_RET
 
-RET_SY:  ldy     SAVE_Y
+RET_SY:  ldy     SLOT_OFFSET
          rts
 
 LOAD_CDB_RESERVE:
@@ -262,7 +261,7 @@ COPY_BUF_PTR:
          lda     (TMP_PTR_L),y
          sta     BUF_PTR_H
 @copy_buf_ptr_done:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 @copy_long_buf_ptr:
@@ -284,7 +283,7 @@ COPY_BUF_PTR:
          .byte   $74
 
 CALL_FN_X3:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          ldx     #$03
          jsr     BANKSWITCH ;CALL_FN_X3
          rts
@@ -343,7 +342,7 @@ WRITE_DATA_PIO:
          rts
 
 SET_PIO_MODE:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          lda     #$ff
          sta     UNK_c820
          lda     XFER_MODE
@@ -431,7 +430,7 @@ DELAY_10000:
          dec     TCOUNT_B0
          lda     TCOUNT_B0
          bne     @delay_loop
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 WAIT_FOR_DATA_IN:
@@ -488,7 +487,7 @@ FN_53:   jsr     LOAD_CDB_READ_DEFECT
 
 ERROR_IOERROR_DUP:
          lda     #$27
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jmp     CALL_FN_60_RET
 
 FN_63:   jsr     LOAD_CDB_SEND_DIAG
@@ -567,7 +566,7 @@ FN_73:   ldx     #$00       ;SAVE_TIMEOUT_AND CLEAR SDAT
          dex
          bpl     @sdat_clr_loop
 RET_LOAD_Y:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 FN_83:   ldx     #$00       ;restore TIMEOUT

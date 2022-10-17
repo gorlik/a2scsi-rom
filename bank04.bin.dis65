@@ -153,8 +153,43 @@
 "103":"assert ACK and keep data BUS enabled",
 "109":"branch if timeout on REQ deassertion",
 "113":"deassert ACK and disable DATA bus",
+"148":"get SP status code",
+"150":"in this case this is the SP STATUS code",
 "156":"branch if std Smartport call",
+"160":"get SP status code",
+"162":"in this case this is the SP STATUS code",
+"172":"in this case this is the SP STATUS code",
+"175":"add PART_START to LBA",
+"178":"in this case this is the SP STATUS code",
+"183":"branch if STATUS_CODE \u003c 7",
+"187":"FAIL_BADCTL",
+"210":"branch if UNIT!=0",
+"212":"BUS status - returns # of devices on the bus",
+"217":"NUM_DEVICES=0",
+"236":"TMP_PTR0=$c831 - SDAT_BASE",
+"244":"branch if no signature",
+"251":"next entry",
+"287":"RX_LEN=8",
+"310":"RETURN DEVICE STATUS",
+"320":"RX_LEN=4",
+"326":"branch if not extended",
+"328":"if(CALL_TYPE!=std) RX_LEN++",
 "341":"CALL_FN_X4",
+"352":"CALL_FN_0A - RETURN DIB[DEV_IDX] entry",
+"373":"CMD=$04 (CONTROL) - REQUEST_SENSE",
+"381":"CALL_FN_F3 - send REQUEST_SENSE",
+"396":"RX_LEN=2",
+"406":"branch if not extended call",
+"411":"branch if IIgs",
+"436":"BLKSIZE=*(BUF_PTR+y)",
+"448":"CALL_FN_12 - restore ZP and return",
+"481":"SP_STATUS_00 - DEVICE STATUS",
+"482":"SP_STATUS_01",
+"483":"SP_STATUS_02",
+"484":"SP_STATUS_03 - RETURN DIB",
+"485":"SP_STATUS_04 - RETURN DIB extra",
+"486":"SP_STATUS_05 - RETURN last error",
+"487":"SP_STATUS_06 - RETURN blksize",
 "495":"wait for REQ deassertion (with timeout)",
 "503":"timeout waiting for REQ",
 "515":"req deasserted",
@@ -166,16 +201,19 @@
 "554":"branch if REQ asserted",
 "559":"branch if timeout",
 "565":"set expected DATA IN phase",
+"577":"Prepare DMA Data OUT",
 "582":"wait for REQ to assert",
 "586":"set expected DATA OUT phase",
 "591":"enable DATA BUS",
 "596":"enable DMA mode",
 "608":"call SEND_CMD_TEST_UNIT_READY and return $00",
 "610":"CALL_FN_A3",
+"619":"unreferenced function",
 "744":"copy PD buf to BUF_PTR",
 "759":"restore ZP and return",
 "774":"branch if not IIgs",
-"815":"Get SDAT entry in TMP_PTR0 for index at $c800"},
+"815":"Get SDAT entry in TMP_PTR0 for index at $c800",
+"835":"IIgs LDIO DMA read ?????"},
 
 "LongComments":{
 "-2147483647":{
@@ -357,39 +395,39 @@
 "LabelAnno":"None"},
 
 "384":{
-"Label":"TCD80",
+"Label":"SP_STAT_06_RET_BLKSIZE",
 "Value":52608,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "366":{
-"Label":"TCD6E",
+"Label":"SP_STAT_05_RET_ERROR",
 "Value":52590,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "345":{
-"Label":"TCD59",
+"Label":"SP_STAT_03_RET_DIB",
 "Value":52569,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "441":{
-"Label":"TCDB9",
+"Label":"ERROR_BADCTL",
 "Value":52665,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "207":{
-"Label":"TCCCF",
+"Label":"SP_STAT_00_STATUS",
 "Value":52431,
 "Source":"User",
 "Type":"GlobalAddr",
-"LabelAnno":"Generated"},
+"LabelAnno":"None"},
 
 "500":{
 "Label":"wait_not_req_loop",
@@ -487,6 +525,167 @@
 "Value":53241,
 "Source":"User",
 "Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"906":{
+"Label":"CALL_FN_60_RET",
+"Value":53130,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"358":{
+"Label":"FAIL_BADUINT",
+"Value":52582,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"360":{
+"Label":"CALL_FN_60_RET_Y",
+"Value":52584,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"48":{
+"Label":"RET_Y",
+"Value":52272,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"190":{
+"Label":"process_SP_STATUS",
+"Value":52414,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"334":{
+"Label":"CALL_FN_1A",
+"Value":52558,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"470":{
+"Label":"CALL_FN_X4_DUP",
+"Value":52694,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"460":{
+"Label":"ERROR_27_RESET",
+"Value":52684,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"446":{
+"Label":"RESTORE_ZP_RET",
+"Value":52670,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"427":{
+"Label":"BLKSIZE_CPY_NATIVE",
+"Value":52651,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"413":{
+"Label":"BLKSIZE_CPY_EMU",
+"Value":52637,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"331":{
+"Label":"not_ext",
+"Value":52555,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"481":{
+"Label":"SP_STAT_JMPTABLE_L",
+"Value":52705,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"488":{
+"Label":"SP_STAT_JMPTABLE_H",
+"Value":52712,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"310":{
+"Label":"device_status",
+"Value":52534,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"282":{
+"Label":"LEN8_RETURN",
+"Value":52506,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"256":{
+"Label":"dev_count_done",
+"Value":52480,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"240":{
+"Label":"dev_count_loop",
+"Value":52464,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"268":{
+"Label":"std_call",
+"Value":52492,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"293":{
+"Label":"native",
+"Value":52517,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"275":{
+"Label":"std_clr",
+"Value":52499,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"300":{
+"Label":"native_clr",
+"Value":52524,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"680":{
+"Label":"FN_74_ext_call",
+"Value":52904,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -503,7 +702,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCCF",
+"Label":"SP_STAT_00_STATUS",
 "Part":"Low"}},
 
 "482":{
@@ -511,7 +710,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDB9",
+"Label":"ERROR_BADCTL",
 "Part":"Low"}},
 
 "483":{
@@ -519,7 +718,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDB9",
+"Label":"ERROR_BADCTL",
 "Part":"Low"}},
 
 "484":{
@@ -527,7 +726,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD59",
+"Label":"SP_STAT_03_RET_DIB",
 "Part":"Low"}},
 
 "485":{
@@ -535,7 +734,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD59",
+"Label":"SP_STAT_03_RET_DIB",
 "Part":"Low"}},
 
 "486":{
@@ -543,7 +742,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD6E",
+"Label":"SP_STAT_05_RET_ERROR",
 "Part":"Low"}},
 
 "487":{
@@ -551,7 +750,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD80",
+"Label":"SP_STAT_06_RET_BLKSIZE",
 "Part":"Low"}},
 
 "488":{
@@ -559,7 +758,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCCCF",
+"Label":"SP_STAT_00_STATUS",
 "Part":"High"}},
 
 "489":{
@@ -567,7 +766,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDB9",
+"Label":"ERROR_BADCTL",
 "Part":"High"}},
 
 "490":{
@@ -575,7 +774,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCDB9",
+"Label":"ERROR_BADCTL",
 "Part":"High"}},
 
 "491":{
@@ -583,7 +782,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD59",
+"Label":"SP_STAT_03_RET_DIB",
 "Part":"High"}},
 
 "492":{
@@ -591,7 +790,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD59",
+"Label":"SP_STAT_03_RET_DIB",
 "Part":"High"}},
 
 "493":{
@@ -599,7 +798,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD6E",
+"Label":"SP_STAT_05_RET_ERROR",
 "Part":"High"}},
 
 "494":{
@@ -607,7 +806,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"TCD80",
+"Label":"SP_STAT_06_RET_BLKSIZE",
 "Part":"High"}},
 
 "832":{

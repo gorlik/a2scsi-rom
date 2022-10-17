@@ -26,12 +26,13 @@ TCOUNT_B1 =      $c803      ; timeout counter middle byte when using 24-bit coun
 SAVE_CYAREG =    $c808      ; saved value of CYAREG
 RET_CODE =       $c80b      ; 
 BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
-SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
+SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
-BOOT_SEQ =       $c8e3      ;$55 if in boot process
+BOOT_SEQ =       $c8e3      ; $55 if in boot process
 SAVE_SP2 =       $c8ed      ;saved SP - also used a random temp
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
-DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
+LDIO_SIZE =      $c9ee
+TMP_c9f1 =       $c9f1      ; 2-byte temp
 MON_SETTXT =     $fb39      ;set screen to text mode
 MON_HOME =       $fc58      ;clear screen and reset text output to top-left
 MON_COUT =       $fded      ;print Acc to output device via $36-37
@@ -83,7 +84,7 @@ FN_1F:   lda     #$00
          iny
          sta     (BUF_PTR_L),y ;put $01 at offset $0B
 RET_LOAD_Y:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 FN_2F:   jsr     INIT_PM_TABLE
@@ -107,7 +108,7 @@ FN_2F:   jsr     INIT_PM_TABLE
          bne     @string_cpy4
          lda     #$00
          sta     (BUF_PTR_L),y
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 String_apple_part_map:
@@ -118,7 +119,7 @@ INIT_PM_TABLE:
          ldy     #$0f
          lda     #$3f
          sta     (BUF_PTR_L),y ;set partition size to $3f blocks
-         lda     #$02
+         lda     #$02       ;sector 2
          ldy     #$0b
          sta     (BUF_PTR_L),y ;set starting sector to 2
          ldy     #$57
@@ -159,7 +160,7 @@ INIT_PM_SIG:
          lda     #$4d
          sta     (BUF_PTR_L),y
          ldy     #$07
-         lda     #$02
+         lda     #$02       ;2 partitions
          sta     (BUF_PTR_L),y ;2 partiton in map
          lda     #$3f
          ldy     #$5b
@@ -190,7 +191,7 @@ FN_4F:   jsr     MON_SETVID ;print SCSI BOOT ERROR
 
 CALL_FN_XF:
          ldx     #$0f
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jsr     BANKSWITCH
          rts
 
@@ -221,19 +222,19 @@ RESET_5380_ALT:
 FN_7F:   jsr     CHECK_DISK_CHANGE
          bcc     no_switch
          lda     #$0d
-         jsr     CALL_FN_XF ;CALL_FN_0D
+         jsr     CALL_FN_XF ;CALL_FN_0D - SEND INQUIRY and UPDATE DIBTAB entry
          lda     #$7a
-         bne     LCD6D
+         bne     LCD6D      ;CALL_FN_7A - copy DIBTAB from TMP_PTR to BUF_PTR
 
 FN_6F:   jsr     CHECK_DISK_CHANGE
          bcc     no_switch
          lda     #$0d
-         jsr     CALL_FN_XF ;CALL_FN_0D
-         lda     #$8a
-LCD6D:   jsr     CALL_FN_XF ;CALL_FN_8A
+         jsr     CALL_FN_XF ;CALL_FN_0D - SEND INQUIRY and UPDATE DIBTAB entry
+         lda     #$8a       ;CALL_FN_8A - set DEV_STATUS, copy DIBTAB entry from *(TMP_PTR0-1) to *BUF_PTR
+LCD6D:   jsr     CALL_FN_XF
 no_switch:
          jsr     CPY_C916_BUF_PTR
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 CHECK_DISK_CHANGE:
@@ -340,11 +341,12 @@ FN_9F:   lda     REG_5380_STAT,y
 @FN_9F_timeout:
          ldx     #$00
          ldy     #$00
-@LCE30:  dex
-         bne     @LCE30
+@delay_loop:
+         dex
+         bne     @delay_loop
          dey
-         bne     @LCE30
-         ldy     SAVE_Y
+         bne     @delay_loop
+         ldy     SLOT_OFFSET
          rts
 
 READ_STATUS_MESSAGE_PHASE:
@@ -393,7 +395,7 @@ LCE79:   lda     BOOT_SEQ
 ERROR_NODRIVE:
          sta     REG_IO_5380_RST,y
          lda     #$28       ;NODRIVE
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jmp     CALL_FN_60_RET
 
 CALL_FN_2C:
@@ -405,12 +407,13 @@ FN_3F:   tsx
          ldy     #$00
          txa
          cmp     #$60
-         bcs     @LCEA8     ;at least $60 bytes free on the stack
+         bcs     @stack_free ;branch if least $60 bytes free on the stack
          lda     #$b5
-         jsr     CALL_FN_XF ;CALL_FN_B5
+         jsr     CALL_FN_XF ;CALL_FN_B5 - DMA READ
          jmp     RET_00_SAVE_Y
 
-@LCEA8:  sbc     #$17
+@stack_free:
+         sbc     #$17
          tax
          stx     TMP_PTR0   ;store SP-$17 to $19
          dex
@@ -434,7 +437,7 @@ FN_3F:   tsx
 @skip_patch:
          cpy     #$13       ;size of stack routine
          bne     @copy_loop
-         ldx     SAVE_Y
+         ldx     SLOT_OFFSET
          lda     #$01
          sta     TMP_PTR0+1 ;store MSB of stack routine
          lda     SAVE_CYAREG
@@ -460,42 +463,48 @@ FN_3F_done:
          sta     CYAREG     ;restore original speed
 RET_00_SAVE_Y:
          lda     #$00
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 STACK_CODE:
          lda     REG_IO_DRQ,x ;this code is copied to the stack
-         bpl     @LCF18
+         bpl     @no_data   ;branch if DRQ not asserted
          lda     REG_IO_PDMA_DACK,x
          sta     (BUF_PTR_L),y
          iny
          bne     STACK_CODE
-         jmp     @LCF2F
+         jmp     @inc_ptr
 
-@LCF18:  jmp     @LCF1B     ;end of stack code
+@no_data:
+         jmp     @check_timeout ;end of stack code
 
-@LCF1B:  dec     TCOUNT_B0
-         bne     @LCF25
+@check_timeout:
+         dec     TCOUNT_B0
+         bne     @check_phase
          dec     TCOUNT_B1
-         beq     @LCF43
-@LCF25:  lda     REG_5380_STAT2,x
+         beq     @ret_err_27 ;branch if timeout
+@check_phase:
+         lda     REG_5380_STAT2,x
          and     #$08
-         beq     @LCF4B
+         beq     @ret_ok
          jmp     (TMP_PTR0) ;jump to stack routine
 
-@LCF2F:  inc     BUF_PTR_H
-         bne     @LCF35
+@inc_ptr:
+         inc     BUF_PTR_H
+         bne     @skip_vh
          inc     BUF_PTR_VH
-@LCF35:  inc     DEV_STATUS-1
-         lda     DEV_STATUS-1
-         cmp     $c9ef
-         beq     @LCF4B
-         jmp     (TMP_PTR0) ;jump to stack routine
+@skip_vh:
+         inc     TMP_c9f1+1
+         lda     TMP_c9f1+1
+         cmp     LDIO_SIZE+1
+         beq     @ret_ok
+         jmp     (TMP_PTR0) ;jump back to stack routine
 
-@LCF43:  lda     #$27
+@ret_err_27:
+         lda     #$27
          sta     RET_CODE
-         sty     $c9f1
-@LCF4B:  jmp     FN_3F_done
+         sty     TMP_c9f1
+@ret_ok: jmp     FN_3F_done
 
          .byte   $a2
          .byte   $ff
@@ -525,9 +534,10 @@ SET_NATIVE_MODE:
 
 SET_NATIVE_IF_REQ:
          jsr     CHECK_NATIVE_REQUIRED
-         bcs     @LCF6C
+         bcs     @set_native_rts
          jsr     SET_NATIVE_MODE
-@LCF6C:  rts
+@set_native_rts:
+         rts
 
          .byte   $20
          .byte   $76

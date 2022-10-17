@@ -26,17 +26,17 @@ BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
 SCSI_CMD_LEN =   $c80d      ; SCSI COMMAND lenght
 SCSI_CDB_CMD =   $c80e      ; SCSI CDB buffer
 SCSI_CDB_LEN =   $c812
-SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
+SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
-RX_LEN_LO =      $c8e4      ;bytes read if call successfull
-RX_LEN_HI =      $c8e5      ;bytes read if call successfull
-TEMP_HI  =       $c8ee      ;generic 16-bit temp high byte
-TEMP_LO  =       $c8ef      ;generic 16-bit temp low byte
+NEW_BLK_SIZE =   $c82a      ; desired block size in SetBlock
+RX_LEN_LO =      $c8e4      ; bytes read if call successfull
+RX_LEN_HI =      $c8e5      ; bytes read if call successfull
+TEMP_16  =       $c8ee      ;generic 16-bit temp
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
 TEMP_c915 =      $c915      ;unknown
 TEMP_VH  =       $c921      ;unknown
 TEMP_XH  =       $c922      ;unknown
-BLKSIZE_H =      $c92f      ;byte1 of block size - reverse endian
+UNK_LEN  =       $c92d      ; unknown lenght - could be reverse endian ?????
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 
          .org    $cc00
@@ -44,7 +44,7 @@ DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
          .i8
 FN_0A:   jsr     DIBTAB_LOOKUP ;TMP_PTR0=&DIBTAB[DEV_IDX]
          bcc     @entry_found_0a
-         jsr     CALL_FN_0D
+         jsr     CALL_FN_0D ;SEND INQUIRY and FILL DIBTAB
          jsr     DIBTAB_LOOKUP ;TMP_PTR0=&DIBTAB[DEV_IDX]
 @entry_found_0a:
          jsr     FN_7A      ;copy DIBTAB entry from TMP_PTR0 to BUF_PTR omitting signature
@@ -113,7 +113,7 @@ CALL_FN_0D:
 
 ERROR_IOERROR:
          lda     #P8E_IO_ERR
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jmp     CALL_FN_60_RET
 
 DIBTAB_LOOKUP:
@@ -142,7 +142,7 @@ DIBTAB_ERROR:
          rts
 
 restore_y_return:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 FN_1A:   jsr     FN_6A      ;tmp_PTR0=&DIBTAB[DEV_IDX], set DEV_STATUS and copy BLK_SIZE
@@ -196,41 +196,44 @@ FN_8A:   lda     CALL_TYPE  ;SET DEV_STATUS and copies dibtab device status and 
 FN_3A:   lda     #$af
          jmp     CALL_FN_XA ;CALL_FN_AF
 
-FN_4A:   ldy     #$02
+FN_4A:   ldy     #$02       ;SET_BLOCK_SIZE - get new blk size and fall though FN_AA
          lda     CALL_TYPE
          and     #$40
-         beq     @LCD07
+         beq     @FN_4A_std_call
          lda     IS_IIgs
-         bne     LCD42
-@LCD07:  lda     (TMP_PTR_L),y
-         sta     $c82a
+         bne     FN_4A_native
+@FN_4A_std_call:
+         lda     (TMP_PTR_L),y
+         sta     NEW_BLK_SIZE
          iny
          lda     (TMP_PTR_L),y
-         sta     $c82b
+         sta     NEW_BLK_SIZE+1 ;*$c82a=new block size (pointer member of the smartport control list)
 FN_AA:   ldy     #$07
          jsr     SET_TIMEOUT_0C
          jsr     EXECUTE_MODE_SENSE
-         jsr     LCE37
+         jsr     EXECUTE_MODE_SEL_SETBLK
          lda     TMP_c807
          sta     BUF_PTR_VH
          lda     INIT_FLAG
          cmp     #$77
-         bne     @LCD3F
+         bne     @FN_AA_end ;branch if card not init
          lda     #$44
-         sta     BLKSIZE_H-1
+         sta     UNK_LEN+1
          lda     SEL_TARGET
-         sta     $c92d
+         sta     UNK_LEN
          lda     #$0c
-         jsr     CALL_FN_XA
-         sty     $c92d
-         sty     BLKSIZE_H-1
-@LCD3F:  jmp     restore_y_return
+         jsr     CALL_FN_XA ;CALL_FN_0C - Set new SDAT
+         sty     UNK_LEN
+         sty     UNK_LEN+1
+@FN_AA_end:
+         jmp     restore_y_return
 
-LCD42:   lda     [TMP_PTR_L],y
-         sta     $c82a
+FN_4A_native:
+         lda     [TMP_PTR_L],y
+         sta     NEW_BLK_SIZE
          iny
          lda     [TMP_PTR_L],y
-         sta     $c82b
+         sta     NEW_BLK_SIZE+1 ;*$c82a=new block size (pointer member of the smartport control list)
          jmp     FN_AA
 
 WAIT_DATA_IN:
@@ -265,22 +268,24 @@ SET_TIMEOUT_0C:
          sta     TCOUNT_B2
          lda     #$0c
          sta     TCOUNT_B1
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
-LCD8B:   jsr     SET_TIMEOUT_0C
-@LCD8E:  lda     REG_5380_STAT,y
+WAIT_FOR_DOUT:
+         jsr     SET_TIMEOUT_0C
+@wait_dout_loop:
+         lda     REG_5380_STAT,y
          and     #$1c
          cmp     #$00
          beq     clc_rts
          jsr     DEC_TIMEOUT
          bcs     rts1
-         bcc     @LCD8E
+         bcc     @wait_dout_loop
 
 CALL_00_DoPhases:
          lda     #$00
 CALL_FN_XA:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          ldx     #$0a
          jmp     BANKSWITCH
 
@@ -310,28 +315,29 @@ CALL_FN_5D:
          lda     #$5d       ;FORCE_PIO_MODE
          jmp     CALL_FN_XA
 
-LCDCB:   ldx     #$06
+FILL_SETBLK:
+         ldx     #$06
 @mode_sel_cpy:
          lda     MODE_SELECT_DATA,x
          sta     SCSI_CMD_LEN,x
          dex
          bpl     @mode_sel_cpy ;copy MODE_SELECT_CMD to CDB
          jsr     BUF_PTR_CA00
-         lda     $c82a
+         lda     NEW_BLK_SIZE
          sta     $ca0a
-         lda     $c82b
+         lda     NEW_BLK_SIZE+1
          sta     $ca0b
          lda     #$00
          sta     $ca00
          lda     #$0c
          sta     SCSI_CDB_LEN
          lda     DEV_STATUS
-         cmp     #$b4
-         bne     @LCE11
-         lda     $c82b
+         cmp     #$b4       ;status for CD-ROM
+         bne     @LCE11     ;end if not CD-ROM
+         lda     NEW_BLK_SIZE+1
          cmp     #$08
          bcc     @LCE11
-         lda     $c82a
+         lda     NEW_BLK_SIZE
          cmp     #$04
          bcc     @LCE11
          lda     #$01
@@ -357,19 +363,21 @@ BUF_PTR_CA00:
 
 EXECUTE_MODE_SENSE:
          jsr     SCSI_CMD_1A ;MODE_SENSE
-SEND_CMD_RD_STATUS:
+SEND_CMD_DIN_STATUS:
          jsr     CALL_00_DoPhases
          jsr     WAIT_DATA_IN
          bcs     IOERROR_NEAR
          jsr     READ_PIO
          jmp     CALL_FN_30 ;get STATUS ans MESSAGE
 
-LCE37:   jsr     LCDCB
-LCE3A:   jsr     CALL_00_DoPhases
-         jsr     LCD8B
+EXECUTE_MODE_SEL_SETBLK:
+         jsr     FILL_SETBLK
+SEND_CMD_DOUT_STATUS:
+         jsr     CALL_00_DoPhases
+         jsr     WAIT_FOR_DOUT
          bcs     IOERROR_NEAR
          jsr     WRITE_PIO
-         jsr     CALL_FN_30
+         jsr     CALL_FN_30 ;get status and message
          lda     RET_CODE
          bne     IOERROR_NEAR
          rts
@@ -377,14 +385,14 @@ LCE3A:   jsr     CALL_00_DoPhases
 IOERROR_NEAR:
          jmp     ERROR_IOERROR
 
-FN_5A:   ldx     #$06
+FN_5A:   ldx     #$06       ;SP_MODE_SELECT
 @cpy_loop:
          lda     MODE_SELECT_DATA,x ;FILL CDB with MODE SELECT command
          sta     SCSI_CMD_LEN,x
          dex
          bpl     @cpy_loop
          lda     #$8b
-         jsr     CALL_FN_XA ;CALL_FN_8B
+         jsr     CALL_FN_XA ;CALL_FN_8B - BUF_PTR=TMP_PTR[2]
          lda     CALL_TYPE
          and     #$40
          beq     @not_etx
@@ -399,7 +407,7 @@ FN_5A:   ldx     #$06
          lda     (TMP_PTR_L),y
 @cdb_len_done:
          sta     SCSI_CDB_LEN
-         jmp     LCE3A
+         jmp     SEND_CMD_DOUT_STATUS
 
 @native_path:
          ldy     #$07
@@ -476,7 +484,7 @@ FN_2A_end:
 CHECK_REQUEST_SENSE:
          jsr     SAVE_FA_FD
          jsr     SCSI_CMD_03 ;REQUEST_SENSE
-         jsr     SEND_CMD_RD_STATUS ;EXECUTE_CDB_CMD
+         jsr     SEND_CMD_DIN_STATUS ;EXECUTE_CDB_CMD
          lda     RET_CODE
          bne     FN_2A_end  ;branch if sense ok
          ldy     #$0c
@@ -536,9 +544,9 @@ ST_c915_BUF_PTR_Y:
 
 SAVE_FA_FD:
          lda     BUF_PTR_L  ;save $fa..$fd to $c8ee and $c921
-         sta     TEMP_HI
+         sta     TEMP_16
          lda     BUF_PTR_H
-         sta     TEMP_LO
+         sta     TEMP_16+1
          lda     BUF_PTR_VH
          sta     TEMP_VH
          lda     BUF_PTR_XH
@@ -547,9 +555,9 @@ SAVE_FA_FD:
 
 LOAD_FA_FD:
          pha                ;load $fa..$fd from $c8ee and $c921
-         lda     TEMP_HI
+         lda     TEMP_16
          sta     BUF_PTR_L
-         lda     TEMP_LO
+         lda     TEMP_16+1
          sta     BUF_PTR_H
          lda     TEMP_VH
          sta     BUF_PTR_VH

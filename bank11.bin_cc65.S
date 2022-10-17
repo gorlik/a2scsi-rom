@@ -33,17 +33,16 @@ SCSI_CDB_LBA_LO = $c811
 SCSI_CDB_LEN =   $c812
 SCSI_CDB_CTRL =  $c813
 SCSI_CDB10_8 =   $c816
-SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
+SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 UNK_c820 =       $c820      ; 0xff if PIO ?
 PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
 LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
-UNK_c92d =       $c92d
-UNK_c92e =       $c92e
+UNK_LEN  =       $c92d      ; unknown lenght - could be reverse endian ?????
 BLKSIZE_H =      $c92f      ;byte1 of block size - reverse endian
 BLKSIZE_L =      $c930      ;byte0 of block size - reverse endian
-LDIO_SIZE_LO =   $c9ee
+LDIO_SIZE =      $c9ee
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
 
@@ -53,10 +52,11 @@ TIMEOUT  =       $c9f6      ; each unit is 1.25s
 FN_0B:   jsr     CLR_CDB_CMD6
          lda     CALL_TYPE
          and     #$40
-         beq     @LCC0F
+         beq     @FN_0B_std_call
          lda     IS_IIgs
          bne     @LCC7C
-@LCC0F:  lda     #$06
+@FN_0B_std_call:
+         lda     #$06
          sta     SCSI_CMD_LEN
          ldy     #$02
          lda     (TMP_PTR_L),y
@@ -70,12 +70,12 @@ FN_0B:   jsr     CLR_CDB_CMD6
          iny
 @LCC26:  iny
          lda     (TMP_PTR_L),y
-         sta     LDIO_SIZE_LO
-         sta     UNK_c92d
+         sta     LDIO_SIZE
+         sta     UNK_LEN
          iny
          lda     (TMP_PTR_L),y
-         sta     $c9ef
-         sta     UNK_c92e
+         sta     LDIO_SIZE+1
+         sta     UNK_LEN+1
          ldx     #$02
          iny
          lda     (TMP_PTR_L),y
@@ -101,9 +101,9 @@ FN_0B:   jsr     CLR_CDB_CMD6
          lda     BLKSIZE_H
          sta     $c92c
          jsr     FN_2B
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          lda     #$7c
-         jmp     CALL_FN_XB ;CALL_FN_7C
+         jmp     CALL_FN_XB ;CALL_FN_7C - add PART_START to UNK_c827
 
 @LCC7C:  lda     #$01
          sta     XFER_MODE
@@ -122,12 +122,12 @@ FN_0B:   jsr     CLR_CDB_CMD6
          sta     BUF_PTR_XH
          iny
          lda     [TMP_PTR_L],y
-         sta     LDIO_SIZE_LO
-         sta     UNK_c92d
+         sta     LDIO_SIZE
+         sta     UNK_LEN
          iny
          lda     [TMP_PTR_L],y
-         sta     $c9ef
-         sta     UNK_c92e
+         sta     LDIO_SIZE+1
+         sta     UNK_LEN+1
          iny
          lda     [TMP_PTR_L],y
          clc
@@ -166,7 +166,7 @@ FN_1B:   lda     #$9c
          sta     TIMEOUT
          ldy     #$0e
          sta     (TMP_PTR0),y
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 FN_2B:   lda     #$00
@@ -182,15 +182,15 @@ FN_2B:   lda     #$00
          cpy     #$11
          bne     @LCCFE
 @LCD0B:  sec
-         lda     UNK_c92d
+         lda     UNK_LEN
          sbc     $c92b
          pha
-         lda     UNK_c92e
+         lda     UNK_LEN+1
          sbc     $c92c
          bcc     @LCD23
-         sta     UNK_c92e
+         sta     UNK_LEN+1
          pla
-         sta     UNK_c92d
+         sta     UNK_LEN
          pha
 @LCD23:  pla
          pla
@@ -204,13 +204,13 @@ FN_2B:   lda     #$00
          dey
          bne     @LCD0B
          pla
-         ldy     UNK_c92d
+         ldy     UNK_LEN
          sty     $c929
-         ldy     UNK_c92e
+         ldy     UNK_LEN+1
          sty     $c92a
-         stx     UNK_c92e
-         sta     UNK_c92d
-         ldy     SAVE_Y
+         stx     UNK_LEN+1
+         sta     UNK_LEN
+         ldy     SLOT_OFFSET
          rts
 
 FN_5B:   lda     CALL_TYPE  ;handle smarport control codes $16-$1e
@@ -281,7 +281,7 @@ CHECK_VALID:
          rts
 
 ERROR_BADCTL_RET:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          lda     #$21
          jmp     CALL_FN_60_RET
 
@@ -351,11 +351,11 @@ CALL_FN_00:
          lda     #$00
 CALL_FN_XB:
          ldx     #$0b
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jsr     BANKSWITCH ;CALL_FN_XB
          rts
 
-LCE1E:   ldy     SAVE_Y
+LCE1E:   ldy     SLOT_OFFSET
          lda     #$ff
          sta     UNK_c820
          lda     XFER_MODE
@@ -549,7 +549,7 @@ FN_8B:   lda     CALL_TYPE
          lda     (TMP_PTR_L),y
          sta     BUF_PTR_H
 @FN_8B_end:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 @FN_8B_IIgs:

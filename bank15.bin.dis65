@@ -119,6 +119,7 @@
 "74":"put $01 at offset $09",
 "78":"put $01 at offset $0B",
 "151":"set partition size to $3f blocks",
+"153":"sector 2",
 "157":"set starting sector to 2",
 "163":"set status of partition to $57",
 "173":"copy partition size into PM from $c8d2",
@@ -126,6 +127,7 @@
 "194":"copy size of data from $c8d2",
 "206":"initialize partition map at BUF_PTR",
 "208":"fill partition map signature at BUF_PTR",
+"219":"2 partitions",
 "221":"2 partiton in map",
 "227":"part status 0x3f valid, allocated, boot info, in use, readable, writeble",
 "230":"print SCSI BOOT ERROR",
@@ -140,9 +142,10 @@
 "315":"deassert ACK",
 "318":"redundant?",
 "328":"branch if DATA OUT",
-"346":"CALL_FN_0D",
-"360":"CALL_FN_0D",
-"365":"CALL_FN_8A",
+"346":"CALL_FN_0D - SEND INQUIRY and UPDATE DIBTAB entry",
+"351":"CALL_FN_7A - copy DIBTAB from TMP_PTR to BUF_PTR",
+"360":"CALL_FN_0D - SEND INQUIRY and UPDATE DIBTAB entry",
+"363":"CALL_FN_8A - set DEV_STATUS, copy DIBTAB entry from *(TMP_PTR0-1) to *BUF_PTR",
 "388":"*$c916=DEV_STATUS from partial DIBTAB copy at *BUF_PTR",
 "391":"open/disk switch flag",
 "393":"branch if disk not switched",
@@ -176,8 +179,8 @@
 "656":"write data until not busy",
 "658":"CALL_FN_2C",
 "662":"save the original SP",
-"670":"at least $60 bytes free on the stack",
-"674":"CALL_FN_B5",
+"670":"branch if least $60 bytes free on the stack",
+"674":"CALL_FN_B5 - DMA READ",
 "683":"store SP-$17 to $19",
 "687":"SP=SP-$19",
 "690":"the routine is copied to the stack to patch it",
@@ -193,9 +196,11 @@
 "763":"restore sp",
 "767":"restore original speed",
 "776":"this code is copied to the stack",
+"779":"branch if DRQ not asserted",
 "792":"end of stack code",
+"803":"branch if timeout",
 "812":"jump to stack routine",
-"832":"jump to stack routine",
+"832":"jump back to stack routine",
 "865":"SET_EMULATION_MODE seems dead code",
 "886":"C=0 if NATIVE",
 "891":"not extended call",
@@ -645,6 +650,76 @@
 "368":{
 "Label":"no_switch",
 "Value":52592,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"680":{
+"Label":"stack_free",
+"Value":52904,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"876":{
+"Label":"set_native_rts",
+"Value":53100,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"835":{
+"Label":"ret_err_27",
+"Value":53059,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"843":{
+"Label":"ret_ok",
+"Value":53067,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"815":{
+"Label":"inc_ptr",
+"Value":53039,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"821":{
+"Label":"skip_vh",
+"Value":53045,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"792":{
+"Label":"no_data",
+"Value":53016,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"795":{
+"Label":"check_timeout",
+"Value":53019,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"805":{
+"Label":"check_phase",
+"Value":53029,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"560":{
+"Label":"delay_loop",
+"Value":52784,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},

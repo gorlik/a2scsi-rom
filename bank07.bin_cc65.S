@@ -2,6 +2,7 @@
 ; 6502bench SourceGen v1.8.3
          .setcpu "65816"
 SCSI_CMD_READ6 = $08
+SCSI_CMD_WRITE6 = $0a
 
 TMP_PTR0 =       $19        ; temporary ZP pointer 
 TMP_PTR1 =       $1b        ; temporary ZP pointer 
@@ -28,20 +29,19 @@ SCSI_CDB_LUN =   $c80f      ;
 SCSI_CDB_LBA_HI = $c810
 SCSI_CDB_LBA_LO = $c811
 SCSI_CDB_LEN =   $c812
-SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
-SAVE_SP_CMD_B =  $c81b      ; saved SmartPort Command
+SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
+SAVE_SP_CMD =    $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
 NUM_PART =       $c8ce      ; number of partition on the device - only used in bank 07
-UNK_c8cf =       $c8cf      ; $00 if failed to read Partition Map. $ff if PM detected
+PARTMAP_OK =     $c8cf      ; $00 if failed to read Partition Map. non-zero if PM detected
 BLOCK_SIZE =     $c8d0      ; temp int storage (size of DDM block?)
 TMP_COUNT =      $c8d6      ; temp counter - only used in bank 07
 PTR_c8d7 =       $c8d7      ; temp pointer storage (?)
-TEMP_c8d9 =      $c8d9      ;unknown
+temp_part_count = $c8d9     ; temporary partition counter
 SAVE_XFER_MODE_ALT = $c8e7  ; saved XFER_MODE ? - seems used only in bank 7 as a temp
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
-UNK_c92d =       $c92d
-UNK_c92e =       $c92e
+UNK_LEN  =       $c92d      ; unknown lenght - could be reverse endian ?????
 
          .org    $cc00
          .a8
@@ -55,12 +55,12 @@ FN_07:   jsr     CALL_B1_c800
          jsr     LCCFB
          jsr     CALL_FN_71
          lda     #$65
-         bne     @LCC22
+         bne     @LCC22     ;CALL_FN_65 - PDMA write
 
 @LCC1A:  jsr     LCCE7
          jsr     CALL_FN_61
-         lda     #$55
-@LCC22:  jsr     CALL_FN_X7 ;CALL_FN_55
+         lda     #$55       ;CALL_FN_55 - PDMA read
+@LCC22:  jsr     CALL_FN_X7
          jmp     @LCC28     ;redundant
 
 @LCC28:  jsr     LCD0F
@@ -78,7 +78,7 @@ CALL_B1_c800:
 CALL_FN_00:
          lda     #$00       ;CALL_FN_00
 CALL_FN_X7:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          ldx     #$07
          jsr     BANKSWITCH ;CALL_FN_X7
          rts
@@ -92,15 +92,17 @@ CALL_FN_71:
          bne     CALL_FN_X7 ;CALL_FN_71
 
 LCC51:   jsr     @LCC95
-         lda     SAVE_SP_CMD_B
+         lda     SAVE_SP_CMD ;not sure if this is SP or SCSI CMD but read is the same value
          and     #$0f       ;mask extended cmd bit
-         cmp     #$08       ;SP CMD Read
-         bne     @LCC61     ;branch if not a read command
-@LCC5D:  sta     SCSI_CDB_CMD
+         cmp     #$08       ;SP or SCSI CMD Read
+         bne     @cmd_write6 ;branch if not a read command
+@store_cdb_cmd:
+         sta     SCSI_CDB_CMD
          rts
 
-@LCC61:  lda     #$0a
-         bne     @LCC5D
+@cmd_write6:
+         lda     #SCSI_CMD_WRITE6
+         bne     @store_cdb_cmd
 
          .byte   $a2
          .byte   $ff
@@ -142,14 +144,14 @@ LCC51:   jsr     @LCC95
          .byte   $75
          .byte   $cc
 
-@LCC8A:  rts
+@rts:    rts
 
 @LCC8B:  lda     #$00
          ldx     #$06
          sta     SCSI_CDB_CMD,x
          dex
-         beq     @LCC8A
-@LCC95:  jsr     @LCC8B     ;seems a bug
+         beq     @rts       ;bug??? - x==5 branch is never taken
+@LCC95:  jsr     @LCC8B
          lda     CALL_TYPE
          and     #$40
          beq     @LCCA4
@@ -172,7 +174,7 @@ LCC51:   jsr     @LCC95
          lda     #$00
          sta     BUF_PTR_VH
          sta     BUF_PTR_XH
-@LCCC6:  ldy     SAVE_Y
+@LCCC6:  ldy     SLOT_OFFSET
          rts
 
 @LCCCA:  lda     #$01
@@ -250,51 +252,53 @@ ERROR_IOERROR:
          jmp     CALL_FN_60_RET
 
 FN_37:   lda     #$00
-         sta     TEMP_c8d9
-         sta     UNK_c8cf
-         lda     UNK_c92d
+         sta     temp_part_count
+         sta     PARTMAP_OK
+         lda     UNK_LEN
          cmp     SEL_TARGET
          bne     @LCD60
-         lda     UNK_c92e
+         lda     UNK_LEN+1
          cmp     #$44
-         beq     @LCD88
-@LCD60:  jsr     @LCD8C
+         beq     FN_37_end
+@LCD60:  jsr     INQUIRY_BLK
          jsr     FN_17      ;Read DDM and master PDM
-         lda     UNK_c8cf
+         lda     PARTMAP_OK
          beq     @LCD74     ;branch if DDM/PDM read failed
          jsr     FILL_SDAT_TABLE
          lda     SAVE_XFER_MODE_ALT
          sta     XFER_MODE
-@LCD74:  lda     UNK_c92d
-         cmp     #$05
-         bne     @LCD88
-         sty     UNK_c92d
-         lda     UNK_c8cf
-         bne     @LCD88
+@LCD74:  lda     UNK_LEN    ;temp SCSI device type saved in INQUIRY_BLK
+         cmp     #$05       ;SCSI CD-ROM type
+         bne     FN_37_end  ;branch if not CD-ROM
+         sty     UNK_LEN    ;no idea what Y contains 
+         lda     PARTMAP_OK
+         bne     FN_37_end  ;branch if DDM/PDM read ok
          lda     #$69
-         jmp     CALL_FN_X7 ;CALL_FN_69
+         jmp     CALL_FN_X7 ;CALL_FN_69 - SET_BLK_2048
 
-@LCD88:  ldy     SAVE_Y
+FN_37_end:
+         ldy     SLOT_OFFSET
          rts
 
-@LCD8C:  lda     UNK_c92e
+INQUIRY_BLK:
+         lda     UNK_LEN+1
          cmp     #$44
-         beq     @LCDAC
+         beq     @rts
          lda     #$4d
-         jsr     CALL_FN_X7 ;CALL_FN_4D
+         jsr     CALL_FN_X7 ;CALL_FN_4D - INQUIRY_CA00
          ldx     #$00
-         lda     $ca00,x
-         cmp     #$05
-         bne     @LCDAC
-         sta     UNK_c92d
+         lda     $ca00,x    ;get SCSI device type
+         cmp     #$05       ;SCSI dev type CD-ROM
+         bne     @rts       ;return if not CD-ROM
+         sta     UNK_LEN    ;save SCSI dev type in UNK_LEN
          lda     #$59
-         jmp     CALL_FN_X7 ;CALL_FN_59
+         jmp     CALL_FN_X7 ;CALL_FN_59 - SET_BLK_512
 
          .byte   $8c
          .byte   $2d
          .byte   $c9
 
-@LCDAC:  rts
+@rts:    rts
 
 FN_17:   lda     XFER_MODE  ;READ DDM and master PDM
          sta     SAVE_XFER_MODE_ALT
@@ -313,7 +317,7 @@ FN_17:   lda     XFER_MODE  ;READ DDM and master PDM
 @FN_17_fail:
          lda     #$00
 @FN_17_end:
-         sta     UNK_c8cf
+         sta     PARTMAP_OK
          lda     SAVE_XFER_MODE_ALT
          sta     XFER_MODE
          rts
@@ -340,12 +344,12 @@ FILL_SDAT_TABLE:
          jmp     @next_pdm
 
 @done_reading_pdm:
-         lda     TEMP_c8d9
-         sta     UNK_c8cf
+         lda     temp_part_count
+         sta     PARTMAP_OK
          rts
 
 NEW_SDAT_ENTRY:
-         inc     TEMP_c8d9  ;add partition to SDAT
+         inc     temp_part_count ;add partition to SDAT
          jsr     FN_57      ;Find empty SDAT -> TMP_PTR0
          ldy     #$00
          lda     #$86
@@ -438,7 +442,7 @@ SET_TMP_PTR_CB00_RET:
          lda     #$cb
          sta     TMP_PTR0+1
 FN_57_end:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 check_sdat_entry:
@@ -489,7 +493,7 @@ READ_PDM:
 RET_CARRY_SET:
          sec
 RET_RESTORE_Y:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 READ_DDM:
@@ -561,12 +565,13 @@ SET_BUF_PTR_CA00:
 CALL_FN_0E_CARRY:
          lda     #$0e
          jsr     CALL_FN_X7 ;CALL_FN_0E
-         lda     UNK_c8cf
-         beq     @LCF60
+         lda     PARTMAP_OK
+         beq     @pm_error
          clc
          rts
 
-@LCF60:  sec
+@pm_error:
+         sec
          rts
 
          .byte   $60

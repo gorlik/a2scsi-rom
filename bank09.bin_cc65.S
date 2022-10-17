@@ -2,6 +2,7 @@
 ; 6502bench SourceGen v1.8.3
          .setcpu "65816"
 SCSI_CMD_READ6 = $08
+SCSI_CMD_WRITE6 = $0a
 
 TMP_PTR1 =       $1b        ; temporary ZP pointer 
 TMP_PTR_L =      $f6        ; temporary ZP long pointer
@@ -28,16 +29,18 @@ BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
 SCSI_CMD_LEN =   $c80d      ; SCSI COMMAND lenght
 SCSI_CDB_CMD =   $c80e      ; SCSI CDB buffer
 SCSI_CDB_LEN =   $c812
-SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
+SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 CMD_STATUS =     $c81e      ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 UNK_c827 =       $c827      ; 3-byte unknown in reverse endian as the above
+NEW_BLK_SIZE =   $c82a      ; desired block size in SetBlock
 LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
-RX_LEN_LO =      $c8e4      ;bytes read if call successfull
-RX_LEN_HI =      $c8e5      ;bytes read if call successfull
+RX_LEN_LO =      $c8e4      ; bytes read if call successfull
+RX_LEN_HI =      $c8e5      ; bytes read if call successfull
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
-BLKSIZE_H =      $c92f      ;byte1 of block size - reverse endian
-LDIO_SIZE_LO =   $c9ee
+LBA_TEMP =       $c911      ; temporary block number in bank 9
+UNK_LEN  =       $c92d      ; unknown lenght - could be reverse endian ?????
+LDIO_SIZE =      $c9ee
 TMP_c9f1 =       $c9f1      ; 2-byte temp
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
@@ -47,38 +50,41 @@ TIMEOUT  =       $c9f6      ; each unit is 1.25s
          .i8
 LCC00:   lda     SCSI_CDB_CMD
          cmp     #SCSI_CMD_READ6
-         bne     @not_read
+         bne     not_read
          jsr     CALL_FN_61 ;prepare DMA receive
          lda     #$00
          tay
          sta     TMP_c9f1
-         sta     TMP_c9f1+1
-         lda     $c9ef
-         beq     @LCC45
+         sta     TMP_c9f1+1 ;TMP_cf91=0;
+         lda     LDIO_SIZE+1
+         beq     rts1
          tsx
          cpx     #$60
-         bcc     @LCC22
+         bcc     @low_stack ;branch if stack has less than $60 bytes free
          lda     IS_IIgs
-         bne     @LCC3A
-@LCC22:  ldx     SAVE_Y
+         bne     IIgs_stack_code ;branch if IIgs and plenty of stack space
+@low_stack:
+         ldx     SLOT_OFFSET
          lda     IS_IIgs
-         beq     @LCC36
+         beq     CALL_LDIO_DMA_READ ;branch if not IIgs
          lda     CALL_TYPE
          and     #$40
-         beq     @LCC36
-         lda     #$b4
+         beq     CALL_LDIO_DMA_READ ;branch if not extended
+         lda     #$b4       ;IIgs path
          jmp     CALL_FN_X9 ;CALL_FN_B4
 
-@LCC36:  jsr     LCC68
+CALL_LDIO_DMA_READ:
+         jsr     LDIO_DMA_READ
          rts
 
-@LCC3A:  lda     CYAREG
+IIgs_stack_code:
+         lda     CYAREG
          sta     SAVE_CYAREG
          lda     #$3f
          jsr     CALL_FN_X9 ;CALL_FN_3F
-@LCC45:  rts
+rts1:    rts
 
-@not_read:
+not_read:
          jsr     CALL_FN_71 ;prepare DMA Send
          lda     #$00
          tay
@@ -97,12 +103,13 @@ CALL_FN_5C:
          lda     #$5c
          jmp     CALL_FN_X9 ;CALL_FN_5C - DMA Write IIgs
 
-LCC68:   lda     REG_IO_DRQ,x
-         bpl     @LCC8D
+LDIO_DMA_READ:
+         lda     REG_IO_DRQ,x
+         bpl     @LCC8D     ;branch if no data waiting
          lda     REG_IO_PDMA_DACK,x
          sta     (BUF_PTR_L),y
          iny
-         bne     LCC68
+         bne     LDIO_DMA_READ
          lda     #$00
          sta     TCOUNT_B1
          inc     BUF_PTR_H
@@ -110,23 +117,24 @@ LCC68:   lda     REG_IO_DRQ,x
          inc     BUF_PTR_VH
 @LCC80:  inc     TMP_c9f1+1
          lda     TMP_c9f1+1
-         cmp     $c9ef
-         bne     LCC68
-         beq     @LCCA0
+         cmp     LDIO_SIZE+1
+         bne     LDIO_DMA_READ
+         beq     @ret_ok
 
 @LCC8D:  lda     REG_5380_STAT2,x
          and     #$08
-         beq     @LCCA0
+         beq     @ret_ok    ;branch if pahse mismatch
          dec     TCOUNT_B0
-         bne     LCC68
+         bne     LDIO_DMA_READ
          dec     TCOUNT_B1
-         beq     @LCCA2
-         bne     LCC68
+         beq     @ret_fail
+         bne     LDIO_DMA_READ
 
-@LCCA0:  clc
+@ret_ok: clc
          rts
 
-@LCCA2:  sec
+@ret_fail:
+         sec
          sty     TMP_c9f1
          rts
 
@@ -158,32 +166,35 @@ LCC68:   lda     REG_IO_DRQ,x
          .byte   $4c
          .byte   $cd
 
-FN_09:   jsr     LCD55
-         bcc     @LCCCC
+FN_09:   jsr     IS_CHAR
+         bcc     @FN_09_block_dev
          lda     #$07
          jmp     CALL_FN_X9 ;CALL_FN_07
 
-@LCCCC:  jsr     LCEC5
-         lda     $c9ef
-         bne     @LCCDE
-         lda     LDIO_SIZE_LO
-         bne     @LCCDE
+@FN_09_block_dev:
+         jsr     CALL_FN_0B_7C
+         lda     LDIO_SIZE+1
+         bne     @len_not_zero
+         lda     LDIO_SIZE
+         bne     @len_not_zero
          lda     #$22
          jmp     CALL_FN_60_RET ;FAIL_BADCTRLPARM
 
-@LCCDE:  jsr     LCD92
-         jsr     LCF5D
-         jsr     CALL_FN_00
+@len_not_zero:
+         jsr     CMD_READ6_MB
+         jsr     CHECK_END_BLK_VALID
+         jsr     CALL_FN_00 ;DoPhases
          jsr     LCECF
          bcs     @LCCEF
          jsr     FN_29
-@LCCEF:  jsr     LCF23
-         jsr     LCDC1
+@LCCEF:  jsr     WAIT_MSGIN_REQ
+         jsr     CALL_FN_30 ;get status and message
          lda     CMD_STATUS
-         bne     @LCCFB
+         bne     CALL_FN_39_RET ;send REQUEST_SENSE and process the output
          rts
 
-@LCCFB:  jsr     FN_39
+CALL_FN_39_RET:
+         jsr     FN_39
          bcs     FAIL_IOERROR_DUP
          rts
 
@@ -192,50 +203,54 @@ FAIL_IOERROR_DUP:
          jmp     CALL_FN_60_RET
 
 FN_19:   lda     DEV_STATUS
-         cmp     #$b4
-         bne     @LCD15
+         cmp     #$b4       ;bug - should be and #$04 or similar
+         bne     @write_allowed
          lda     #$2b       ;ERROR_NOWRITE
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jmp     CALL_FN_60_RET ;ERROR_NOWRITE
 
-@LCD15:  jsr     LCD55
-         bcc     @LCD1F
+@write_allowed:
+         jsr     IS_CHAR
+         bcc     FN_19_block_dev
          lda     #$07
          jmp     CALL_FN_X9 ;CALL_FN_07
 
-@LCD1F:  jsr     LCEC5
-         lda     BLKSIZE_H-1
-         bne     @LCD31
-         lda     $c92d
-         bne     @LCD31
+FN_19_block_dev:
+         jsr     CALL_FN_0B_7C
+         lda     UNK_LEN+1
+         bne     @len_not_zero ;??? not sure about label
+         lda     UNK_LEN
+         bne     @len_not_zero
          lda     #$27
          jmp     CALL_FN_60_RET ;ERROR_IOERROR
 
-@LCD31:  jsr     LCD84
-         jsr     LCF5D
-         jsr     CALL_FN_00
-         jsr     LCF06
-         jsr     CALL_FN_71
+@len_not_zero:
+         jsr     CMD_WRITE6_MB
+         jsr     CHECK_END_BLK_VALID
+         jsr     CALL_FN_00 ;DoPhases
+         jsr     WAIT_DOUT_REQ
+         jsr     CALL_FN_71 ;Prepare DMA send
          jsr     FN_29
-         jsr     LCF23
-         jsr     LCDC1
+         jsr     WAIT_MSGIN_REQ
+         jsr     CALL_FN_30 ;get status and message
          rts
 
 CALL_FN_00:
          lda     #$00
 CALL_FN_X9:
          ldx     #$09
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jsr     BANKSWITCH ;CALL_FN_X9
          rts
 
-LCD55:   lda     DEV_STATUS
+IS_CHAR: lda     DEV_STATUS
          and     #$80
-         bne     @LCD5E
+         bne     @not_char
          sec
          rts
 
-@LCD5E:  clc
+@not_char:
+         clc
          rts
 
 CALL_FN_61:
@@ -254,25 +269,27 @@ CALL_FN_71:
 
 FN_29:   jsr     LCC00
          jsr     SET_TIMEOUT_03
-         jsr     LCDC6
-         ldy     SAVE_Y
+         jsr     LDIO_READ
+         ldy     SLOT_OFFSET
          lda     #$00
          sta     REG_IO_5380_RST,y
          sta     REG_5380_MODE_SEL,y
          rts
 
-LCD84:   lda     #$0a
+CMD_WRITE6_MB:
+         lda     #SCSI_CMD_WRITE6
          sta     SCSI_CDB_CMD
          ldx     #$06
          stx     SCSI_CMD_LEN
-         jsr     LCDAB
+         jsr     SET_CDB_LEN ;adjust number of blocks to read
          rts
 
-LCD92:   lda     #$08
+CMD_READ6_MB:
+         lda     #SCSI_CMD_READ6
          sta     SCSI_CDB_CMD
          ldx     #$06
          stx     SCSI_CMD_LEN
-         jsr     LCDAB
+         jsr     SET_CDB_LEN ;adjust number of blocks to read
          rts
 
          .byte   $a9
@@ -289,27 +306,32 @@ LCD92:   lda     #$08
          HiAscii "HJPz"
          .byte   $60
 
-LCDAB:   lda     $c92d
+SET_CDB_LEN:
+         lda     UNK_LEN    ;CDB_LEN=(*$c929)?*$c92d+1:*$c92d
          ldx     $c929
-         bne     @LCDBA
+         bne     @add_one
          ldx     $c92a
-         bne     @LCDBA
-         beq     @LCDBD
+         bne     @add_one
+         beq     @store_cdb_len
 
-@LCDBA:  clc
+@add_one:
+         clc
          adc     #$01
-@LCDBD:  sta     SCSI_CDB_LEN
+@store_cdb_len:
+         sta     SCSI_CDB_LEN
          rts
 
-LCDC1:   lda     #$30
+CALL_FN_30:
+         lda     #$30
          jmp     CALL_FN_X9 ;CALL_FN_30
 
-LCDC6:   ldy     #$00
-         ldx     SAVE_Y
+LDIO_READ:
+         ldy     #$00
+         ldx     SLOT_OFFSET
 @LCDCB:  lda     REG_IO_DRQ,x
          bpl     @LCE04
          lda     TMP_c9f1
-         cmp     LDIO_SIZE_LO
+         cmp     LDIO_SIZE
          bne     @LCDDA
          beq     @LCE17
 
@@ -372,23 +394,25 @@ FN_39:   lda     IS_IIgs
          sta     $c82e
          lda     #$00
          sta     IS_IIgs
-         jsr     FN_49
+         jsr     FN_49      ; SEND REQUEST SENSE store at $c901
          lda     $c82e
          sta     IS_IIgs
-         ldx     #$02
-         lda     $c901,x
+         ldx     #$02       ;sense key offset
+         lda     $c901,x    ;get sense key
          cmp     #$06
-         beq     LCEA1
+         beq     GET_ASC    ;branch if UNIT_ATTENTION
          cmp     #$02
-         beq     LCEA1
-         and     #$07
+         beq     GET_ASC    ;branch if NOT_READY
+         and     #$07       ;bug ??? - mask should be $0F
          cmp     #$01
-         beq     @LCE70
+         beq     @FN_39_ok  ;branch if RECOVERED_ERROR
          sec
-         bcs     @LCE71
+         bcs     @FN_39_end
 
-@LCE70:  clc
-@LCE71:  ldy     SAVE_Y
+@FN_39_ok:
+         clc
+@FN_39_end:
+         ldy     SLOT_OFFSET
          rts
 
 FN_49:   lda     #$01       ;Send REQUEST_SENSE and store result at $c901
@@ -414,31 +438,33 @@ FN_49:   lda     #$01       ;Send REQUEST_SENSE and store result at $c901
          jsr     CALL_FN_X9 ;CALL_FN_77 - Restore TMP_PTR
          rts
 
-LCEA1:   lda     #$00
+GET_ASC: lda     #$00
          sta     TMP_PTR_VH
          sta     TMP_PTR_XH
          sta     CALL_TYPE
          lda     #$66
-         jmp     CALL_FN_X9 ;CALL_FN_66
+         jmp     CALL_FN_X9 ;CALL_FN_66 - Process ASC from sense data
 
          .byte   $4c
          .byte   $01
          .byte   $cd
 
-FN_69:   lda     #$08
-         bne     LCEB8
+FN_69:   lda     #$08       ;SET_BLK_2048
+         bne     DO_SET_BLK
 
-FN_59:   lda     #$02
-LCEB8:   sta     $c82a
+FN_59:   lda     #$02       ;SET_BLK_512
+DO_SET_BLK:
+         sta     NEW_BLK_SIZE
          lda     #$00
-         sta     $c82b
+         sta     NEW_BLK_SIZE+1
          lda     #$aa
          jmp     CALL_FN_X9 ;CALL_FN_AA
 
-LCEC5:   lda     #$0b
+CALL_FN_0B_7C:
+         lda     #$0b
          jsr     CALL_FN_X9 ;CALL_FN_0B
          lda     #$7c
-         jmp     CALL_FN_X9 ;CALL_FN_7C
+         jmp     CALL_FN_X9 ;CALL_FN_7C - add PART_START
 
 LCECF:   jsr     SET_TIMEOUT_03
          lda     TIMEOUT
@@ -446,53 +472,60 @@ LCECF:   jsr     SET_TIMEOUT_03
 @LCED8:  lda     REG_5380_STAT,y
          and     #$3c
          cmp     #$24
-         beq     @LCEF7
+         beq     clc_rts
          jsr     DEC_TIMEOUT3
          lda     TCOUNT_B1
-         beq     @LCEFB
+         beq     CHECK_MSGIN_REQ
          lda     TCOUNT_B0
          bne     @LCED8
          lda     REG_5380_STAT,y
          cmp     #$6c
-         beq     @LCEF9
+         beq     sec_rts
          bne     @LCED8
 
-@LCEF7:  clc
+clc_rts: clc
          rts
 
-@LCEF9:  sec
+sec_rts: sec
          rts
 
-@LCEFB:  lda     REG_5380_STAT,y
+CHECK_MSGIN_REQ:
+         lda     REG_5380_STAT,y
          and     #$3c
          cmp     #$2c
-         beq     @LCEF9
+         beq     sec_rts
          bne     FAIL_IOERROR
 
-LCF06:   jsr     SET_TIMEOUT_03
+WAIT_DOUT_REQ:
+         jsr     SET_TIMEOUT_03
          lda     TIMEOUT
          sta     TCOUNT_B1
-@LCF0F:  lda     REG_5380_STAT,y
+@wait1_loop:
+         lda     REG_5380_STAT,y
          and     #$3c
          cmp     #$20
-         beq     @LCF22
+         beq     @wait1_rts
          jsr     DEC_TIMEOUT3
          lda     TCOUNT_B1
          beq     FAIL_IOERROR
-         bne     @LCF0F
+         bne     @wait1_loop
 
-@LCF22:  rts
+@wait1_rts:
+         rts
 
-LCF23:   jsr     SET_TIMEOUT_03
-@LCF26:  lda     REG_5380_STAT,y
+WAIT_MSGIN_REQ:
+         jsr     SET_TIMEOUT_03
+wait2_loop:
+         lda     REG_5380_STAT,y
          and     #$3c
          cmp     #$2c
-         beq     @LCF36
+         beq     wait2_rts
          jsr     DEC_TIMEOUT3
          bcs     FAIL_IOERROR
-         bcc     @LCF26
+         bcc     wait2_loop
 
-@LCF36:  rts
+wait2_rts:
+         rts
 
 SET_TIMEOUT_03:
          lda     #$ff
@@ -504,48 +537,51 @@ SET_TIMEOUT_03:
 
 DEC_TIMEOUT3:
          dec     TCOUNT_B0
-         bne     @LCF54
+         bne     @not_timeout
          dec     TCOUNT_B2
-         bne     @LCF54
+         bne     @not_timeout
          dec     TCOUNT_B1
-         beq     @LCF56
-@LCF54:  clc
+         beq     @timeout
+@not_timeout:
+         clc
          rts
 
-@LCF56:  sec
+@timeout:
+         sec
          rts
 
 FAIL_IOERROR:
          lda     #$27
          jmp     CALL_FN_60_RET
 
-LCF5D:   clc
+CHECK_END_BLK_VALID:
+         clc
          lda     LBA_c8db
-         adc     $c92d
-         sta     $c911
+         adc     UNK_LEN
+         sta     LBA_TEMP
          lda     LBA_c8db+1
          adc     #$00
-         sta     $c912
+         sta     LBA_TEMP+1
          lda     LBA_c8db+2
          adc     #$00
-         sta     $c913
+         sta     LBA_TEMP+2 ;LBA_TEMP=LBA_c8db+(char)UNK_c92d
          bcs     FAIL_BADBLOCK
-         lda     $c913
+         lda     LBA_TEMP+2
          sec
          sbc     UNK_c827
-         bcc     @LCF9A
+         bcc     @ret
          bne     FAIL_BADBLOCK
-         lda     $c912
+         lda     LBA_TEMP+1
          sec
          sbc     UNK_c827+1
-         bcc     @LCF9A
+         bcc     @ret
          bne     FAIL_BADBLOCK
-         lda     $c911
+         lda     LBA_TEMP
          sec
          sbc     UNK_c827+2
-         bcc     @LCF9A
-         bne     FAIL_BADBLOCK
-@LCF9A:  rts
+         bcc     @ret
+         bne     FAIL_BADBLOCK ;if(LBA_TEMP>UNK_c827) FAIL_BADBLOCK
+@ret:    rts
 
 FAIL_BADBLOCK:
          lda     #$2d

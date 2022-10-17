@@ -39,8 +39,8 @@ SCSI_CDB_LBA_HI = $c810
 SCSI_CDB_LBA_LO = $c811
 SCSI_CDB_LEN =   $c812
 SCSI_CDB_CTRL =  $c813
-SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
-SAVE_SP_CMD_B =  $c81b      ; saved SmartPort Command
+SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
+SAVE_SP_CMD =    $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 CMD_STATUS =     $c81e      ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 SCSI_RD_c81f =   $c81f      ; SCSI STATUS or MESSAGE return from FN_04 
@@ -50,9 +50,9 @@ SAVE_ZP_F6 =     $c8a8      ;saved zero page locations $f6-$fd
 SAVE_ZP_15 =     $c8b0      ;saved zero page locations $15-$1e
 PD_PAR_CMD_CPY = $c8bc      ;PRODOS input parameter COMMAND number
 LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
-BOOT_SEQ =       $c8e3      ;$55 if in boot process
-RX_LEN_LO =      $c8e4      ;bytes read if call successfull
-RX_LEN_HI =      $c8e5      ;bytes read if call successfull
+BOOT_SEQ =       $c8e3      ; $55 if in boot process
+RX_LEN_LO =      $c8e4      ; bytes read if call successfull
+RX_LEN_HI =      $c8e5      ; bytes read if call successfull
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
 CLRROM   =       $cfff      ;disable slot C8 ROM
@@ -101,7 +101,7 @@ MON_SLOOP =      $faba
          asl     A
          asl     A
          asl     A          ;A=(n+8)<<4
-         sta     SAVE_Y     ;slot offset in C0xx space
+         sta     SLOT_OFFSET ;slot offset in C0xx space
          tay
          ldx     #$00
          lda     #$05
@@ -156,7 +156,7 @@ skip_sp: cld
          sta     TMP_PTR0   ;restore $19 and $1A
          pla
          tay                ;Y=(n+8)<<4
-         sty     SAVE_Y
+         sty     SLOT_OFFSET
          tsx
          stx     SAVE_ENTRY_SP
          jsr     SAVE_ZP_COPY_PARAM
@@ -177,11 +177,11 @@ skip_sp: cld
          cmp     #$77
          beq     @init_set
          lda     #$05
-         jsr     CALL_FN_X0 ;CALL_FN_05
+         jsr     CALL_FN_X0 ;CALL_FN_05 - init card
 @init_set:
-         jsr     CALL_FN_25
+         jsr     CALL_FN_25 ;DEV_IDX=PD_UNIT, TMP_PTR0=&SDAT[DEV_IDX], BLK_COUNT=SDAT[DEV_IDX].blk_count
          lda     #$15
-         jsr     CALL_FN_X0 ;CALL_FN_15
+         jsr     CALL_FN_X0 ;CALL_FN_15 - get info from SDAT[DEV_IDX], BLK_NUMBER+=PART_START, memcpy($ca00,DIBTAB[DEV_IDX])
          lda     PD_PAR_CMD
          bne     @cmd_not_0
 @cmd_0:  jmp     PRODOS_STATUS ;PRODOS CMD 0: STATUS 
@@ -215,7 +215,7 @@ FN_90_PRODOS_Read:
          jsr     SCSI_READ_CMD
 FN_10_DataXin:
          jsr     FN_00_DoPhases
-FN_40:   lda     REG_5380_STAT,y
+FN_40:   lda     REG_5380_STAT,y ;DATA READ - Xin without DoPhases
          and     #$1c       ;MSG_IO_CD_MASK
          cmp     #$04       ;data in Phase
          beq     @Read_data ;branch if DATA IN phase
@@ -229,7 +229,7 @@ FN_40:   lda     REG_5380_STAT,y
 
 @Read_data:
          lda     #$01
-         jsr     CALL_FN_X0 ;CALL_FN_01 - data read (?)
+         jsr     CALL_FN_X0 ;CALL_FN_01 - data read to BUF_PTR
 @FN_40_end:
          jsr     FN_A0      ;get STATUS and MESSAGE IN
          jmp     CMD_end
@@ -268,7 +268,7 @@ FN_30:   lda     REG_5380_STAT,y
          sta     REG_5380_ICMD,y
          sta     REG_IO_5380_RST,y
 @FN_30_end:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 CALL_FN_3A_DUP:
@@ -285,8 +285,8 @@ PRODOS_WRITE:
          beq     ERROR_NOWRITE
          jsr     CALL_FN_3A_DUP ;BUS_FREE
          jsr     SCSI_WRITE_CMD
-FN_20:   jsr     FN_00_DoPhases
-FN_50:   lda     #$11
+FN_20:   jsr     FN_00_DoPhases ;EXECUTE SCSI DATA send COMMAND
+FN_50:   lda     #$11       ;DATA WRITE (without DoPhases)
          jsr     CALL_FN_X0 ;CALL_FN_11 (Data Xout)
          jsr     FN_A0      ;get STATUS and MESSAGE
          jmp     CMD_end
@@ -341,7 +341,7 @@ RESTORE_ZP_RET:
 scsi_cmd_end:
          lda     SCSI_CDB_CMD
          beq     RESTORE_ZP_RET ;end if SCSI CMD==TEST_UNIT_READY
-         lda     SAVE_SP_CMD_B
+         lda     SAVE_SP_CMD
          cmp     #$04       ;smartport CMD Control
          beq     RESTORE_ZP_RET ;end if smartport CMD==Control
          lda     RET_CODE
@@ -391,7 +391,7 @@ LOAD_BLOCK_0:
          sta     PD_PAR_BLK_LO
          sta     PD_PAR_BLK_HI ;load block 0
          lda     #$15
-         jsr     CALL_FN_X0 ;CALL_FN_15
+         jsr     CALL_FN_X0 ;CALL_FN_15 - get info from SDAT[DEV_IDX], BLK_NUMBER+=PART_START, memcpy($ca00,DIBTAB[DEV_IDX])
          lda     #$08
          sta     PD_PAR_BUF_HI
          lda     #$00
@@ -405,28 +405,28 @@ LOAD_BLOCK_0:
          cpx     #$01
          bne     @CALL_FN_45 ;branch if not bootable
          stx     BOOT_SEQ
-         lda     SAVE_Y
+         lda     SLOT_OFFSET
          and     #$70
          tax
          jmp     $0801      ;jump to bootblock entry point
 
 @CALL_FN_45:
          lda     #$45
-         bne     CALL_FN_X0 ;CALL_FN_45
+         bne     CALL_FN_X0 ;CALL_FN_45 - next boot device or error if last
 
 CALL_FN_75:
          lda     #$75
-         bne     CALL_FN_X0 ;CALL_FN_75
+         bne     CALL_FN_X0 ;CALL_FN_75 - TMP_PTR0=&SDAT[DEV_IDX], BLK_COUNT=SDAT[DEV_IDX].blk_count
 
 CALL_FN_25:
-         lda     #$25
+         lda     #$25       ;DEV_IDX=PD_UNIT, TMP_PTR0=&SDAT[DEV_IDX], BLK_COUNT=SDAT[DEV_IDX].blk_count
 CALL_FN_X0:
          ldx     #$00
          jmp     BANKSWITCH ;CALL_FN_X0
 
 CALL_FN_3A:
          lda     #$3a
-         bne     CALL_FN_X0 ;CALL_FN_3A
+         bne     CALL_FN_X0 ;CALL_FN_3A - BUS_FREE
 
 SCSI_ARBITRATE:
          lda     REG_5380_MODE_SEL,y
@@ -487,7 +487,7 @@ SCSI_SELECT:
          clc
          rts
 
-         .byte   $a2        ;unreachable code (copies opf WAIT_NOT_BUSY)
+         .byte   $a2        ;unreachable code (copies of WAIT_NOT_BUSY)
          .byte   $00
          .byte   $ca
          .byte   $f0
@@ -562,7 +562,7 @@ SCSI_SELECT:
 
 CALL_FN_14:
          lda     #$14
-         jmp     CALL_FN_X0 ;CALL_FN_14
+         jmp     CALL_FN_X0 ;CALL_FN_14 - send SCSI CMD from buf at $c80e
 
 CALL_FN_04_PHASE_RET:
          sta     REG_5380_TCMD,y

@@ -29,7 +29,7 @@ SAVE_CYAREG =    $c808      ; saved value of CYAREG
 INIT_FLAG =      $c809      ; card initialized flag (init=$77)
 RET_CODE =       $c80b      ; 
 BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
-SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
+SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 BLKSIZE_H2 =     $c822      ; copy of byte1 of block size
 PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
@@ -38,11 +38,11 @@ SDAT_BASE =      $c831      ;start of SDAT table (extends to $C8A7)
 CUR_DEV_ID =     $c8c6      ;current DEV ID being scanned
 TEMP_PTR_c8ca =  $c8ca      ; TEMP_BUF_PTR?
 UNK_c8cc =       $c8cc      ;unknown
-UNK_c8cf =       $c8cf      ; $00 if failed to read Partition Map. $ff if PM detected
+PARTMAP_OK =     $c8cf      ; $00 if failed to read Partition Map. non-zero if PM detected
 PTR_c8d7 =       $c8d7      ; temp pointer storage (?)
-PTR_c8df =       $c8df      ;unknown
-BLK_c8e1 =       $c8e1      ;unknown
-BOOT_SEQ =       $c8e3      ;$55 if in boot process
+PTR_c8df =       $c8df      ; unknown
+BLK_c8e1 =       $c8e1      ; unknown
+BOOT_SEQ =       $c8e3      ; $55 if in boot process
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
 UNK_c8f4 =       $c8f4      ;unknown
 BLKSIZE_H =      $c92f      ;byte1 of block size - reverse endian
@@ -126,7 +126,7 @@ RESTORE_BUF_PTR_c8df:
          sta     BUF_PTR_H
          rts
 
-FN_95:   inc     UNK_c8f4   ;fill table entry (???)
+FN_95:   inc     UNK_c8f4   ;FILL new SDAT entry
          lda     BUF_PTR_L
          sta     PTR_c8d7
          lda     BUF_PTR_H
@@ -139,7 +139,7 @@ FN_95:   inc     UNK_c8f4   ;fill table entry (???)
          jsr     CALL_FN_X5 ;CALL_FN_56 - WAIT TEST_UNIT_READY
          lda     #$37
          jsr     CALL_FN_X5 ;CALL_FN_37
-         lda     UNK_c8cf
+         lda     PARTMAP_OK
          bne     @LCCDD
          lda     #$57
          jsr     CALL_FN_X5 ;CALL_FN_57 - return first empty SDAT entry in TMP_PTR0
@@ -164,7 +164,7 @@ FN_95:   inc     UNK_c8f4   ;fill table entry (???)
          iny
          lda     TMP_PTR_H
          sta     (TMP_PTR_L),y
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jsr     SAVE_BUF_PTR_c8ca
          lda     #$c3
          jsr     CALL_FN_X5 ;CALL_FN_C3 - READ CAPACITY
@@ -182,9 +182,9 @@ FN_95:   inc     UNK_c8f4   ;fill table entry (???)
          sta     (BUF_PTR_L),y ;copy SEL_TARGET to SDAT
          iny
          lda     #$0c
-         sta     (BUF_PTR_L),y ;set device TIMOEUT in SDAT
+         sta     (BUF_PTR_L),y ;set device TIMEOUT in SDAT
 @LCCDD:  jsr     RESTORE_BUF_PTR_c8df
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          lda     PTR_c8d7
          sta     BUF_PTR_L
          lda     PTR_c8d7+1
@@ -193,7 +193,7 @@ FN_95:   inc     UNK_c8f4   ;fill table entry (???)
          sta     PD_PAR_BLK_LO
          lda     BLK_c8e1+1
          sta     PD_PAR_BLK_HI ;RESTORE PD_PAR_BLK from BLK_c8e1
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 FN_05:   lda     #$0c       ;init card
@@ -311,7 +311,7 @@ FN_35_part_cpy_loop:
          iny
          lda     (TMP_PTR0),y ;get TIMEOUT from SDAT entry
          sta     TIMEOUT
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
          .byte   $ac
@@ -352,7 +352,7 @@ BOOT_ERROR:
 JSR_BANKSWITCH:
          jsr     BANKSWITCH ;CALL_FN_22 - FN_4F - print "SCSI BOOT ERROR" and run basic
 FN_25:   jsr     PD_UNIT_TO_IDX
-FN_75:   jsr     SDAT_LOOKUP ;TMP_PTR0=&SDAT[DEV_IDX]
+FN_75:   jsr     SDAT_LOOKUP ;TMP_PTR0=&SDAT[DEV_IDX-1]
 FN_85:   jsr     GET_UNK_c827_FROM_PTR0_2 ;UNK_c827=BLK_COUNT from SDAT entry pointed by TMP_PTR0
          lda     IS_IIgs
          cmp     #$01
@@ -360,7 +360,7 @@ FN_85:   jsr     GET_UNK_c827_FROM_PTR0_2 ;UNK_c827=BLK_COUNT from SDAT entry po
          lda     CYAREG
          sta     SAVE_CYAREG
 @not_2gs:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 SDAT_LOOKUP:
@@ -370,7 +370,7 @@ SDAT_LOOKUP:
          lda     #$c8
          sta     TMP_PTR0+1 ;TMP_PTR0=SDAT_BASE
          lda     #$01
-         sta     TCOUNT_B0  ;TCOUNT_B0=0
+         sta     TCOUNT_B0  ;TCOUNT_B0=1
          ldx     #$06       ;for(x=6;x>=0;x--) unclear why it count backwards as calling ADJUST will reverse again
          ldy     #$00       ;unclear why it count backwards
 @SDAT_loop:
@@ -401,7 +401,7 @@ SDAT_LOOKUP:
 
 @LCE74:  cmp     #$a0
          bne     ERROR_NODRIVE_DUP
-@LCE78:  lda     SAVE_Y     ;Prodos unit is either $20 or $A0
+@LCE78:  lda     SLOT_OFFSET ;Prodos unit is either $20 or $A0
          cmp     #$d0       ;is the card in slot 5 ?
          bne     ERROR_NODRIVE_DUP
          lda     DEV_IDX    ;DEV_IDX-=2
@@ -420,7 +420,7 @@ ERROR_NODRIVE_DUP:
 
 ERROR_NODRIVE:
          lda     #$28
-LCE99:   ldy     SAVE_Y
+LCE99:   ldy     SLOT_OFFSET
          jmp     CALL_FN_60_RET
 
 ADJUST_DEV_IDX_X_REV_RET:
@@ -459,14 +459,14 @@ GET_UNK_c827_FROM_PTR0_2:
          rts
 
 PD_UNIT_TO_IDX:
-         jsr     COPY_PD_UNIT ;convert the prodos UNIT # and store it to DEV_IDX 1..4
+         jsr     COPY_PD_UNIT ;convert the prodos UNIT # and store it to DEV_IDX (result is 1..4)
          lda     PD_UNIT    ;will fail if called from a smartport path
          clc
          sbc     #$80
          bcs     @LCEEE
          ldx     #$01
 @LCED5:  stx     DEV_IDX
-         lda     SAVE_Y
+         lda     SLOT_OFFSET
          cmp     #$d0
          bne     @rts
          lda     PD_UNIT
@@ -525,7 +525,7 @@ FN_65:   jsr     PDMA_INIT  ;PDMA WRITE
          jmp     @wait_for_DRQ_write
 
 FN_65_end:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jsr     DISABLE_NATIVE_IF_NEEDED
 func_rts:
          rts
@@ -536,7 +536,7 @@ RET_FAIL_27:
          bne     FN_65_end
 
 FN_55:   jsr     PDMA_INIT  ;PDMA READ
-         ldx     SAVE_Y
+         ldx     SLOT_OFFSET
 @wait_for_DRQ_read:
          lda     REG_IO_DRQ,x
          bmi     @Read_data ;branch if DRQ asserted

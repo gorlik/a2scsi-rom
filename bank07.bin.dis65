@@ -73,7 +73,8 @@
 
 "Comments":{
 "6":"Do Phases",
-"34":"CALL_FN_55",
+"24":"CALL_FN_65 - PDMA write",
+"32":"CALL_FN_55 - PDMA read",
 "37":"redundant",
 "45":"CALL_FN_30",
 "50":"set ram bank 01",
@@ -82,16 +83,26 @@
 "69":"CALL_FN_X7",
 "75":"CALL_FN_61",
 "79":"CALL_FN_71",
+"84":"not sure if this is SP or SCSI CMD but read is the same value",
 "87":"mask extended cmd bit",
-"89":"SP CMD Read",
+"89":"SP or SCSI CMD Read",
 "91":"branch if not a read command",
-"149":"seems a bug",
+"147":"bug??? - x==5 branch is never taken",
 "318":"likely a bug - should be bmi",
 "355":"Read DDM and master PDM",
 "361":"branch if DDM/PDM read failed",
-"389":"CALL_FN_69",
-"405":"CALL_FN_4D",
-"422":"CALL_FN_59",
+"372":"temp SCSI device type saved in INQUIRY_BLK",
+"375":"SCSI CD-ROM type",
+"377":"branch if not CD-ROM",
+"379":"no idea what Y contains ",
+"385":"branch if DDM/PDM read ok",
+"389":"CALL_FN_69 - SET_BLK_2048",
+"405":"CALL_FN_4D - INQUIRY_CA00",
+"410":"get SCSI device type",
+"413":"SCSI dev type CD-ROM",
+"415":"return if not CD-ROM",
+"417":"save SCSI dev type in UNK_LEN",
+"422":"CALL_FN_59 - SET_BLK_512",
 "429":"READ DDM and master PDM",
 "440":"strip extended flag from CALL_TYPE",
 "446":"branch if failed to read DDM",
@@ -478,6 +489,55 @@
 "Value":52697,
 "Source":"User",
 "Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"428":{
+"Label":"rts",
+"Value":52652,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"864":{
+"Label":"pm_error",
+"Value":53088,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"138":{
+"Label":"rts",
+"Value":52362,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"392":{
+"Label":"FN_37_end",
+"Value":52616,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"396":{
+"Label":"INQUIRY_BLK",
+"Value":52620,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"93":{
+"Label":"store_cdb_cmd",
+"Value":52317,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"97":{
+"Label":"cmd_write6",
+"Value":52321,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -494,6 +554,14 @@
 "Format":"NumericLE",
 "SubFormat":"Hex",
 "SymbolRef":null},
+
+"97":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_WRITE6",
+"Part":"Low"}},
 
 "867":{
 "Length":2,

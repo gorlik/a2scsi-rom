@@ -27,7 +27,7 @@ TMP_c80a =       $c80a      ; unknown
 RET_CODE =       $c80b      ; 
 BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
 SCSI_CDB_CMD =   $c80e      ; SCSI CDB buffer
-SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
+SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 UNK_c820 =       $c820      ; 0xff if PIO ?
 UNK_c827 =       $c827      ; 3-byte unknown in reverse endian as the above
@@ -35,196 +35,221 @@ TEMP_PTR_c8ca =  $c8ca      ; TEMP_BUF_PTR?
 SAVE_SP2 =       $c8ed      ;saved SP - also used a random temp
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
 SAVE_XFER_MODE = $c91f
-TEMP_VH  =       $c921      ;unknown
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 PTR_SAVE =       $c9f4      ; TMP PTR save location
 
          .org    $cc00
          .a8
          .i8
-FN_0D:   lda     #$86
+FN_0D:   lda     #$86       ;fill DIBTAB at TMP_PTR0 
          ldy     #$00
-         sty     TMP_c80a
+         sty     TMP_c80a   ;TMP_c80a=0 - unnecessary as it is done again below
          sta     (TMP_PTR0),y ;at this point TMP_PTR0 points to DIBTAB[DEV_IDX]
          iny
          iny
          jsr     CPY_BLK_SIZE
-         jsr     FN_4D
-         jsr     LCC84
-         jsr     LCDC7
+         jsr     FN_4D      ;INQUIRY_CA00
+         jsr     FILL_DEV_STATUS
+         jsr     IDSTRING_CPY
          lda     #$00
-         sta     TMP_c80a
-@LCC1C:  lda     $ca00,x
+         sta     TMP_c80a   ;TMP_c80a=0 - string len
+@next_char:
+         lda     $ca00,x
          cmp     #$20
-         bmi     @LCC2F
-         beq     @LCC2F
+         bmi     @skip_copy ;branch if non printable char (<$20)
+         beq     @skip_copy ;branch if char is space ($20)
          cmp     #$7a
-         bpl     @LCC2F
-         sta     (TMP_PTR0),y
+         bpl     @skip_copy ;branch if not printable >$7a
+         sta     (TMP_PTR0),y ;copy char
          iny
-         inc     TMP_c80a
-@LCC2F:  inx
+         inc     TMP_c80a   ;str_len++
+@skip_copy:
+         inx
          cpx     #$21
-         bpl     @LCC3F
+         bpl     @copy_done ;branch if x>=$21
          lda     TMP_c80a
          cmp     #$10
-         beq     @LCC3F
-         bmi     @LCC1C
-         beq     @LCC3F
-@LCC3F:  tya
+         beq     @copy_done ;branch if str_len==$10
+         bmi     @next_char ;else process next char
+         beq     @copy_done ;redundant
+@copy_done:
+         tya
          pha
          ldy     #$06
          lda     TMP_c80a
-         sta     (TMP_PTR0),y
+         sta     (TMP_PTR0),y ;store ID string lenght into DIBTAB
          pla
          tay
-         lda     #$10
+         lda     #$10       ;check if str_len < $10
          sec
          sbc     TMP_c80a
          sta     TMP_c80a
-         beq     @LCC61
-         bmi     @LCC61
-         lda     #$20
-@LCC59:  sta     (TMP_PTR0),y
+         beq     @pad_done
+         bmi     @pad_done
+         lda     #$20       ;pad the string with spaces
+@more_spaces:
+         sta     (TMP_PTR0),y
          iny
          dec     TMP_c80a
-         bne     @LCC59
-@LCC61:  jsr     LCCCC
+         bne     @more_spaces
+@pad_done:
+         jsr     FILL_DEV_TYPE_SUBTYPE
          ldx     #$01
-@LCC66:  iny
-         lda     LCD3B,x
+@cpy_loop:
+         iny
+         lda     CONST_0002,x
          sta     (TMP_PTR0),y
          dex
-         bpl     @LCC66
-         ldy     SAVE_Y
+         bpl     @cpy_loop  ;DIBTAB ROM_VERSION=$0200
+         ldy     SLOT_OFFSET
          rts
 
 CPY_BLK_SIZE:
          ldx     #$02       ;copy BLK_SIZE from $c825 ???
-@LCC75:  lda     UNK_c827,x
+@cpy_loop:
+         lda     UNK_c827,x
          sta     (TMP_PTR0),y
          iny
          dex
-         bpl     @LCC75
+         bpl     @cpy_loop
          lda     #$00
          sta     (TMP_PTR0),y
          iny
          rts
 
-LCC84:   iny
+FILL_DEV_STATUS:
+         iny                ;check SCSI device type
          tya
          pha
          ldx     #$00
          lda     $ca00,x
-         beq     @LCCA8
+         beq     @DEV_DIRECT_ACCESS
          cmp     #$01
-         beq     @LCCB4
+         beq     @DEV_SEQUENTIAL
          cmp     #$02
-         beq     @LCCB8
+         beq     @DEV_PRINTER
          cmp     #$04
-         beq     @LCCBC
+         beq     @DEV_WORM
          cmp     #$05
-         beq     @LCCC0
+         beq     @DEV_CDROM
          cmp     #$06
-         beq     @LCCC4
-         cmp     #$10
-         beq     @LCCA8
-         bne     @LCCC8
+         beq     @DEV_SCANNER
+         cmp     #$10       ;bridging expander ????
+         beq     @DEV_DIRECT_ACCESS
+         bne     @DEV_UNKNOWN
 
-@LCCA8:  lda     #$f8
-@LCCAA:  sta     DEV_STATUS
+@DEV_DIRECT_ACCESS:
+         lda     #$f8
+@store_dev_status:
+         sta     DEV_STATUS
          ldy     #$01
          sta     (TMP_PTR0),y
          pla
          tay
          rts
 
-@LCCB4:  lda     #$78
-         bne     @LCCAA
+@DEV_SEQUENTIAL:
+         lda     #$78
+         bne     @store_dev_status
 
-@LCCB8:  lda     #$58
-         bne     @LCCAA
+@DEV_PRINTER:
+         lda     #$58       ;format bit enabled ???
+         bne     @store_dev_status
 
-@LCCBC:  lda     #$f0
-         bne     @LCCAA
+@DEV_WORM:
+         lda     #$f0
+         bne     @store_dev_status
 
-@LCCC0:  lda     #$b4
-         bne     @LCCAA
+@DEV_CDROM:
+         lda     #$b4
+         bne     @store_dev_status
 
-@LCCC4:  lda     #$38
-         bne     @LCCAA
+@DEV_SCANNER:
+         lda     #$38       ;format bit enabled ???
+         bne     @store_dev_status
 
-@LCCC8:  lda     #$00
-         beq     @LCCAA
+@DEV_UNKNOWN:
+         lda     #$00
+         beq     @store_dev_status
 
-LCCCC:   lda     DEV_STATUS
+FILL_DEV_TYPE_SUBTYPE:
+         lda     DEV_STATUS
          cmp     #$b4
-         bne     @LCCD7
-         lda     #$05
-         bne     @LCD27
+         bne     @not_cd    ;branch if not CD-ROM
+         lda     #$05       ;APPLE device type 5 (CD-ROM)
+         bne     @store_apl_dev_type
 
-@LCCD7:  cmp     #$f8
-         bne     @LCD0D
-         lda     $ca01
-         and     #$80
-         bne     @LCCE6
-         lda     #$07
-         bne     @LCD27
+@not_cd: cmp     #$f8
+         bne     @not_direct_acc
+         lda     $ca01      ;SCSI inquiry RMB
+         and     #$80       ;RMB mask
+         bne     @direct_removable
+         lda     #$07       ;APPLE device type HDD
+         bne     @store_apl_dev_type
 
-@LCCE6:  tya
+@direct_removable:
+         tya
          pha
          lda     TMP_PTR0
-         sta     SAVE_XFER_MODE
+         sta     SAVE_XFER_MODE ;used as local temp
          lda     TMP_PTR0+1
-         sta     TEMP_VH-1
+         sta     $c920      ;local temp
          lda     #$9c
-         jsr     CALL_FN_XD ;CALL_FN_9C
+         jsr     CALL_FN_XD ;CALL_FN_9C - TMP_PTR0=SDAT[*$c800]; get BLK_COUNT from SDAT in TMP_PTR0
          lda     #$35
          ldy     #$0e
-         sta     (TMP_PTR0),y
-         lda     SAVE_XFER_MODE
+         sta     (TMP_PTR0),y ;set SDAT timeout to $35
+         lda     SAVE_XFER_MODE ;restore from used as local temp
          sta     TMP_PTR0
-         lda     TEMP_VH-1
+         lda     $c920      ;restore from local temp
          sta     TMP_PTR0+1
          pla
          tay
-         lda     #$06
-         bne     @LCD27
+         lda     #$06       ;APPLE device type tape
+         bne     @store_apl_dev_type
 
-@LCD0D:  cmp     #$78
-         bne     @LCD15
-         lda     #$06
-         bne     @LCD27
+@not_direct_acc:
+         cmp     #$78
+         bne     @not_tape
+         lda     #$06       ;APPLE device type tape
+         bne     @store_apl_dev_type
 
-@LCD15:  cmp     #$58
-         bne     @LCD1D
-         lda     #$09
-         bne     @LCD27
+@not_tape:
+         cmp     #$58
+         bne     @not_printer
+         lda     #$09       ;APPLE device type Printer
+         bne     @store_apl_dev_type
 
-@LCD1D:  cmp     #$38
-         bne     @LCD25
-         lda     #$08
-         bne     @LCD27
+@not_printer:
+         cmp     #$38
+         bne     @not_scanner
+         lda     #$08       ;APPLE device type scanner
+         bne     @store_apl_dev_type
 
-@LCD25:  lda     #$03
-@LCD27:  sta     (TMP_PTR0),y
+@not_scanner:
+         lda     #$03       ;APPLE device type nonspecific
+@store_apl_dev_type:
+         sta     (TMP_PTR0),y
          lda     $ca01
-         bpl     @LCD32
-         lda     #$c0
-         bne     @LCD34
+         bpl     @not_removable
+         lda     #$c0       ;APPLE subtype ext + removable
+         bne     @store_apple_subtype
 
-@LCD32:  lda     #$a0
-@LCD34:  iny
+@not_removable:
+         lda     #$a0       ;APPLE subtype ext and not removable
+@store_apple_subtype:
+         iny
          sta     (TMP_PTR0),y
          rts
 
          .byte   $4c
          .byte   $58
          .byte   $cf
-LCD3B:   .byte   $02
+CONST_0002:
+         .byte   $02
          .byte   $00
 
-FN_4D:   tya
+FN_4D:   tya                ;INQUIRY_CA00
          pha
          ldx     #$03
 @save_BP:
@@ -260,7 +285,7 @@ FN_4D:   tya
          sta     TMP_PTR_XH
          sta     (TMP_PTR_L),y
          iny
-         sta     (TMP_PTR_L),y
+         sta     (TMP_PTR_L),y ;*(TMP_PTR+2)=TMP_PTR - *($ca02)=$ca00
          lda     #$93
          jsr     CALL_FN_XD ;CALL_FN_93 - INQUIRY
          ldx     #$03
@@ -295,38 +320,41 @@ FN_4D:   tya
          .byte   $cf
 
 CALL_FN_XD:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          ldx     #$0d
          jsr     BANKSWITCH
          rts
 
-LCDC7:   tya
+IDSTRING_CPY:
+         tya
          pha
          ldx     #$00
-         ldy     #$07
-@LCDCD:  iny
-         cpy     #$18
-         beq     @LCE01
+         ldy     #$07       ;vendor position in inquiry data
+@vendor_str_cpy1:
+         iny
+         cpy     #$18       ;stop at 16 chars
+         beq     LCE01
          lda     $ca00,y
          cmp     #$20
-         bmi     @LCDCD
-         beq     @LCDCD
+         bmi     @vendor_str_cpy1
+         beq     @vendor_str_cpy1
          cmp     #$7a
          beq     @LCDE1
-         bpl     @LCDCD
+         bpl     @vendor_str_cpy1
 @LCDE1:  tya
          pha
-@LCDE3:  inx
+dev_str_cpy2:
+         inx                ;bug??? - something seems wrong with the second strcpy
          iny
          cmp     #$18
          beq     @LCDF8
          lda     $ca00,y
          cmp     #$20
          beq     @LCDF8
-         bpl     @LCDE3
+         bpl     dev_str_cpy2
          cmp     #$7a
-         bmi     @LCDE3
-         beq     @LCDE3
+         bmi     dev_str_cpy2
+         beq     dev_str_cpy2
 @LCDF8:  txa
          sta     TMP_c80a
          pla
@@ -335,7 +363,7 @@ LCDC7:   tya
          tay
          rts
 
-@LCE01:  txa
+LCE01:   txa
          sta     TMP_c80a
          pla
          tay
@@ -344,25 +372,27 @@ LCDC7:   tya
 FN_1D:   lda     #$15
          jsr     CALL_FN_XD ;CALL_FN_15
          lda     #$bf
-         jsr     CALL_FN_XD ;CALL_FN_BF
+         jsr     CALL_FN_XD ;CALL_FN_BF - set TPM_PTR to $ca00, check if device is online
          lda     UNK_c827
-         beq     @LCE1F
+         beq     @FN_1D_end
          lda     #$ff
          sta     UNK_c827+1
          sta     UNK_c827+2
-@LCE1F:  rts
+@FN_1D_end:
+         rts
 
 FN_2D:   tsx
          stx     SAVE_SP2
          ldy     #$00
          txa
          cmp     #$60
-         bcs     @LCE33
+         bcs     @stack_free
          lda     #$b5
-         jsr     CALL_FN_XD ;CALL_FN_B5
+         jsr     CALL_FN_XD ;CALL_FN_B5 - DMA read
          jmp     FN_2D_end
 
-@LCE33:  sbc     #$22
+@stack_free:
+         sbc     #$22
          tax
          stx     TMP_PTR0
          dex
@@ -385,7 +415,7 @@ FN_2D:   tsx
          iny
 @LCE58:  cpy     #$1e
          bne     @LCE40
-         ldx     SAVE_Y
+         ldx     SLOT_OFFSET
          lda     #$01
          sta     TMP_PTR0+1
          lda     SAVE_CYAREG
@@ -410,7 +440,7 @@ LCE7E:   nop
          sta     CYAREG
 FN_2D_end:
          lda     #$00
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          sta     REG_IO_5380_RST,y
          sta     REG_5380_MODE_SEL,y
          rts

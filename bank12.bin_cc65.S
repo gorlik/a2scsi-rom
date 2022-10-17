@@ -33,16 +33,17 @@ SAVE_CYAREG =    $c808      ; saved value of CYAREG
 INIT_FLAG =      $c809      ; card initialized flag (init=$77)
 RET_CODE =       $c80b      ; 
 BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
-SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
-SAVE_SP_CMD_B =  $c81b      ; saved SmartPort Command
+SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
+SAVE_SP_CMD =    $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
 UNK_c827 =       $c827      ; 3-byte unknown in reverse endian as the above
 BLK_c8c7 =       $c8c7      ; saved PRODOS BLOCK from input parameters
 LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
-BOOT_SEQ =       $c8e3      ;$55 if in boot process
+BOOT_SEQ =       $c8e3      ; $55 if in boot process
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
 DIBTAB_BASE =    $c931      ;start of DIBTAB (extends to $C9ED)
+TMP_c9f1 =       $c9f1      ; 2-byte temp
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
 
@@ -69,7 +70,7 @@ FN_0C:   lda     SEL_TARGET
 
 CALL_FN_XC:
          ldx     #$0c
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jsr     BANKSWITCH ;CALL_FN_XC
          rts
 
@@ -97,7 +98,7 @@ FN_1C:   lda     CALL_TYPE  ;add partition start to BLK number
          jmp     ERR_BADBLOCK
 
 @FN_1C_end:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 @FN_1C_smartport:
@@ -196,22 +197,22 @@ RW_OP:   lda     DEV_STATUS ;get here if CMD is read or write op (1,2,8 or 9)
          cmp     #$f8       ;BLOCK, R, W, ONLINE and FMT flags
          bne     @add5_done ;branch if not not as above
          lda     UNK_c827+2 ;if(DEV_STATUS==0xf8) UNK_c827+=5
-         clc                ;add 5 to UNK_c827 (reverse endian)
+         clc
          adc     #$05
          sta     UNK_c827+2
          bcc     @add5_done
          inc     UNK_c827+1
          bne     @add5_done
-         inc     UNK_c827
+         inc     UNK_c827   ;add 5 to UNK_c827 (reverse endian)
 @add5_done:
          ldy     #$02
-         clc                ;UNK_c827 = UNK_c827 + PART_START
+         clc
 @add_loop:
          lda     UNK_c827,y
          adc     PART_START,y
          sta     UNK_c827,y
          dey
-         bpl     @add_loop
+         bpl     @add_loop  ;UNK_c827 = UNK_c827 + PART_START
          lda     LBA_c8db+2
          sbc     #$1f
          bcs     ERR_BADBLOCK ;branch if *($c8dd) > $20 ($1f ?)
@@ -232,12 +233,12 @@ RW_OP:   lda     DEV_STATUS ;get here if CMD is read or write op (1,2,8 or 9)
          bne     ERR_BADBLOCK
 FN_7C_end:
          clc
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 ERR_BADBLOCK:
          lda     #$2d
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jmp     CALL_FN_60_RET ;return fail
 
 IS_RW_prodos:
@@ -245,7 +246,7 @@ IS_RW_prodos:
          jmp     FN_7C_skip
 
 IS_RW_smartport:
-         lda     SAVE_SP_CMD_B
+         lda     SAVE_SP_CMD
 FN_7C_skip:
          cmp     #$01
          beq     RW_OP
@@ -304,8 +305,8 @@ FN_6C:   jsr     WAIT_PHASE_XPLUS9
          jmp     @write_more
 
 LCDEA:   dey
-         sty     $c9f1
-         ldy     SAVE_Y
+         sty     TMP_c9f1
+         ldy     SLOT_OFFSET
          rts
 
 timeout: lda     #P8E_IO_ERR
@@ -337,14 +338,14 @@ FN_5C:   jsr     WAIT_PHASE_XPLUS9
          sta     REG_IO_PDMA_DACK-9,x
          iny
          bne     @LCE02
-         inc     DEV_STATUS-1
+         inc     TMP_c9f1+1
          inc     BUF_PTR_H
          bne     @LCE02
          inc     BUF_PTR_VH
          jmp     @LCE02
 
 @LCE3C:  dey
-         sty     $c9f1
+         sty     TMP_c9f1
          jmp     RESTORE_SPEED_REG
 
 @LCE43:  jmp     LCEAC
@@ -429,7 +430,7 @@ FN_3C:   jsr     SET_TIMEOUT
          lda     #$02
          sta     TCOUNT_B2  ;2 pages = 512 bytes = 1 block
          jsr     SET_FAST_MODE
-         ldx     SAVE_Y
+         ldx     SLOT_OFFSET
 @wait_for_DRQ:
          lda     REG_IO_DRQ,x
          bmi     @read_byte ;branch if DRQ asserted
@@ -497,7 +498,7 @@ RESTORE_SPEED_REG:
          beq     @end_restore_speed ;branch if not IIgs
          lda     SAVE_CYAREG
          sta     CYAREG
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
 @end_restore_speed:
          rts
 
@@ -529,7 +530,7 @@ FN_8C:   lda     #$00       ;detect IIgs
          sta     SHADOW
 @LCF9D:  lda     CYAREG
          sta     SAVE_CYAREG
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
 @FN_8C_end:
          plp
          rts

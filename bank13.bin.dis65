@@ -77,20 +77,63 @@
 },
 
 "Comments":{
+"0":"fill DIBTAB at TMP_PTR0 ",
+"4":"TMP_c80a=0 - unnecessary as it is done again below",
 "7":"at this point TMP_PTR0 points to DIBTAB[DEV_IDX]",
+"14":"INQUIRY_CA00",
+"25":"TMP_c80a=0 - string len",
+"33":"branch if non printable char (\u003c$20)",
+"35":"branch if char is space ($20)",
+"39":"branch if not printable \u003e$7a",
+"41":"copy char",
+"44":"str_len++",
+"50":"branch if x\u003e=$21",
+"57":"branch if str_len==$10",
+"59":"else process next char",
+"61":"redundant",
+"70":"store ID string lenght into DIBTAB",
+"74":"check if str_len \u003c $10",
+"87":"pad the string with spaces",
+"109":"DIBTAB ROM_VERSION=$0200",
 "115":"copy BLK_SIZE from $c825 ???",
-"244":"CALL_FN_9C",
+"132":"check SCSI device type",
+"162":"bridging expander ????",
+"184":"format bit enabled ???",
+"196":"format bit enabled ???",
+"209":"branch if not CD-ROM",
+"211":"APPLE device type 5 (CD-ROM)",
+"219":"SCSI inquiry RMB",
+"222":"RMB mask",
+"226":"APPLE device type HDD",
+"234":"used as local temp",
+"239":"local temp",
+"244":"CALL_FN_9C - TMP_PTR0=SDAT[*$c800]; get BLK_COUNT from SDAT in TMP_PTR0",
+"251":"set SDAT timeout to $35",
+"253":"restore from used as local temp",
+"258":"restore from local temp",
+"265":"APPLE device type tape",
+"273":"APPLE device type tape",
+"281":"APPLE device type Printer",
+"289":"APPLE device type scanner",
+"293":"APPLE device type nonspecific",
+"302":"APPLE subtype ext + removable",
+"306":"APPLE subtype ext and not removable",
+"317":"INQUIRY_CA00",
 "327":"SAVE BUF_PTR to $c82c",
 "336":"SAVE TMP_PTR0",
 "356":"SAVE TMP_PTR (all 4 bytes)",
 "365":"set TMP_PTR to $ca00",
+"388":"*(TMP_PTR+2)=TMP_PTR - *($ca02)=$ca00",
 "392":"CALL_FN_93 - INQUIRY",
 "403":"RESTORE BUF_PTR",
 "413":"RESTORE TMP_PTR0",
 "433":"RESTORE TMP_PTR (4 bytes)",
+"459":"vendor position in inquiry data",
+"462":"stop at 16 chars",
+"483":"bug??? - something seems wrong with the second strcpy",
 "522":"CALL_FN_15",
-"527":"CALL_FN_BF",
-"557":"CALL_FN_B5",
+"527":"CALL_FN_BF - set TPM_PTR to $ca00, check if device is online",
+"557":"CALL_FN_B5 - DMA read",
 "668":"this fragment is copied on the stack",
 "775":"just return should be ok",
 "788":"this one is reverse return value vs the one in bank 15",
@@ -257,9 +300,259 @@
 "Value":52545,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"168":{
+"Label":"DEV_DIRECT_ACCESS",
+"Value":52392,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"180":{
+"Label":"DEV_SEQUENTIAL",
+"Value":52404,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"184":{
+"Label":"DEV_PRINTER",
+"Value":52408,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"188":{
+"Label":"DEV_WORM",
+"Value":52412,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"192":{
+"Label":"DEV_CDROM",
+"Value":52416,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"196":{
+"Label":"DEV_SCANNER",
+"Value":52420,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"170":{
+"Label":"store_dev_status",
+"Value":52394,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"200":{
+"Label":"DEV_UNKNOWN",
+"Value":52424,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"132":{
+"Label":"FILL_DEV_STATUS",
+"Value":52356,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"117":{
+"Label":"cpy_loop",
+"Value":52341,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"295":{
+"Label":"store_apl_dev_type",
+"Value":52519,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"215":{
+"Label":"not_cd",
+"Value":52439,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"269":{
+"Label":"not_direct_acc",
+"Value":52493,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"230":{
+"Label":"direct_removable",
+"Value":52454,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"277":{
+"Label":"not_tape",
+"Value":52501,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"285":{
+"Label":"not_printer",
+"Value":52509,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"293":{
+"Label":"not_scanner",
+"Value":52517,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"308":{
+"Label":"store_apple_subtype",
+"Value":52532,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"315":{
+"Label":"CONST_0002",
+"Value":52539,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"102":{
+"Label":"cpy_loop",
+"Value":52326,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"461":{
+"Label":"vendor_str_cpy1",
+"Value":52685,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"483":{
+"Label":"dev_str_cpy2",
+"Value":52707,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"455":{
+"Label":"IDSTRING_CPY",
+"Value":52679,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"481":{
+"Label":"LCDE1",
+"Value":52705,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"504":{
+"Label":"LCDF8",
+"Value":52728,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"543":{
+"Label":"FN_1D_end",
+"Value":52767,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"306":{
+"Label":"not_removable",
+"Value":52530,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"47":{
+"Label":"skip_copy",
+"Value":52271,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"28":{
+"Label":"next_char",
+"Value":52252,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"63":{
+"Label":"copy_done",
+"Value":52287,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"89":{
+"Label":"more_spaces",
+"Value":52313,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"97":{
+"Label":"pad_done",
+"Value":52321,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"204":{
+"Label":"FILL_DEV_TYPE_SUBTYPE",
+"Value":52428,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"563":{
+"Label":"stack_free",
+"Value":52787,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
+"239":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Hex",
+"SymbolRef":null},
+
+"258":{
+"Length":3,
+"Format":"NumericLE",
+"SubFormat":"Hex",
+"SymbolRef":null},
+
 "866":{
 "Length":2,
 "Format":"NumericLE",

@@ -39,21 +39,23 @@ SCSI_CDB_LBA_LO = $c811
 SCSI_CDB_LEN =   $c812
 SCSI_CDB_CTRL =  $c813
 SCSI_CDB10_8 =   $c816
-SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
-SAVE_SP_CMD_B =  $c81b      ; saved SmartPort Command
+SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
+SAVE_SP_CMD =    $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 SCSI_RD_c81f =   $c81f      ; SCSI STATUS or MESSAGE return from FN_04 
+NUM_DEVICES =    $c823      ; number of devices (used in bank2)
 PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
 SAVE_ZP_F6 =     $c8a8      ;saved zero page locations $f6-$fd
 SAVE_ZP_15 =     $c8b0      ;saved zero page locations $15-$1e
 PD_PAR_CMD_CPY = $c8bc      ;PRODOS input parameter COMMAND number
-RX_LEN_LO =      $c8e4      ;bytes read if call successfull
-RX_LEN_HI =      $c8e5      ;bytes read if call successfull
+RX_LEN_LO =      $c8e4      ; bytes read if call successfull
+RX_LEN_HI =      $c8e5      ; bytes read if call successfull
 SAVE_SP_UNIT =   $c8e8      ; saved Smartport UNIT number
-IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
+IS_IIgs  =       $c8f3      ;0x01 if IIgs
 BLKSIZE_H =      $c92f      ;byte1 of block size - reverse endian
 BLKSIZE_L =      $c930      ;byte0 of block size - reverse endian
-DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
+LDIO_SIZE =      $c9ee
+TMP_c9f1 =       $c9f1      ; 2-byte temp
 
          .org    $cc00
          .a8
@@ -80,12 +82,12 @@ FN_04:   jsr     WAIT_FOR_REQ ;Get STATUS or MESSAGE byte into $c81f
 
 RET_FAIL_27_ALT:
          lda     #$27       ;seems redundant code
-         bne     LCC30
+         bne     RET_Y
 
 RET_FAIL_27:
          lda     #$27
-LCC30:   sta     RET_CODE
-         ldy     SAVE_Y
+RET_Y:   sta     RET_CODE
+         ldy     SLOT_OFFSET
          rts
 
 FN_14:   lda     #$02       ;Send SCSI CMD
@@ -127,34 +129,35 @@ RET_FAIL_27_ALT2:
 FN_24:   lda     CALL_TYPE
          and     #$40
          beq     @FN_24_not_ext
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          bne     @FN_24_ext_call
 @FN_24_not_ext:
          ldy     #$04
-         lda     (TMP_PTR_L),y
-         sta     SCSI_CDB_CMD
+         lda     (TMP_PTR_L),y ;get SP status code
+         sta     SCSI_CDB_CMD ;in this case this is the SP STATUS code
          lda     CALL_TYPE
          beq     @LCCA5     ;branch if std Smartport call
          ldy     #$06
-         lda     (TMP_PTR_L),y
-         sta     SCSI_CDB_CMD
+         lda     (TMP_PTR_L),y ;get SP status code
+         sta     SCSI_CDB_CMD ;in this case this is the SP STATUS code
 @LCCA5:  jmp     @LCCAF
 
 @FN_24_ext_call:
          ldy     #$06
          lda     [TMP_PTR_L],y
-         sta     SCSI_CDB_CMD
-@LCCAF:  jsr     CALL_FN_62
-         lda     SCSI_CDB_CMD
+         sta     SCSI_CDB_CMD ;in this case this is the SP STATUS code
+@LCCAF:  jsr     CALL_FN_62 ;add PART_START to LBA
+         lda     SCSI_CDB_CMD ;in this case this is the SP STATUS code
          cmp     #$07
-         bcc     @LCCBE
+         bcc     @process_SP_STATUS ;branch if STATUS_CODE < 7
          lda     #$21
-         jmp     LCD68
+         jmp     CALL_FN_60_RET_Y ;FAIL_BADCTL
 
-@LCCBE:  tax
-         lda     LCDE1,x
+@process_SP_STATUS:
+         tax
+         lda     SP_STAT_JMPTABLE_L,x
          sta     TMP_PTR1
-         lda     LCDE8,x
+         lda     SP_STAT_JMPTABLE_H,x
          sta     TMP_PTR1+1
          jmp     (TMP_PTR1)
 
@@ -162,134 +165,155 @@ FN_24:   lda     CALL_TYPE
          .byte   $be
          .byte   $cd
 
-TCCCF:   lda     SAVE_SP_UNIT
-         bne     @LCD36
-         lda     #$00
+SP_STAT_00_STATUS:
+         lda     SAVE_SP_UNIT
+         bne     @device_status ;branch if UNIT!=0
+         lda     #$00       ;BUS status - returns # of devices on the bus
          sta     RET_CODE
-         sta     PART_START-1
-         ldy     SAVE_Y
+         sta     NUM_DEVICES ;NUM_DEVICES=0
+         ldy     SLOT_OFFSET
          lda     REG_5380_STAT,y
          cmp     #$bf
-         beq     @LCD00
+         beq     @dev_count_done
          lda     #$31
          sta     TMP_PTR0
          lda     #$c8
-         sta     TMP_PTR0+1
+         sta     TMP_PTR0+1 ;TMP_PTR0=$c831 - SDAT_BASE
          ldy     #$00
-@LCCF0:  lda     (TMP_PTR0),y
+@dev_count_loop:
+         lda     (TMP_PTR0),y
          cmp     #$86
-         bne     @LCD00
-         inc     PART_START-1
+         bne     @dev_count_done ;branch if no signature
+         inc     NUM_DEVICES
          tya
          clc
-         adc     #$11
+         adc     #$11       ;next entry
          tay
-         bne     @LCCF0
-@LCD00:  ldy     #$00
+         bne     @dev_count_loop
+@dev_count_done:
+         ldy     #$00
          lda     CALL_TYPE
-         beq     @LCD0C
-         lda     IIgs_PDMA
-         bne     @LCD25
-@LCD0C:  lda     PART_START-1
+         beq     @std_call
+         lda     IS_IIgs
+         bne     @native
+@std_call:
+         lda     NUM_DEVICES
          sta     (BUF_PTR_L),y
          lda     #$00
-@LCD13:  iny
+@std_clr:
+         iny
          sta     (BUF_PTR_L),y
          cpy     #$07
-         bne     @LCD13
-@LCD1A:  sta     RX_LEN_HI
+         bne     @std_clr
+@LEN8_RETURN:
+         sta     RX_LEN_HI
          lda     #$08
-         sta     RX_LEN_LO
-         jmp     LCDBE
+         sta     RX_LEN_LO  ;RX_LEN=8
+         jmp     RESTORE_ZP_RET
 
-@LCD25:  lda     PART_START-1
+@native: lda     NUM_DEVICES
          sta     [BUF_PTR_L],y
          lda     #$00
-@LCD2C:  iny
+@native_clr:
+         iny
          sta     [BUF_PTR_L],y
          cpy     #$07
-         bne     @LCD2C
-         jmp     @LCD1A
+         bne     @native_clr
+         jmp     @LEN8_RETURN
 
-@LCD36:  jsr     @LCD4E
+@device_status:
+         jsr     CALL_FN_1A ;RETURN DEVICE STATUS
          lda     #$04
          sta     RX_LEN_LO
          lda     #$00
-         sta     RX_LEN_HI
+         sta     RX_LEN_HI  ;RX_LEN=4
          lda     CALL_TYPE
-         beq     @LCD4B
-         inc     RX_LEN_LO
-@LCD4B:  jmp     LCDBE
+         beq     @not_ext   ;branch if not extended
+         inc     RX_LEN_LO  ;if(CALL_TYPE!=std) RX_LEN++
+@not_ext:
+         jmp     RESTORE_ZP_RET
 
-@LCD4E:  lda     #$1a
+CALL_FN_1A:
+         lda     #$1a
 CALL_FN_X4:
          ldx     #$04
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jsr     BANKSWITCH ;CALL_FN_X4
          rts
 
-TCD59:   lda     SAVE_SP_UNIT
-         beq     LCD66
+SP_STAT_03_RET_DIB:
+         lda     SAVE_SP_UNIT
+         beq     FAIL_BADUINT
          lda     #$0a
-         jsr     CALL_FN_X4
-         jmp     LCDBE
+         jsr     CALL_FN_X4 ;CALL_FN_0A - RETURN DIB[DEV_IDX] entry
+         jmp     RESTORE_ZP_RET
 
-LCD66:   lda     #$11
-LCD68:   ldy     SAVE_Y
-         jmp     LCF8A
+FAIL_BADUINT:
+         lda     #$11
+CALL_FN_60_RET_Y:
+         ldy     SLOT_OFFSET
+         jmp     CALL_FN_60_RET
 
-TCD6E:   lda     SAVE_SP_UNIT
-         beq     LCD66
+SP_STAT_05_RET_ERROR:
+         lda     SAVE_SP_UNIT
+         beq     FAIL_BADUINT
          lda     #$04
-         sta     SAVE_SP_CMD_B
-         ldy     SAVE_Y
+         sta     SAVE_SP_CMD ;CMD=$04 (CONTROL) - REQUEST_SENSE
+         ldy     SLOT_OFFSET
          lda     #$f3
-         jmp     LCDD6
+         jmp     CALL_FN_X4_DUP ;CALL_FN_F3 - send REQUEST_SENSE
 
-TCD80:   lda     SAVE_SP_UNIT
-         beq     LCD66
+SP_STAT_06_RET_BLKSIZE:
+         lda     SAVE_SP_UNIT
+         beq     FAIL_BADUINT
          lda     #$02
          sta     RX_LEN_LO
          lda     #$00
-         sta     RX_LEN_HI
+         sta     RX_LEN_HI  ;RX_LEN=2
          ldy     #$00
          lda     CALL_TYPE
          and     #$40
-         beq     @LCD9D
-         lda     IIgs_PDMA
-         bne     @LCDAB
-@LCD9D:  lda     BLKSIZE_H
+         beq     BLKSIZE_CPY_EMU ;branch if not extended call
+         lda     IS_IIgs
+         bne     BLKSIZE_CPY_NATIVE ;branch if IIgs
+BLKSIZE_CPY_EMU:
+         lda     BLKSIZE_H
          sta     (BUF_PTR_L),y
          iny
          lda     BLKSIZE_L
          sta     (BUF_PTR_L),y
-         jmp     LCDBE
+         jmp     RESTORE_ZP_RET
 
-@LCDAB:  lda     BLKSIZE_H
+BLKSIZE_CPY_NATIVE:
+         lda     BLKSIZE_H
          sta     [BUF_PTR_L],y
          iny
          lda     BLKSIZE_L
-         sta     [BUF_PTR_L],y
-         jmp     LCDBE
+         sta     [BUF_PTR_L],y ;BLKSIZE=*(BUF_PTR+y)
+         jmp     RESTORE_ZP_RET
 
-TCDB9:   lda     #$21
-         jmp     LCF8A
+ERROR_BADCTL:
+         lda     #$21
+         jmp     CALL_FN_60_RET
 
-LCDBE:   lda     #$12
-         jsr     CALL_FN_X4
+RESTORE_ZP_RET:
+         lda     #$12
+         jsr     CALL_FN_X4 ;CALL_FN_12 - restore ZP and return
          lda     RET_CODE
-         bne     @LCDCC
+         bne     ERROR_27_RESET
          lda     #$00
          clc
          rts
 
-@LCDCC:  sta     REG_IO_5380_RST,y
+ERROR_27_RESET:
+         sta     REG_IO_5380_RST,y
          lda     #$27
-         jmp     LCF8A
+         jmp     CALL_FN_60_RET
 
 CALL_FN_62:
          lda     #$62
-LCDD6:   jmp     CALL_FN_X4
+CALL_FN_X4_DUP:
+         jmp     CALL_FN_X4
 
          .byte   $00
          .byte   $01
@@ -299,20 +323,22 @@ LCDD6:   jmp     CALL_FN_X4
          .byte   $10
          .byte   $20
          .byte   $40
-LCDE1:   .byte   <TCCCF
-         .byte   <TCDB9
-         .byte   <TCDB9
-         .byte   <TCD59
-         .byte   <TCD59
-         .byte   <TCD6E
-         .byte   <TCD80
-LCDE8:   .byte   >TCCCF
-         .byte   >TCDB9
-         .byte   >TCDB9
-         .byte   >TCD59
-         .byte   >TCD59
-         .byte   >TCD6E
-         .byte   >TCD80
+SP_STAT_JMPTABLE_L:
+         .byte   <SP_STAT_00_STATUS ;SP_STATUS_00 - DEVICE STATUS
+         .byte   <ERROR_BADCTL ;SP_STATUS_01
+         .byte   <ERROR_BADCTL ;SP_STATUS_02
+         .byte   <SP_STAT_03_RET_DIB ;SP_STATUS_03 - RETURN DIB
+         .byte   <SP_STAT_03_RET_DIB ;SP_STATUS_04 - RETURN DIB extra
+         .byte   <SP_STAT_05_RET_ERROR ;SP_STATUS_05 - RETURN last error
+         .byte   <SP_STAT_06_RET_BLKSIZE ;SP_STATUS_06 - RETURN blksize
+SP_STAT_JMPTABLE_H:
+         .byte   >SP_STAT_00_STATUS
+         .byte   >ERROR_BADCTL
+         .byte   >ERROR_BADCTL
+         .byte   >SP_STAT_03_RET_DIB
+         .byte   >SP_STAT_03_RET_DIB
+         .byte   >SP_STAT_05_RET_ERROR
+         .byte   >SP_STAT_06_RET_BLKSIZE
 WAIT_FOR_NOT_REQ:
          ldx     #$ff       ;wait for REQ deassertion (with timeout)
          stx     $c8f0
@@ -370,7 +396,7 @@ FN_34:   lda     #$02       ;Wait for REQ ad expect DATA IN
          sec
          rts
 
-FN_64:   lda     REG_5380_STAT,y
+FN_64:   lda     REG_5380_STAT,y ;Prepare DMA Data OUT
          and     #$20
          beq     FN_64      ;wait for REQ to assert
          lda     #$00
@@ -396,9 +422,9 @@ FN_44:   lda     #$a3       ;call SEND_CMD_TEST_UNIT_READY and return $00
          sta     RET_CODE
          rts
 
-FN_74:   lda     CALL_TYPE
+FN_74:   lda     CALL_TYPE  ;unreferenced function
          and     #$40
-         bne     @LCEA8
+         bne     @FN_74_ext_call
          ldy     #$05
          lda     (TMP_PTR_L),y
          sta     PD_PAR_BLK_LO
@@ -423,10 +449,11 @@ FN_74:   lda     CALL_TYPE
          lda     (TMP_PTR_L),y
          adc     PART_START
          sta     SCSI_CDB_LBA_LO
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
-@LCEA8:  ldy     #$07
+@FN_74_ext_call:
+         ldy     #$07
          lda     [TMP_PTR_L],y
          sta     PD_PAR_BLK_LO
          sta     RX_LEN_LO
@@ -455,7 +482,7 @@ FN_74:   lda     CALL_TYPE
          clc
          ror     A
          sta     SCSI_CDB10_8
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          rts
 
 FN_84:   lda     PD_PAR_BUF_LO ;copy PD buf to BUF_PTR
@@ -472,7 +499,7 @@ FN_94:   lda     RET_CODE   ;restore ZP and return
          bne     @LCF03
          lda     #$2f
          sta     RET_CODE
-@LCF03:  lda     IIgs_PDMA
+@LCF03:  lda     IS_IIgs
          beq     @FN_94_skip2gs ;branch if not IIgs
          lda     SAVE_CYAREG
          sta     CYAREG
@@ -510,7 +537,7 @@ FN_A4:   ldx     DEV_IDX    ;Get SDAT entry in TMP_PTR0 for index at $c800
          sta     TMP_PTR0+1
          rts
 
-FN_B4:   tya
+FN_B4:   tya                ;IIgs LDIO DMA read ?????
          tax
          ldy     #$00
 @LCF47:  lda     REG_IO_DRQ,x
@@ -524,9 +551,9 @@ FN_B4:   tya
          inc     BUF_PTR_H
          bne     @LCF5F
          inc     BUF_PTR_VH
-@LCF5F:  inc     DEV_STATUS-1
-         lda     DEV_STATUS-1
-         cmp     $c9ef
+@LCF5F:  inc     TMP_c9f1+1
+         lda     TMP_c9f1+1
+         cmp     LDIO_SIZE+1
          bne     @LCF47
          beq     @LCF7F
 
@@ -543,11 +570,12 @@ FN_B4:   tya
          bcc     @LCF86
 
 @LCF82:  sec
-         sty     $c9f1
-@LCF86:  ldy     SAVE_Y
+         sty     TMP_c9f1
+@LCF86:  ldy     SLOT_OFFSET
          rts
 
-LCF8A:   sta     RET_CODE
+CALL_FN_60_RET:
+         sta     RET_CODE
          lda     #$60
          ldx     #$00
          jmp     BANKSWITCH

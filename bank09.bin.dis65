@@ -83,6 +83,12 @@
 
 "Comments":{
 "7":"prepare DMA receive",
+"16":"TMP_cf91=0;",
+"27":"branch if stack has less than $60 bytes free",
+"32":"branch if IIgs and plenty of stack space",
+"40":"branch if not IIgs",
+"47":"branch if not extended",
+"49":"IIgs path",
 "51":"CALL_FN_B4",
 "66":"CALL_FN_3F",
 "70":"prepare DMA Send",
@@ -90,16 +96,36 @@
 "92":"branch if IIgs",
 "96":"DMA Write type 3",
 "101":"CALL_FN_5C - DMA Write IIgs",
+"107":"branch if no data waiting",
+"146":"branch if pahse mismatch",
 "201":"CALL_FN_07",
 "219":"FAIL_BADCTRLPARM",
+"228":"DoPhases",
+"242":"get status and message",
+"248":"send REQUEST_SENSE and process the output",
+"265":"bug - should be and #$04 or similar",
 "269":"ERROR_NOWRITE",
 "274":"ERROR_NOWRITE",
 "284":"CALL_FN_07",
+"293":"??? not sure about label",
 "302":"ERROR_IOERROR",
+"311":"DoPhases",
+"317":"Prepare DMA send",
+"326":"get status and message",
 "337":"CALL_FN_X9",
 "354":"CALL_FN_61",
 "359":"CALL_FN_71",
+"398":"adjust number of blocks to read",
+"412":"adjust number of blocks to read",
+"427":"CDB_LEN=(*$c929)?*$c92d+1:*$c92d",
 "451":"CALL_FN_30",
+"593":" SEND REQUEST SENSE store at $c901",
+"602":"sense key offset",
+"604":"get sense key",
+"609":"branch if UNIT_ATTENTION",
+"613":"branch if NOT_READY",
+"615":"bug ??? - mask should be $0F",
+"619":"branch if RECOVERED_ERROR",
 "629":"Send REQUEST_SENSE and store result at $c901",
 "639":"TMP_PTR=$c901",
 "643":"CALL_FN_67 - save TMP_PTR",
@@ -109,10 +135,14 @@
 "660":"TMP_PTR_L[4]=0;",
 "664":"CALL_FN_B3 - Send REQUEST_SENSE",
 "669":"CALL_FN_77 - Restore TMP_PTR",
-"684":"CALL_FN_66",
+"684":"CALL_FN_66 - Process ASC from sense data",
+"690":"SET_BLK_2048",
+"694":"SET_BLK_512",
 "706":"CALL_FN_AA",
 "711":"CALL_FN_0B",
-"716":"CALL_FN_7C"},
+"716":"CALL_FN_7C - add PART_START",
+"884":"LBA_TEMP=LBA_c8db+(char)UNK_c92d",
+"920":"if(LBA_TEMP\u003eUNK_c827) FAIL_BADBLOCK"},
 
 "LongComments":{
 "-2147483647":{
@@ -284,10 +314,306 @@
 "Value":52294,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"454":{
+"Label":"LDIO_READ",
+"Value":52678,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"69":{
+"Label":"rts",
+"Value":52293,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"341":{
+"Label":"IS_CHAR",
+"Value":52565,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"350":{
+"Label":"not_char",
+"Value":52574,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"204":{
+"Label":"FN_09_block_dev",
+"Value":52428,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"222":{
+"Label":"len_not_zero",
+"Value":52446,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"427":{
+"Label":"SET_CDB_LEN",
+"Value":52651,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"442":{
+"Label":"add_one",
+"Value":52666,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"445":{
+"Label":"store_cdb_len",
+"Value":52669,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"388":{
+"Label":"CMD_WRITE6_MB",
+"Value":52612,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"287":{
+"Label":"FN_19_block_dev",
+"Value":52511,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"305":{
+"Label":"len_not_zero",
+"Value":52529,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"277":{
+"Label":"write_allowed",
+"Value":52501,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"402":{
+"Label":"CMD_READ6_MB",
+"Value":52626,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"449":{
+"Label":"CALL_FN_30",
+"Value":52673,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"922":{
+"Label":"ret",
+"Value":53146,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"861":{
+"Label":"CHECK_END_BLK_VALID",
+"Value":53085,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"783":{
+"Label":"wait1_loop",
+"Value":53007,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"802":{
+"Label":"wait1_rts",
+"Value":53026,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"774":{
+"Label":"WAIT_DOUT_REQ",
+"Value":52998,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"806":{
+"Label":"wait2_loop",
+"Value":53030,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"822":{
+"Label":"wait2_rts",
+"Value":53046,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"803":{
+"Label":"WAIT_MSGIN_REQ",
+"Value":53027,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"854":{
+"Label":"timeout",
+"Value":53078,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"852":{
+"Label":"not_timeout",
+"Value":53076,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"763":{
+"Label":"CHECK_MSGIN_REQ",
+"Value":52987,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"761":{
+"Label":"sec_rts",
+"Value":52985,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"759":{
+"Label":"clc_rts",
+"Value":52983,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"160":{
+"Label":"ret_ok",
+"Value":52384,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"162":{
+"Label":"ret_fail",
+"Value":52386,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"54":{
+"Label":"CALL_LDIO_DMA_READ",
+"Value":52278,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"104":{
+"Label":"LDIO_DMA_READ",
+"Value":52328,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"34":{
+"Label":"low_stack",
+"Value":52258,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"58":{
+"Label":"IIgs_stack_code",
+"Value":52282,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"696":{
+"Label":"DO_SET_BLK",
+"Value":52920,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"709":{
+"Label":"CALL_FN_0B_7C",
+"Value":52933,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"625":{
+"Label":"FN_39_end",
+"Value":52849,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"624":{
+"Label":"FN_39_ok",
+"Value":52848,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"673":{
+"Label":"GET_ASC",
+"Value":52897,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"251":{
+"Label":"CALL_FN_39_RET",
+"Value":52475,
+"Source":"User",
+"Type":"GlobalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
 "3":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_READ6",
+"Part":"Low"}},
+
+"388":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_WRITE6",
+"Part":"Low"}},
+
+"402":{
 "Length":2,
 "Format":"NumericLE",
 "SubFormat":"Symbol",

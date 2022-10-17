@@ -2,6 +2,7 @@
 ; 6502bench SourceGen v1.7.3
          .setcpu "65816"
 SCSI_CMD_READ6 = $08
+SCSI_CMD_WRITE6 = $0a
 P8E_WRITE_PROT = $2b        ;Disk write protected
 
 TMP_PTR0 =       $19        ; temporary ZP pointer 
@@ -33,15 +34,15 @@ SCSI_CDB_LBA_HI = $c810
 SCSI_CDB_LBA_LO = $c811
 SCSI_CDB_LEN =   $c812
 SCSI_CDB_CTRL =  $c813
-SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
-SAVE_SP_CMD_B =  $c81b      ; saved SmartPort Command
+SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
+SAVE_SP_CMD =    $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 SAVE_ENTRY_SP =  $c821      ; stack pointer saved at the PD/SM entry point
 PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
 LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
-RX_LEN_LO =      $c8e4      ;bytes read if call successfull
-RX_LEN_HI =      $c8e5      ;bytes read if call successfull
-SAVE_SP_CMD =    $c8e6      ; saved Smartport COMMAND number
+RX_LEN_LO =      $c8e4      ; bytes read if call successfull
+RX_LEN_HI =      $c8e5      ; bytes read if call successfull
+SAVE_SP_CMD_TEMP = $c8e6    ; saved Smartport COMMAND number
 SAVE_SP_UNIT =   $c8e8      ; saved Smartport UNIT number
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
@@ -65,24 +66,24 @@ FN_02:   tsx                ;main smartport entry
          bne     @skip_inc
          inc     TMP_PTR2+1 ;add 1 to LSB to compensate for return address-1 of the JSR
 @skip_inc:
-         ldy     #$00       ;TMP_PTR2 should point to the inline call parameters
+         ldy     #$00
          sty     RET_CODE
          lda     (TMP_PTR2),y
-         sta     SAVE_SP_CMD_B
+         sta     SAVE_SP_CMD
          iny
          lda     (TMP_PTR2),y
          sta     TMP_PTR_L
          iny
          lda     (TMP_PTR2),y
-         sta     TMP_PTR_H
+         sta     TMP_PTR_H  ;TMP_PTR2=smartport inline paramters
          ldx     SAVE_ENTRY_SP
-         lda     SAVE_SP_CMD_B
+         lda     SAVE_SP_CMD
          and     #$40
          sta     CALL_TYPE  ;set call type to 0x40 if extended call
          beq     @std_call
          iny
          lda     (TMP_PTR2),y
-         sta     TMP_PTR_VH
+         sta     TMP_PTR_VH ;copy byte 2 of smartport parameter address to TMP_PTR2
          ldx     IS_IIgs
          cpx     #$00
          bne     @ext_call
@@ -91,11 +92,11 @@ FN_02:   tsx                ;main smartport entry
 @ext_call:
          iny
          lda     (TMP_PTR2),y
-         sta     TMP_PTR_XH
+         sta     TMP_PTR_XH ;copy byte 3 of smartport parameter address to TMP_PTR2
 @std_call:
-         lda     SAVE_SP_CMD_B
+         lda     SAVE_SP_CMD
          and     #$0f
-         sta     SAVE_SP_CMD_B ;remove extended flag from saved CMD number
+         sta     SAVE_SP_CMD ;remove extended flag from saved CMD number
          ldx     SAVE_ENTRY_SP
          txa
          clc
@@ -123,7 +124,7 @@ FN_02:   tsx                ;main smartport entry
          sta     $0100,x    ;add 5 to return address for ext calls
          bcs     @call_fix_msb
 @done_fixing:
-         ldx     SAVE_SP_CMD_B ;redundant
+         ldx     SAVE_SP_CMD ;redundant
          cpx     #$40       ;ext_flag has already been stripped from SAVE_SP_CMD_B
          bcs     ERROR_BADCTRLPARM ;never taken
          lda     CALL_TYPE
@@ -131,7 +132,7 @@ FN_02:   tsx                ;main smartport entry
          beq     @not_ext
          lda     IS_IIgs
          beq     @not_ext
-         jmp     LCD37
+         jmp     LDA_TMP_PTR_NATIVE_1
 
 @not_ext:
          ldy     #$00
@@ -147,7 +148,8 @@ ERROR_BADCTRLPARM:
 param_count_ok:
          iny
          lda     (TMP_PTR_L),y
-LCCB3:   sta     DEV_IDX
+got_dev_idx:
+         sta     DEV_IDX
          sta     SAVE_SP_UNIT
          cmp     #$08
          bcs     ERROR_BADUNIT ;branch if unit number > 8
@@ -163,19 +165,19 @@ ERROR_BADUNIT:
 
 SP_unit_valid:
          sta     PD_PAR_UNIT
-         stx     SAVE_SP_CMD
-         ldy     SAVE_Y
+         stx     SAVE_SP_CMD_TEMP
+         ldy     SLOT_OFFSET
          lda     REG_5380_STAT,y
          cmp     #$bf       ;?????
          bne     @LCCF0
-         lda     SAVE_SP_CMD_B ;start of junk ??? --------------
-         bne     @LCCF0
+         lda     SAVE_SP_CMD
+         bne     @LCCF0     ;branch if CMD !=0
          lda     DEV_IDX
-         bne     @LCCF0
+         bne     @LCCF0     ;branch if DEV_IDX!=0
          lda     CALL_TYPE
          beq     @LCD1E
          cmp     #$40
-         beq     @LCD1E     ;end of junk ??? -----
+         beq     @LCD1E
 @LCCF0:  lda     INIT_FLAG
          cmp     #$77
          beq     @init_done
@@ -186,17 +188,17 @@ SP_unit_valid:
          jsr     RESTORE_TMP_PTR_IDX
 @init_done:
          lda     DEV_IDX
-         bne     @LCD14
+         bne     @LCD14     ;branch if DEV_IDX!=0
          jsr     SET_PTR0_SDAT_BASE
          lda     #$85
-         jsr     CALL_FN_X2 ;CALL_FN_85
+         jsr     CALL_FN_X2 ;CALL_FN_85 - Set BLK COUNT from SDAT
          jmp     @LCD19
 
 @LCD14:  lda     #$75
-         jsr     CALL_FN_X2 ;CALL_FN_75
+         jsr     CALL_FN_X2 ;CALL_FN_75 - TMP_PTR0=&SDAT[DEV_IDX], set BLK_COUNT
 @LCD19:  lda     #$15
          jsr     CALL_FN_X2 ;CALL_FN_15
-@LCD1E:  ldx     SAVE_SP_CMD
+@LCD1E:  ldx     SAVE_SP_CMD_TEMP
          lda     SP_CMD_TABLE_H,x
          sta     TMP_PTR2+1
          lda     SP_CMD_TABLE_L,x
@@ -206,10 +208,11 @@ SP_unit_valid:
 CALL_FN_60_RETY_ALT:
          sta     RET_CODE   ;seems redundant as CALL_FN_60_RET saves RET_CODE
 CALL_FN_60_RETY:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jmp     CALL_FN_60_RET
 
-LCD37:   clc                ;SET NATIVE mode
+LDA_TMP_PTR_NATIVE_1:
+         clc                ;SET NATIVE mode
          xce
          ldy     #$01
          lda     [TMP_PTR_L],y
@@ -217,7 +220,7 @@ LCD37:   clc                ;SET NATIVE mode
          sec                ;Go back to EMULATION mode
          xce
          lda     DEV_IDX
-         jmp     LCCB3
+         jmp     got_dev_idx
 
 SET_PTR0_SDAT_BASE:
          lda     #$31
@@ -366,7 +369,7 @@ CMD_PARAM_COUNT_TABLE:
          .byte   $04
          .byte   $04
 
-SET_RX_LEN_0200:
+SET_LEN_512:
          lda     #$02
          sta     RX_LEN_HI
          lda     #$00
@@ -374,7 +377,7 @@ SET_RX_LEN_0200:
          rts
 
 SP_CMD_01_READ_BLK:
-         jsr     SET_RX_LEN_0200
+         jsr     SET_LEN_512
          lda     #SCSI_CMD_READ6
          sta     SCSI_CDB_CMD
          jsr     FN_52
@@ -384,7 +387,7 @@ CALL_FN_X2_RESTORE_RET:
          jmp     RESTORE_ZP_RET
 
 SP_CMD_02_WRITE_BLK:
-         jsr     SET_RX_LEN_0200
+         jsr     SET_LEN_512
          lda     DEV_STATUS
          cmp     #$b4       ;check WP flag
          bne     @do_write  ;branch if not WP
@@ -392,7 +395,7 @@ SP_CMD_02_WRITE_BLK:
          jmp     CALL_FN_60_RETY
 
 @do_write:
-         lda     #$0a
+         lda     #SCSI_CMD_WRITE6
          sta     SCSI_CDB_CMD
          jsr     FN_52
          lda     #$20       ;CALL_FN_20 - EXECUTE SCSI DATA write CMD
@@ -439,7 +442,7 @@ FN_52:   lda     CALL_TYPE
          lda     LBA_c8db+1
          sta     SCSI_CDB_LBA_HI
          lda     LBA_c8db+2
-         sta     SCSI_CDB_LUN ;copy LBA from $c8db to CDB
+         sta     SCSI_CDB_LUN ;CDB_LBA=LBA_c8db
 @fn_52_end:
          lda     #$01
          sta     SCSI_CDB_LEN
@@ -449,7 +452,7 @@ FN_52:   lda     CALL_TYPE
          jmp     CALL_FN_X2 ;CALL_FN_7C - add PART_START to UNK_c827
 
 @ext_call_52:
-         lda     #$06       ;(bug?) NATIVE should be set before calling this
+         lda     #$06       ;(bug?) should NATIVE be set before calling this??
          sta     SCSI_CMD_LEN
          ldy     #$02
          lda     [TMP_PTR_L],y
@@ -462,7 +465,7 @@ FN_52:   lda     CALL_TYPE
          sta     BUF_PTR_VH
          iny
          lda     [TMP_PTR_L],y
-         sta     BUF_PTR_XH
+         sta     BUF_PTR_XH ;BUF_PTR=*(TMP_PTR+2); 4 bytes
          iny
          lda     [TMP_PTR_L],y
          clc
@@ -478,7 +481,7 @@ FN_52:   lda     CALL_TYPE
          lda     [TMP_PTR_L],y
          adc     PART_START
          sta     SCSI_CDB_LUN
-         sta     LBA_c8db+2
+         sta     LBA_c8db+2 ;LBA_c8db=*(TMP_PTR+6)+PART_START, CDB_LBA=LBA_c8db
          jmp     @fn_52_end
 
 SP_CMD_04_CONTROL:
@@ -594,7 +597,7 @@ CALL_FN_1E:
          lda     #$1e       ;FN_1E - handle smartport control $20..$2A
 CALL_FN_X2:
          ldx     #$02
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jmp     BANKSWITCH ;CALL_FN_X2_SAVE_Y
 
 CALL_FN_2E:
@@ -614,7 +617,7 @@ SP_CMD_00_STATUS:
          jsr     CALL_FN_X2 ;CALL_FN_24
 RESTORE_ZP_RET:
          jsr     FN_12      ;restore ZP
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          lda     RET_CODE
          cmp     #$08
          beq     RET_IOERROR_27

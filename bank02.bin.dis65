@@ -221,9 +221,11 @@
 "3":"stack offset for address of SP inline parameters",
 "5":"should be 5 for 3 JSR but likely there is an extra push",
 "23":"add 1 to LSB to compensate for return address-1 of the JSR",
-"25":"TMP_PTR2 should point to the inline call parameters",
+"43":"TMP_PTR2=smartport inline paramters",
 "53":"set call type to 0x40 if extended call",
+"61":"copy byte 2 of smartport parameter address to TMP_PTR2",
 "72":"error if address 16..23 is not 0 and not IIgs",
+"77":"copy byte 3 of smartport parameter address to TMP_PTR2",
 "84":"remove extended flag from saved CMD number",
 "92":"this is plus 2 becasue ENTRY_SP is saved before the PHP (should be +1)",
 "106":"add 3 to the ret address for std calls",
@@ -240,11 +242,12 @@
 "199":"branch if unit number != 0",
 "203":"ERROR_BADUNIT",
 "217":"?????",
-"221":"start of junk ??? --------------",
-"238":"end of junk ??? -----",
+"224":"branch if CMD !=0",
+"229":"branch if DEV_IDX!=0",
 "254":"CALL_FN_05 - Init card",
-"270":"CALL_FN_85",
-"278":"CALL_FN_75",
+"263":"branch if DEV_IDX!=0",
+"270":"CALL_FN_85 - Set BLK COUNT from SDAT",
+"278":"CALL_FN_75 - TMP_PTR0=\u0026SDAT[DEV_IDX], set BLK_COUNT",
 "283":"CALL_FN_15",
 "302":"seems redundant as CALL_FN_60_RET saves RET_CODE",
 "311":"SET NATIVE mode",
@@ -307,9 +310,11 @@
 "603":"probably useless",
 "605":"seems useless",
 "608":"seems useless",
-"625":"copy LBA from $c8db to CDB",
+"625":"CDB_LBA=LBA_c8db",
 "640":"CALL_FN_7C - add PART_START to UNK_c827",
-"643":"(bug?) NATIVE should be set before calling this",
+"643":"(bug?) should NATIVE be set before calling this??",
+"667":"BUF_PTR=*(TMP_PTR+2); 4 bytes",
+"703":"LBA_c8db=*(TMP_PTR+6)+PART_START, CDB_LBA=LBA_c8db",
 "709":"process Smartport Control command ($04)",
 "741":"get the control code",
 "743":"last implemented control code is $2a",
@@ -825,7 +830,7 @@
 "LabelAnno":"None"},
 
 "487":{
-"Label":"SET_RX_LEN_0200",
+"Label":"SET_LEN_512",
 "Value":52711,
 "Source":"User",
 "Type":"GlobalAddr",
@@ -906,6 +911,20 @@
 "Value":52552,
 "Source":"User",
 "Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"311":{
+"Label":"LDA_TMP_PTR_NATIVE_1",
+"Value":52535,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"179":{
+"Label":"got_dev_idx",
+"Value":52403,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -1779,6 +1798,14 @@
 "SubFormat":"Symbol",
 "SymbolRef":{
 "Label":"P8E_WRITE_PROT",
+"Part":"Low"}},
+
+"532":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SCSI_CMD_WRITE6",
 "Part":"Low"}},
 
 "956":{

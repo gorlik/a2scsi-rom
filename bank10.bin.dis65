@@ -78,6 +78,7 @@
 
 "Comments":{
 "0":"TMP_PTR0=\u0026DIBTAB[DEV_IDX]",
+"5":"SEND INQUIRY and FILL DIBTAB",
 "8":"TMP_PTR0=\u0026DIBTAB[DEV_IDX]",
 "11":"copy DIBTAB entry from TMP_PTR0 to BUF_PTR omitting signature",
 "14":"EXECUTE TEST_UNIT_READY (special tape handling)",
@@ -103,6 +104,11 @@
 "198":"branch if IIgs",
 "218":"put device status in $c9f3",
 "246":"CALL_FN_AF",
+"249":"SET_BLOCK_SIZE - get new blk size and fall though FN_AA",
+"271":"*$c82a=new block size (pointer member of the smartport control list)",
+"295":"branch if card not init",
+"310":"CALL_FN_0C - Set new SDAT",
+"330":"*$c82a=new block size (pointer member of the smartport control list)",
 "346":"branch if data in phase - (REQ \u0026 IO asserted)",
 "350":"branch if status phsase - REQ \u0026 IO \u0026 CD asserted",
 "424":"DoPhases (no BUS_FREE)",
@@ -115,11 +121,15 @@
 "452":"CALL_FN_11_restore - Data Xout + restore XFER_MODE",
 "454":"FORCE_PIO_MODE",
 "468":"copy MODE_SELECT_CMD to CDB",
+"498":"status for CD-ROM",
+"500":"end if not CD-ROM",
 "547":"$FB,$FB point to $CA00",
 "550":"MODE_SENSE",
 "564":"get STATUS ans MESSAGE",
+"581":"get status and message",
+"593":"SP_MODE_SELECT",
 "595":"FILL CDB with MODE SELECT command",
-"606":"CALL_FN_8B",
+"606":"CALL_FN_8B - BUF_PTR=TMP_PTR[2]",
 "656":"EXECUTE TEST_UNIT_READY and handle tape device",
 "661":"store dev_status to TEMP_c915",
 "671":"clear SCSI CDB",
@@ -672,7 +682,7 @@
 "LabelAnno":"None"},
 
 "553":{
-"Label":"SEND_CMD_RD_STATUS",
+"Label":"SEND_CMD_DIN_STATUS",
 "Value":52777,
 "Source":"User",
 "Type":"GlobalAddr",
@@ -716,6 +726,62 @@
 "765":{
 "Label":"CHECK_REQUEST_SENSE",
 "Value":52989,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"263":{
+"Label":"FN_4A_std_call",
+"Value":52487,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"322":{
+"Label":"FN_4A_native",
+"Value":52546,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"319":{
+"Label":"FN_AA_end",
+"Value":52543,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"395":{
+"Label":"WAIT_FOR_DOUT",
+"Value":52619,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"398":{
+"Label":"wait_dout_loop",
+"Value":52622,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"570":{
+"Label":"SEND_CMD_DOUT_STATUS",
+"Value":52794,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"567":{
+"Label":"EXECUTE_MODE_SEL_SETBLK",
+"Value":52791,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"459":{
+"Label":"FILL_SETBLK",
+"Value":52683,
 "Source":"User",
 "Type":"GlobalAddr",
 "LabelAnno":"None"}},

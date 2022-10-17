@@ -42,17 +42,17 @@ SCSI_CDB_LUN =   $c80f      ;
 SCSI_CDB_LBA_HI = $c810
 SCSI_CDB_LBA_LO = $c811
 SCSI_CDB_LEN =   $c812
-SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
-SAVE_SP_CMD_B =  $c81b      ; saved SmartPort Command
+SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
+SAVE_SP_CMD =    $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 CMD_STATUS =     $c81e      ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 SCSI_RD_c81f =   $c81f      ; SCSI STATUS or MESSAGE return from FN_04 
 BLK_c8c7 =       $c8c7      ; saved PRODOS BLOCK from input parameters
 LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
-BOOT_SEQ =       $c8e3      ;$55 if in boot process
-RX_LEN_LO =      $c8e4      ;bytes read if call successfull
-RX_LEN_HI =      $c8e5      ;bytes read if call successfull
-IIgs_PDMA =      $c8f3      ;0x01 if IIgs PDMA
+BOOT_SEQ =       $c8e3      ; $55 if in boot process
+RX_LEN_LO =      $c8e4      ; bytes read if call successfull
+RX_LEN_HI =      $c8e5      ; bytes read if call successfull
+IS_IIgs  =       $c8f3      ;0x01 if IIgs
 
          .org    $cc00
          .a8
@@ -97,7 +97,7 @@ LCC44:   lda     #$3c
          jsr     CALL_FN_X1 ;CALL_FN_3C
          jmp     LCC22
 
-FN_11:   jsr     COPY_PD_BLK ;Data Xout
+FN_11:   jsr     COPY_PD_BLK ;Data Xout (from BUF_PTR)
          lda     XFER_MODE
          beq     XOUT_PDMA  ;IIe PDMA
          cmp     #$01
@@ -111,7 +111,7 @@ XOUT_PDMA:
          jsr     CHECK_NATIVE_NEEDED
          bcs     NATIVE_REQUIRED ;NATIVE if c=1
          jsr     LCE10
-LCC6C:   ldy     SAVE_Y
+LCC6C:   ldy     SLOT_OFFSET
          lda     #$00
          sta     REG_5380_MODE_SEL,y
          rts
@@ -125,7 +125,7 @@ CHECK_NATIVE_NEEDED:
          lda     CALL_TYPE
          and     #$40
          beq     @NATIVE_not_req
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          beq     @NATIVE_not_req
          sec
          rts
@@ -229,7 +229,7 @@ READ_BYTES_PIO:
          jmp     @read_more_data
 
 @done_reading:
-         lda     SAVE_SP_CMD_B
+         lda     SAVE_SP_CMD
          cmp     #$04       ;SP CMD Control
          bne     @not_control ;branch if command not control
          sty     RX_LEN_LO  ;return the # of bytes read
@@ -293,7 +293,7 @@ FN_61:   jsr     WAIT_FOR_REQ_NOT_STATUS ;PREPARE_DMA_RECEIVE
          bcs     RET_IOERROR
          lda     #$01
          sta     REG_5380_TCMD,y ;set expectation for DATA IN phase
-         lda     #$02
+         lda     #$02       ;DMA enable mask
          sta     REG_IO_PDMA_EN,y
          sta     REG_5380_MODE_SEL,y ;enable DMA mode
          lda     #$00
@@ -313,7 +313,7 @@ FN_71:   jsr     WAIT_FOR_REQ_NOT_STATUS ;PREPARE DMA send
          sta     REG_5380_TCMD,y ;set expectation for DATA OUT phase
          lda     #$01
          sta     REG_5380_ICMD,y ;assert data bus
-         lda     #$02
+         lda     #$02       ;DMA enable mask
          sta     REG_IO_PDMA_EN,y
          sta     REG_5380_MODE_SEL,y ;enable DMA
          sta     REG_5380_START_WDMA,y ;????
@@ -494,7 +494,7 @@ SET_NATIVE_IF_NEEDED:
          lda     CALL_TYPE
          and     #$40
          beq     @set_native_end
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          beq     @set_native_end
          jsr     SET_NATIVE_MODE
          lda     SAVE_CYAREG
@@ -512,7 +512,7 @@ RESTORE_EMU_IF_NEEDED:
          lda     CALL_TYPE
          and     #$40
          beq     @restore_mode_end
-         lda     IIgs_PDMA
+         lda     IS_IIgs
          beq     @restore_mode_end
          sec
          xce
@@ -522,7 +522,7 @@ RESTORE_EMU_IF_NEEDED:
          rts
 
 FN_21:   lda     #$f5
-         sta     TMP_PTR_L  ;clear 12 bytes starting at 0xc8f5
+         sta     TMP_PTR_L
          lda     #$c8
          sta     TMP_PTR_H  ;TMP_PTR = $c8f5
          lda     #$00
@@ -530,17 +530,17 @@ FN_21:   lda     #$f5
 @clr_loop_fn21:
          sta     (TMP_PTR_L),y
          dey
-         bpl     @clr_loop_fn21
+         bpl     @clr_loop_fn21 ;clear 12 bytes starting at 0xc8f5
          ldy     #$02
          lda     #$f9
-         sta     (TMP_PTR_L),y ;*($c8f5+2)=$c8f9
+         sta     (TMP_PTR_L),y
          iny
          lda     TMP_PTR_H
-         sta     (TMP_PTR_L),y
+         sta     (TMP_PTR_L),y ;*($c8f5+2)=$c8f9
          lda     #$04
          ldy     #$07
          sta     (TMP_PTR_L),y ;*$(c8f5+7)=$04
-         ldy     #$09       ;copy SCSI CDB block number starting at offset $c8f5+9
+         ldy     #$09
          ldx     #$01
 @cpy_loop_fn21:
          lda     SCSI_CDB_CMD,x
@@ -548,11 +548,11 @@ FN_21:   lda     #$f5
          iny
          inx
          cpx     #$04
-         bne     @cpy_loop_fn21
-         lda     #$03       ;CALL_FN_03
+         bne     @cpy_loop_fn21 ;copy SCSI CDB block number to offset $c8f5+9
+         lda     #$03       ;CALL_FN_03 - Do Status
 CALL_FN_X1:
          ldx     #$01
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jmp     BANKSWITCH ;CALL_FN_X1
 
 FN_31:   lda     #$03       ;READ STATUS and MESSAGE
@@ -561,7 +561,7 @@ FN_31:   lda     #$03       ;READ STATUS and MESSAGE
          sta     CMD_STATUS
          lda     #$07
          jsr     SET_PHASE_AND_READ_STAT_OR_MSG ;set expectation for MESSAGE IN phase
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          lda     #$00
          sta     REG_5380_ICMD,y
          sta     REG_IO_5380_RST,y

@@ -29,13 +29,13 @@ SCSI_CDB_CTRL =  $c813
 SCSI_CDB10_7 =   $c815
 SCSI_CDB10_8 =   $c816
 SCSI_CDB10_9 =   $c817
-SAVE_Y   =       $c81a      ; slot adress (n+8)<<4 
+SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 CMD_STATUS =     $c81e      ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 UNK_c820 =       $c820      ; 0xff if PIO ?
 UNK_c8cc =       $c8cc      ;unknown
 NUM_PART =       $c8ce      ; number of partition on the device - only used in bank 07
-UNK_c8cf =       $c8cf      ; $00 if failed to read Partition Map. $ff if PM detected
+PARTMAP_OK =     $c8cf      ; $00 if failed to read Partition Map. non-zero if PM detected
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 
@@ -44,25 +44,30 @@ DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
          .i8
 FN_0E:   ldy     #$30
          ldx     #$00
-@LCC04:  lda     (BUF_PTR_L),y
-         cmp     @LCC23,x
-         beq     @LCC10
-         cmp     @LCC2E,x
-         bne     @LCC1A
-@LCC10:  iny
+@cmp_loop:
+         lda     (BUF_PTR_L),y
+         cmp     str_apple_PRODO,x
+         beq     @match1
+         cmp     str_APPLE_prodos,x
+         bne     @match_fail
+@match1: iny
          inx
          cpx     #$09
-         bne     @LCC04
+         bne     @cmp_loop
          lda     #$ff
-         bne     @LCC1C
+         bne     FN_0E_end
 
-@LCC1A:  lda     #$00
-@LCC1C:  sta     UNK_c8cf
-         ldy     SAVE_Y
+@match_fail:
+         lda     #$00
+FN_0E_end:
+         sta     PARTMAP_OK
+         ldy     SLOT_OFFSET
          rts
 
-@LCC23:  .byte   "apple PRODO"
-@LCC2E:  .byte   "APPLE_prodos"
+str_apple_PRODO:
+         .byte   "apple PRODO"
+str_APPLE_prodos:
+         .byte   "APPLE_prodos"
 
 FN_1E:   lda     CALL_TYPE  ;Handle SP control $20-$2A
          and     #$40
@@ -139,7 +144,7 @@ CHECK_VALID:
 ERROR_BADCTL:
          lda     #$21
 CALL_FN_60_RETY:
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jmp     CALL_FN_60_RET
 
 SP_AUDIO_PLAY:
@@ -205,11 +210,11 @@ CALL_FN_00:
          lda     #$00
 CALL_FN_XE:
          ldx     #$0e
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jsr     BANKSWITCH
          rts
 
-LCD26:   ldy     SAVE_Y
+LCD26:   ldy     SLOT_OFFSET
          lda     #$ff
          sta     UNK_c820
          lda     XFER_MODE
@@ -254,7 +259,7 @@ WAIT_FOR_STATUS:
 
 ERROR_IOERROR:
          lda     #$27
-         ldy     SAVE_Y
+         ldy     SLOT_OFFSET
          jmp     CALL_FN_60_RET
 
 SET_TIMEOUT_03:
@@ -527,7 +532,7 @@ LCF4A:   lda     CALL_TYPE
          iny
          lda     (TMP_PTR_L),y
          sta     BUF_PTR_H
-@LCF61:  ldy     SAVE_Y
+@LCF61:  ldy     SLOT_OFFSET
          rts
 
 @LCF65:  clc

@@ -132,7 +132,7 @@
 },
 
 "Comments":{
-"121":"CALL_FN_7C",
+"121":"CALL_FN_7C - add PART_START to UNK_c827",
 "225":"CALL_FN_9C",
 "330":"handle smarport control codes $16-$1e",
 "351":"subtract $16 from the control number",
@@ -622,6 +622,13 @@
 "Value":52611,
 "Source":"User",
 "Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"15":{
+"Label":"FN_0B_std_call",
+"Value":52239,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
