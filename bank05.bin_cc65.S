@@ -1,15 +1,18 @@
 ; Target assembler: cc65 v2.18.0 [--target none -C bank05.bin_cc65.cfg]
 ; 6502bench SourceGen v1.1.0
          .setcpu "65816"
+SDAT_ENTRY_SIZE = $11
+SDAT_SIGNATURE = $86
+
 TMP_PTR0 =       $19        ; temporary ZP pointer 
-TMP_PTR1 =       $1b        ; temporary ZP pointer 
+JMP_PTR  =       $1b        ; Jmp target ZP pointer 
 PD_PAR_UNIT =    $43        ;PRODOS input parameter UNIT number
 PD_PAR_BLK_LO =  $46        ;PRODOS input parameter Block lo
 PD_PAR_BLK_HI =  $47        ;PRODOS input parameter Block hi
-TMP_PTR_L =      $f6        ; temporary ZP long pointer
-TMP_PTR_H =      $f7
-TMP_PTR_VH =     $f8
-TMP_PTR_XH =     $f9
+MEM_PTR_L =      $f6        ; temporary ZP long pointer
+MEM_PTR_H =      $f7
+MEM_PTR_VH =     $f8
+MEM_PTR_XH =     $f9
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
 BUF_PTR_H =      $fb
 BUF_PTR_VH =     $fc
@@ -28,26 +31,26 @@ SEL_TARGET =     $c806      ; SCSI (BUS?) ID of selected target
 SAVE_CYAREG =    $c808      ; saved value of CYAREG
 INIT_FLAG =      $c809      ; card initialized flag (init=$77)
 RET_CODE =       $c80b      ; 
-BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
+BSW_TEMP =       $c80c      ; TEMP in BANKSWITCH
 SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 BLKSIZE_H2 =     $c822      ; copy of byte1 of block size
 PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
 UNK_c827 =       $c827      ; 3-byte unknown in reverse endian as the above
-SDAT_BASE =      $c831      ;start of SDAT table (extends to $C8A7)
-CUR_DEV_ID =     $c8c6      ;current DEV ID being scanned
+SDAT     =       $c831      ;start of SDAT table (extends to $C8A7)
+SCAN_ID  =       $c8c6      ;current DEV ID being scanned
 TEMP_PTR_c8ca =  $c8ca      ; TEMP_BUF_PTR?
-UNK_c8cc =       $c8cc      ;unknown
+INTERLEAVE =     $c8cc      ; interleave used for FORMAT_UNIT (set to 5 by default, can be changed with PD_SET_INTERLEAVE)
 PARTMAP_OK =     $c8cf      ; $00 if failed to read Partition Map. non-zero if PM detected
 PTR_c8d7 =       $c8d7      ; temp pointer storage (?)
 PTR_c8df =       $c8df      ; unknown
 BLK_c8e1 =       $c8e1      ; unknown
 BOOT_SEQ =       $c8e3      ; $55 if in boot process
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
-UNK_c8f4 =       $c8f4      ;unknown
+FOUND_DEVS =     $c8f4      ; number for found devices during scan in bank05
 BLKSIZE_H =      $c92f      ;byte1 of block size - reverse endian
 BLKSIZE_L =      $c930      ;byte0 of block size - reverse endian
-DIBTAB_BASE =    $c931      ;start of DIBTAB (extends to $C9ED)
+DIBTAB   =       $c931      ;start of DIBTAB (extends to $C9ED)
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
 PD_UNIT  =       $c9fd      ; PRODOS UNIT from the parameter if prodos call
 
@@ -126,7 +129,7 @@ RESTORE_BUF_PTR_c8df:
          sta     BUF_PTR_H
          rts
 
-FN_95:   inc     UNK_c8f4   ;FILL new SDAT entry
+FN_95:   inc     FOUND_DEVS ;FILL new SDAT entry
          lda     BUF_PTR_L
          sta     PTR_c8d7
          lda     BUF_PTR_H
@@ -138,7 +141,7 @@ FN_95:   inc     UNK_c8f4   ;FILL new SDAT entry
          lda     #$56
          jsr     CALL_FN_X5 ;CALL_FN_56 - WAIT TEST_UNIT_READY
          lda     #$37
-         jsr     CALL_FN_X5 ;CALL_FN_37
+         jsr     CALL_FN_X5 ;CALL_FN_37 - CALL FN_4D (INQUIRY), fill SDAT, then set_block (FN_59 or FN_69)
          lda     PARTMAP_OK
          bne     @LCCDD
          lda     #$57
@@ -147,23 +150,23 @@ FN_95:   inc     UNK_c8f4   ;FILL new SDAT entry
          sta     BUF_PTR_L
          lda     TMP_PTR0+1
          sta     BUF_PTR_H  ;BUF_PTR=TMP_PTR0
-         lda     #$86
+         lda     #SDAT_SIGNATURE
          ldx     #$00
          sta     (BUF_PTR_L,x) ;write SDAT signature
          inc     BUF_PTR_L
          lda     BUF_PTR_L
-         sta     TMP_PTR_L
+         sta     MEM_PTR_L
          lda     BUF_PTR_H
-         sta     TMP_PTR_H
+         sta     MEM_PTR_H
          lda     #$00
-         sta     TMP_PTR_VH
-         sta     TMP_PTR_XH ;TMP_PTR=++BUF_PTR;
+         sta     MEM_PTR_VH
+         sta     MEM_PTR_XH ;TMP_PTR=++BUF_PTR;
          ldy     #$02
-         lda     TMP_PTR_L
-         sta     (TMP_PTR_L),y
+         lda     MEM_PTR_L
+         sta     (MEM_PTR_L),y
          iny
-         lda     TMP_PTR_H
-         sta     (TMP_PTR_L),y
+         lda     MEM_PTR_H
+         sta     (MEM_PTR_L),y
          ldy     SLOT_OFFSET
          jsr     SAVE_BUF_PTR_c8ca
          lda     #$c3
@@ -206,48 +209,49 @@ FN_05:   lda     #$0c       ;init card
          sta     $c806      ;put RTS to additional BANK 01 entry points
          lda     #$05
          sta     REG_IO_BANK_SEL,y ;back to RAM bank 0
-         lda     #$05
-         sta     UNK_c8cc
+         lda     #$05       ;default interleave
+         sta     INTERLEAVE
          lda     INIT_FLAG  ;check if already initialized
          cmp     #$77
          beq     init_done  ;branch if already init
          jsr     Zero_tables ;Fill SDAT and DIBTAB with zeros
 FN_A5:   jsr     CALL_FN_8C ;detect IIgs
          lda     #$00
-         sta     UNK_c8f4
+         sta     FOUND_DEVS ;TMP_IDX=0
          sta     DEV_IDX
          lda     #$06       ;scan the bus starting with dev 6
-         sta     CUR_DEV_ID
+         sta     SCAN_ID
 @FN_05_next_device:
          jsr     ID_TO_SEL_TARGET ;convert ID to bus ID (1<<id)
          lda     #$00
          sta     RET_CODE
          lda     #$46
-         jsr     CALL_FN_X5 ;CALL_FN_46 - clear SCSI BUS and TEST_UNIT READY
+         jsr     CALL_FN_X5 ;CALL_FN_46 - BUS_FREE and TEST_UNIT READY (twice if needed)
          lda     RET_CODE
          bne     @inc_dev_id ;branch if no device found
-         jsr     FN_95
+         jsr     FN_95      ;fill new SDAT - sends TEST_UNIT_READY, READ_CAPACITY
 @inc_dev_id:
-         dec     CUR_DEV_ID
-         lda     CUR_DEV_ID
+         dec     SCAN_ID
+         lda     SCAN_ID
          bpl     @FN_05_next_device ;loop through all the IDs
-         lda     UNK_c8f4
-         beq     LCD64
+         lda     FOUND_DEVS
+         beq     no_devs_found ;branch if FOUND_DEVS==0
          lda     #$77
          sta     INIT_FLAG
-RET_00:  lda     #$00
+ret_00:  lda     #$00
          sta     RET_CODE
          sta     REG_IO_5380_RST,y
 init_done:
          rts
 
-LCD64:   lda     BOOT_SEQ
+no_devs_found:
+         lda     BOOT_SEQ
          cmp     #$55
-         beq     RET_00     ;branch if in boot sequence
+         beq     ret_00     ;branch if in boot sequence
          lda     #$27
          jsr     CALL_FN_60_RET ;ERROR_IOERROR - bug should this be a jmp?
 ID_TO_SEL_TARGET:
-         ldx     CUR_DEV_ID
+         ldx     SCAN_ID
          lda     ID_TO_BUS_TABLE,x
          sta     SEL_TARGET
          rts
@@ -265,8 +269,8 @@ Zero_tables:
          ldx     #$76       ;Fill SDAT and DIBTAB with zeros
          lda     #$00
 @ZT_loop1:
-         sta     SDAT_BASE,x
-         sta     DIBTAB_BASE,x
+         sta     SDAT,x
+         sta     DIBTAB,x
          dex
          bpl     @ZT_loop1
          ldx     #$6b
@@ -278,12 +282,12 @@ Zero_tables:
          rts
 
 FN_35:   ldx     DEV_IDX    ;get SDAT info (include partition offset)
-         lda     #$31       ;find the SDAT entry for DEV_IDX
+         lda     #<SDAT     ;find the SDAT entry for DEV_IDX
 @dev_idx_loop:
          dex
          bmi     @dev_idx_match
          clc
-         adc     #$11
+         adc     #SDAT_ENTRY_SIZE
          jmp     @dev_idx_loop
 
 @dev_idx_match:
@@ -365,9 +369,9 @@ FN_85:   jsr     GET_UNK_c827_FROM_PTR0_2 ;UNK_c827=BLK_COUNT from SDAT entry po
 
 SDAT_LOOKUP:
          jsr     COPY_PD_UNIT
-         lda     #$31
+         lda     #<SDAT
          sta     TMP_PTR0
-         lda     #$c8
+         lda     #>SDAT
          sta     TMP_PTR0+1 ;TMP_PTR0=SDAT_BASE
          lda     #$01
          sta     TCOUNT_B0  ;TCOUNT_B0=1
@@ -384,7 +388,7 @@ SDAT_LOOKUP:
 @SDAT_next_entry:
          lda     TMP_PTR0
          clc
-         adc     #$11
+         adc     #SDAT_ENTRY_SIZE
          sta     TMP_PTR0
          dex
          bpl     @SDAT_loop
@@ -619,9 +623,9 @@ FN_TABLE:
          .byte   $ea
 
 BANKSWITCH:
-         stx     BSW_SAVE_X
+         stx     BSW_TEMP
          tax
-         lda     BSW_SAVE_X
+         lda     BSW_TEMP
          pha
          txa
          pha
@@ -635,10 +639,10 @@ BANKSWITCH:
          ror     A
          tax
          lda     FN_TABLE,x
-         sta     TMP_PTR1
+         sta     JMP_PTR
          inx
          lda     FN_TABLE,x
-         sta     TMP_PTR1+1
+         sta     JMP_PTR+1
          jsr     @DO_CALL_FN
          pla
          and     #$0f
@@ -647,7 +651,7 @@ BANKSWITCH:
          rts
 
 @DO_CALL_FN:
-         jmp     (TMP_PTR1)
+         jmp     (JMP_PTR)
 
          .byte   $02
          .byte   $31

@@ -5,6 +5,7 @@ SCSI_CMD_TEST_UNIT_READY = $00
 SCSI_CMD_REQUEST_SENSE = $03
 SCSI_CMD_FORMAT_UNIT = $04
 SCSI_CMD_REASSIGN_BLOCKS = $07
+SDAT_ENTRY_SIZE = $11
 SCSI_CMD_INQUIRY = $12
 SCSI_CMD_RESERVE = $16
 SCSI_CMD_RELEASE = $17
@@ -43,7 +44,7 @@ SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 CMD_STATUS =     $c81e      ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 UNK_c820 =       $c820      ; 0xff if PIO ?
-SDAT_BASE =      $c831      ;start of SDAT table (extends to $C8A7)
+SDAT     =       $c831      ;start of SDAT table (extends to $C8A7)
 UNK_c8cc =       $c8cc      ;unknown
 SAVE_SP_UNIT =   $c8e8      ; saved Smartport UNIT number
 TEMP_16  =       $c8ee      ;generic 16-bit temp
@@ -540,9 +541,9 @@ FN_F3:   jsr     ZERO_CMD_BUF6 ;Send REQUEST SENSE command
          .byte   $60
 
 FN_73:   ldx     #$00       ;SAVE_TIMEOUT_AND CLEAR SDAT
-         lda     #$c8
+         lda     #>SDAT
          sta     TMP_PTR0+1
-         lda     #$31
+         lda     #<SDAT
          sta     TMP_PTR0   ;TMP_PTR0=$c831 (SDAT_BASE)
 @next_sdat:
          ldy     #$0e       ;device timeout offset
@@ -551,7 +552,7 @@ FN_73:   ldx     #$00       ;SAVE_TIMEOUT_AND CLEAR SDAT
          inx
          lda     TMP_PTR0
          clc
-         adc     #$11
+         adc     #SDAT_ENTRY_SIZE
          sta     TMP_PTR0   ;next SDAT
          ldy     #$00
          lda     (TMP_PTR0),y
@@ -562,7 +563,7 @@ FN_73:   ldx     #$00       ;SAVE_TIMEOUT_AND CLEAR SDAT
          lda     #$00
          ldx     #$76
 @sdat_clr_loop:
-         sta     SDAT_BASE,x ;clear all SDAT table (???)
+         sta     SDAT,x     ;clear all SDAT table (???)
          dex
          bpl     @sdat_clr_loop
 RET_LOAD_Y:
@@ -570,9 +571,9 @@ RET_LOAD_Y:
          rts
 
 FN_83:   ldx     #$00       ;restore TIMEOUT
-         lda     #$c8
+         lda     #>SDAT
          sta     TMP_PTR0+1
-         lda     #$31
+         lda     #<SDAT
          sta     TMP_PTR0   ;TMP_PTR0=$c831 (SDAT_BASE)
 @LCF77:  ldy     #$0e       ;device timeout offset
          lda     buf_c8f5,x
@@ -580,7 +581,7 @@ FN_83:   ldx     #$00       ;restore TIMEOUT
          inx
          lda     TMP_PTR0
          clc
-         adc     #$11
+         adc     #SDAT_ENTRY_SIZE
          sta     TMP_PTR0
          lda     buf_c8f5,x
          cmp     #$ff

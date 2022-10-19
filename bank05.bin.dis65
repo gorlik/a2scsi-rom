@@ -31,7 +31,7 @@
 "ExtensionScriptFileIdentifiers":["RT:Apple/ProDOS8.cs",
 "RT:Apple/VisHiRes.cs"],
 "ProjectSyms":{
-"CUR_DEV_ID":{
+"SCAN_ID":{
 "DataDescriptor":{
 "Length":1,
 "Format":"NumericLE",
@@ -42,7 +42,7 @@
 "HasWidth":false,
 "Direction":"ReadWrite",
 "MultiMask":null,
-"Label":"CUR_DEV_ID",
+"Label":"SCAN_ID",
 "Value":51398,
 "Source":"Project",
 "Type":"ExternalAddr",
@@ -117,7 +117,7 @@
 "105":"SAVE BUF_PTR to PTR_c8d7",
 "115":"SAVE BLK number to BLK_c8e1",
 "120":"CALL_FN_56 - WAIT TEST_UNIT_READY",
-"125":"CALL_FN_37",
+"125":"CALL_FN_37 - CALL FN_4D (INQUIRY), fill SDAT, then set_block (FN_59 or FN_69)",
 "135":"CALL_FN_57 - return first empty SDAT entry in TMP_PTR0",
 "144":"BUF_PTR=TMP_PTR0",
 "150":"write SDAT signature",
@@ -134,15 +134,19 @@
 "266":"put rts in Patch1Call entry point",
 "269":"put RTS to additional BANK 01 entry points",
 "274":"back to RAM bank 0",
+"277":"default interleave",
 "282":"check if already initialized",
 "287":"branch if already init",
 "289":"Fill SDAT and DIBTAB with zeros",
 "292":"detect IIgs",
+"297":"TMP_IDX=0",
 "303":"scan the bus starting with dev 6",
 "308":"convert ID to bus ID (1\u003c\u003cid)",
-"318":"CALL_FN_46 - clear SCSI BUS and TEST_UNIT READY",
+"318":"CALL_FN_46 - BUS_FREE and TEST_UNIT READY (twice if needed)",
 "324":"branch if no device found",
+"326":"fill new SDAT - sends TEST_UNIT_READY, READ_CAPACITY",
 "335":"loop through all the IDs",
+"340":"branch if FOUND_DEVS==0",
 "361":"branch if in boot sequence",
 "365":"ERROR_IOERROR - bug should this be a jmp?",
 "378":"table of ID to bus ID value",
@@ -328,7 +332,7 @@
 "Label":"init_done",
 "Value":52579,
 "Source":"User",
-"Type":"LocalOrGlobalAddr",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"},
 
 "385":{
@@ -633,10 +637,10 @@
 "LabelAnno":"None"},
 
 "347":{
-"Label":"RET_00",
+"Label":"ret_00",
 "Value":52571,
 "Source":"User",
-"Type":"GlobalAddr",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"},
 
 "329":{
@@ -693,6 +697,13 @@
 "Value":53140,
 "Source":"User",
 "Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"356":{
+"Label":"no_devs_found",
+"Value":52580,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -728,6 +739,14 @@
 "Label":"TEMP_c8ca",
 "Part":"Low"}},
 
+"146":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT_SIGNATURE",
+"Part":"Low"}},
+
 "263":{
 "Length":3,
 "Format":"NumericLE",
@@ -746,6 +765,22 @@
 "SubFormat":"Hex",
 "SymbolRef":null},
 
+"412":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT",
+"Part":"Low"}},
+
+"418":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT_ENTRY_SIZE",
+"Part":"Low"}},
+
 "427":{
 "Length":2,
 "Format":"NumericLE",
@@ -754,12 +789,36 @@
 "Label":"TMP_PTR0",
 "Part":"Low"}},
 
+"564":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT",
+"Part":"Low"}},
+
+"568":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT",
+"Part":"High"}},
+
 "570":{
 "Length":2,
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
 "Label":"TMP_PTR0",
+"Part":"Low"}},
+
+"601":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT_ENTRY_SIZE",
 "Part":"Low"}},
 
 "789":{

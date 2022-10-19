@@ -1,6 +1,7 @@
 ; Target assembler: cc65 v2.18.0 [--target none -C bank10.bin_cc65.cfg]
 ; 6502bench SourceGen v1.8.3
          .setcpu "65816"
+DIBTAB_ENTRY_SIZE = $1b
 P8E_IO_ERR =     $27        ;I/O error
 
 TMP_PTR0 =       $19        ; temporary ZP pointer 
@@ -37,6 +38,7 @@ TEMP_c915 =      $c915      ;unknown
 TEMP_VH  =       $c921      ;unknown
 TEMP_XH  =       $c922      ;unknown
 UNK_LEN  =       $c92d      ; unknown lenght - could be reverse endian ?????
+DIBTAB   =       $c931      ;start of DIBTAB (extends to $C9ED)
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 
          .org    $cc00
@@ -118,17 +120,17 @@ ERROR_IOERROR:
 
 DIBTAB_LOOKUP:
          ldx     DEV_IDX    ;TMP_PTR0=&DIBTAB[DEV_IDX]
-         lda     #$31       ;offset of DIBTAB from $C900
+         lda     #<DIBTAB   ;offset of DIBTAB from $C900
 next_entry:
          dex
          bmi     entry_found
          clc
-         adc     #$1b       ;add 27 (size of DIBTAB entry)
+         adc     #DIBTAB_ENTRY_SIZE ;add 27 (size of DIBTAB entry)
          jmp     next_entry
 
 entry_found:
          sta     TMP_PTR0
-         lda     #$c9
+         lda     #>DIBTAB
          sta     TMP_PTR0+1 ;19,1a contain $c9xx (address of selected DIBTAB entry)
          ldy     #$00
          lda     (TMP_PTR0),y

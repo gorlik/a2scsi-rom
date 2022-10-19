@@ -196,7 +196,8 @@
 "848":"next SDAT",
 "856":"branch if sdat valid - could be a bug check SDAT INIT",
 "860":"end the buffer with $ff",
-"867":"clear all SDAT table (???)",
+"865":"SDAT_ENTRY_SIZE*7-1",
+"871":"clear all SDAT table",
 "877":"restore TIMEOUT",
 "885":"TMP_PTR0=$c831 (SDAT_BASE)",
 "887":"device timeout offset",
@@ -224,7 +225,7 @@
 "LabelAnno":"None"},
 
 "592":{
-"Label":"FN_03_DoStatus",
+"Label":"FN_03",
 "Value":52816,
 "Source":"User",
 "Type":"GlobalAddr",
@@ -420,7 +421,7 @@
 "LabelAnno":"None"},
 
 "444":{
-"Label":"CALL_00_Do_Phases",
+"Label":"CALL_FN_00",
 "Value":52668,
 "Source":"User",
 "Type":"GlobalAddr",
@@ -821,12 +822,60 @@
 "Label":"SCSI_CMD_REQUEST_SENSE",
 "Part":"Low"}},
 
+"827":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT",
+"Part":"High"}},
+
+"831":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT",
+"Part":"Low"}},
+
+"846":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT_ENTRY_SIZE",
+"Part":"Low"}},
+
+"879":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT",
+"Part":"High"}},
+
+"883":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT",
+"Part":"Low"}},
+
+"898":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT_ENTRY_SIZE",
+"Part":"Low"}},
+
 "939":{
 "Length":2,
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"FN_03_DoStatus",
+"Label":"FN_03",
 "Part":"Low"}},
 
 "941":{

@@ -1,14 +1,15 @@
 ; Target assembler: cc65 v2.18.0 [--target none -C bank12.bin_cc65.cfg]
 ; 6502bench SourceGen v1.8.3
          .setcpu "65816"
+DIBTAB_ENTRY_SIZE = $1b
 P8E_IO_ERR =     $27        ;I/O error
 
 TMP_PTR0 =       $19        ; temporary ZP pointer 
-TMP_PTR1 =       $1b        ; temporary ZP pointer 
+JMP_PTR  =       $1b        ; Jmp target ZP pointer 
 PD_PAR_CMD =     $42        ;PRODOS input parameter COMMAND number
 PD_PAR_BLK_LO =  $46        ;PRODOS input parameter Block lo
 PD_PAR_BLK_HI =  $47        ;PRODOS input parameter Block hi
-TMP_PTR_L =      $f6        ; temporary ZP long pointer
+MEM_PTR_L =      $f6        ; temporary ZP long pointer
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
 BUF_PTR_H =      $fb
 BUF_PTR_VH =     $fc
@@ -32,7 +33,7 @@ SEL_TARGET =     $c806      ; SCSI (BUS?) ID of selected target
 SAVE_CYAREG =    $c808      ; saved value of CYAREG
 INIT_FLAG =      $c809      ; card initialized flag (init=$77)
 RET_CODE =       $c80b      ; 
-BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
+BSW_TEMP =       $c80c      ; TEMP in BANKSWITCH
 SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
 SAVE_SP_CMD =    $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
@@ -42,7 +43,7 @@ BLK_c8c7 =       $c8c7      ; saved PRODOS BLOCK from input parameters
 LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
 BOOT_SEQ =       $c8e3      ; $55 if in boot process
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
-DIBTAB_BASE =    $c931      ;start of DIBTAB (extends to $C9ED)
+DIBTAB   =       $c931      ;start of DIBTAB (extends to $C9ED)
 TMP_c9f1 =       $c9f1      ; 2-byte temp
 DEV_STATUS =     $c9f3      ; seems a copy of device status from DIBTAB
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
@@ -55,18 +56,18 @@ FN_0C:   lda     SEL_TARGET
          lda     DEV_IDX
          sta     $c92a
          lda     #$73
-         jsr     CALL_FN_XC ;CALL_FN_73
+         jsr     CALL_FN_XC ;CALL_FN_73 - save timeouts and clr SDAT table
          lda     #$a5
          sta     INIT_FLAG
-         jsr     CALL_FN_XC ;CALL_FN_A5
+         jsr     CALL_FN_XC ;CALL_FN_A5 - second part of init
          lda     $c929
          sta     SEL_TARGET
          lda     $c92a
          sta     DEV_IDX
-         jsr     FN_9C
+         jsr     FN_9C      ;call FN_A4, FN_85 - TMP_PTR0=SDAT[DEV_IDX], SET_BLK_COUNT=SDAT[DEV_IDX].blk_count
          lda     #$83
-         jsr     CALL_FN_XC ;CALL_FN_83
-         jmp     LCCE3
+         jsr     CALL_FN_XC ;CALL_FN_83 - restore timeouts
+         jmp     CLR_DIBTAB
 
 CALL_FN_XC:
          ldx     #$0c
@@ -114,15 +115,15 @@ FN_1C:   lda     CALL_TYPE  ;add partition start to BLK number
          ldy     #$04
 @FN_1C_ext_2e:
          clc
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          adc     PART_START+2
          sta     LBA_c8db
          iny
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          adc     PART_START+1
          sta     LBA_c8db+1
          iny
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          adc     PART_START
          sta     LBA_c8db+2
          jmp     @FN_1C_check_err
@@ -131,15 +132,15 @@ FN_1C:   lda     CALL_TYPE  ;add partition start to BLK number
          ldy     #$06
          clc
          xce
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          adc     PART_START+2
          sta     LBA_c8db
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          adc     PART_START+1
          sta     LBA_c8db+1
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          adc     PART_START
          sta     LBA_c8db+2
          sec
@@ -165,22 +166,26 @@ FN_2C_retry:
          .byte   $c8
          .byte   $60
 
-LCCE3:   ldx     DEV_IDX
-         lda     #$31       ;look through DIBTAB
-@LCCE8:  dex
-         bmi     @LCCF0
+CLR_DIBTAB:
+         ldx     DEV_IDX
+         lda     #<DIBTAB   ;look through DIBTAB
+@next_entry:
+         dex
+         bmi     @entry_found
          clc
-         adc     #$1b
-         bne     @LCCE8
-@LCCF0:  sta     TMP_PTR0
-         lda     #$c9
+         adc     #DIBTAB_ENTRY_SIZE
+         bne     @next_entry
+@entry_found:
+         sta     TMP_PTR0
+         lda     #>DIBTAB
          sta     TMP_PTR0+1
          ldx     #$a4
          lda     #$00
-@LCCFA:  sta     DIBTAB_BASE,x
+@clr_loop:
+         sta     DIBTAB,x
          dex
-         bne     @LCCFA
-         sta     DIBTAB_BASE
+         bne     @clr_loop
+         sta     DIBTAB
          rts
 
 FN_9C:   lda     #$a4
@@ -559,9 +564,9 @@ FN_TABLE:
          .byte   $ea
          .byte   $ea
 BANKSWITCH:
-         stx     BSW_SAVE_X
+         stx     BSW_TEMP
          tax
-         lda     BSW_SAVE_X
+         lda     BSW_TEMP
          pha
          txa
          pha
@@ -575,10 +580,10 @@ BANKSWITCH:
          ror     A
          tax
          lda     FN_TABLE,x
-         sta     TMP_PTR1
+         sta     JMP_PTR
          inx
          lda     FN_TABLE,x
-         sta     TMP_PTR1+1
+         sta     $1c
          jsr     DO_CALL_FN
          pla
          and     #$0f
@@ -587,7 +592,7 @@ BANKSWITCH:
          rts
 
 DO_CALL_FN:
-         jmp     (TMP_PTR1)
+         jmp     (JMP_PTR)
 
          .byte   $00
          .byte   $00

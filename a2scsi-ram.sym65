@@ -1,6 +1,11 @@
+SDAT_ENTRY_SIZE   = $11
+SDAT_SIGNATURE    = $86
+DIBTAB_ENTRY_SIZE = $1b
+DIBTAB_SIGNATURE  = $86
+
 ; ZP locations *************************************************
 TMP_PTR0      @ $19 2   ; temporary ZP pointer 
-TMP_PTR1      @ $1b 2   ; temporary ZP pointer 
+JMP_PTR       @ $1b 2   ; Jmp target ZP pointer 
 TMP_PTR2      @ $1d 2   ; temporary ZP pointer 
 
 PD_PAR_CMD    @ $42     ;PRODOS input parameter COMMAND number
@@ -10,10 +15,10 @@ PD_PAR_BUF_HI @ $45     ;PRODOS input parameter Buffer hi address
 PD_PAR_BLK_LO @ $46     ;PRODOS input parameter Block lo
 PD_PAR_BLK_HI @ $47     ;PRODOS input parameter Block hi
 
-TMP_PTR_L     @ $F6     ; temporary ZP long pointer
-TMP_PTR_H     @ $F7     ;
-TMP_PTR_VH    @ $F8     ;
-TMP_PTR_XH    @ $F9     ;
+MEM_PTR_L     @ $F6     ; temporary ZP long pointer
+MEM_PTR_H     @ $F7     ;
+MEM_PTR_VH    @ $F8     ;
+MEM_PTR_XH    @ $F9     ;
 
 BUF_PTR_L     @ $FA     ; ZP long BUF pointer
 BUF_PTR_H     @ $FB     ;
@@ -35,7 +40,7 @@ SAVE_CYAREG       @ $C808   ; saved value of CYAREG
 INIT_FLAG         @ $C809   ; card initialized flag (init=$77)
 TMP_c80a          @ $C80A   ; unknown
 RET_CODE          @ $C80B   ; 
-BSW_SAVE_X        @ $C80C   ; save X in BANKSWITCH
+BSW_TEMP          @ $C80C   ; TEMP in BANKSWITCH
 ; SCSI CDB buffer
 SCSI_CMD_LEN      @ $C80D   ; SCSI COMMAND lenght
 SCSI_CDB_CMD      @ $C80E   ; SCSI CDB buffer
@@ -72,10 +77,10 @@ NEW_BLK_SIZE      @ $C82A 2 ; desired block size in SetBlock
 ; SCSI Device Access Table 
 ; 7 entries, 17 ($11) bytes per entry
 ; 119 total size
-SDAT_BASE        @ $C831   ;start of SDAT table (extends to $C8A7)
+SDAT              @ $C831   ;start of SDAT table (extends to $C8A7)
 
-SAVE_ZP_F6       @ $C8A8   ;saved zero page locations $f6-$fd
-SAVE_ZP_15       @ $C8B0   ;saved zero page locations $15-$1e
+SAVE_ZP_F6        @ $C8A8   ;saved zero page locations $f6-$fd
+SAVE_ZP_15        @ $C8B0   ;saved zero page locations $15-$1e
 
 ; c8ba
 ; c8bb
@@ -94,7 +99,7 @@ PD_PAR_BLK_HI_CPY @ $C8C1     ;PRODOS input parameter Block hi
 BLK_c8c7          @ $C8C7 2 ; saved PRODOS BLOCK from input parameters
 RD_ERRORS         @ $C8C9   ; used only in blk 6 to count the number of read errors
 TEMP_PTR_c8ca     @ $C8CA 2 ; TEMP_BUF_PTR?
-UNK_c8cc          @ $C8CC   ;unknown
+INTERLEAVE        @ $C8CC   ; interleave used for FORMAT_UNIT (set to 5 by default, can be changed with PD_SET_INTERLEAVE)
 ; c8cd
 NUM_PART          @ $C8CE   ; number of partition on the device - only used in bank 07
 PARTMAP_OK        @ $C8CF   ; $00 if failed to read Partition Map. non-zero if PM detected
@@ -125,7 +130,7 @@ TEMP_16           @ $C8EE 2 ;generic 16-bit temp
 ; c8f1
 ; c8f2
 IS_IIgs           @ $C8F3   ;0x01 if IIgs
-UNK_c8f4          @ $C8F4   ;unknown
+FOUND_DEVS        @ $C8F4   ; number for found devices during scan in bank05
 buf_c8f5          @ $C8F5   ; seems to be some sort of 12 byte structure ???
 ; c8f6
 ; ...
@@ -152,7 +157,7 @@ BLKSIZE_L         @ $C930   ;byte0 of block size - reverse endian
 ; SCSI Device Information Block Table 
 ; 7 entries, 27 ($1B) bytes per entry
 ; 189 total size
-DIBTAB_BASE   @ $C931   ;start of DIBTAB (extends to $C9ED)
+DIBTAB            @ $C931   ;start of DIBTAB (extends to $C9ED)
 
 LDIO_SIZE         @ $C9EE 2 ;
 ; c9f0

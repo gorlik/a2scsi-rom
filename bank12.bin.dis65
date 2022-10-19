@@ -92,9 +92,10 @@
 },
 
 "Comments":{
-"14":"CALL_FN_73",
-"22":"CALL_FN_A5",
-"42":"CALL_FN_83",
+"14":"CALL_FN_73 - save timeouts and clr SDAT table",
+"22":"CALL_FN_A5 - second part of init",
+"37":"call FN_A4, FN_85 - TMP_PTR0=SDAT[DEV_IDX], SET_BLK_COUNT=SDAT[DEV_IDX].blk_count",
+"42":"CALL_FN_83 - restore timeouts",
 "53":"CALL_FN_XC",
 "57":"add partition start to BLK number",
 "194":"send random data to SCSI until not busy ???",
@@ -507,6 +508,34 @@
 "Value":53113,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"227":{
+"Label":"CLR_DIBTAB",
+"Value":52451,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"250":{
+"Label":"clr_loop",
+"Value":52474,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"240":{
+"Label":"entry_found",
+"Value":52464,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"232":{
+"Label":"next_entry",
+"Value":52456,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -557,6 +586,30 @@
 "SymbolRef":{
 "Label":"PART_START",
 "Part":"Low"}},
+
+"230":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"DIBTAB",
+"Part":"Low"}},
+
+"236":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"DIBTAB_ENTRY_SIZE",
+"Part":"Low"}},
+
+"242":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"DIBTAB",
+"Part":"High"}},
 
 "286":{
 "Length":3,

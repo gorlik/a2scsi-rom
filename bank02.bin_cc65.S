@@ -39,6 +39,7 @@ SAVE_SP_CMD =    $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 SAVE_ENTRY_SP =  $c821      ; stack pointer saved at the PD/SM entry point
 PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
+SDAT     =       $c831      ;start of SDAT table (extends to $C8A7)
 LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
 RX_LEN_LO =      $c8e4      ; bytes read if call successfull
 RX_LEN_HI =      $c8e5      ; bytes read if call successfull
@@ -223,9 +224,9 @@ LDA_TMP_PTR_NATIVE_1:
          jmp     got_dev_idx
 
 SET_PTR0_SDAT_BASE:
-         lda     #$31
+         lda     #<SDAT
          sta     TMP_PTR0
-         lda     #$c8
+         lda     #>SDAT
          sta     TMP_PTR0+1 ;TMP_PTR0=SDAT_BASE
          rts
 

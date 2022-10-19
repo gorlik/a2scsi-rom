@@ -936,6 +936,22 @@
 "Label":"TMP_PTR2",
 "Part":"Low"}},
 
+"328":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT",
+"Part":"Low"}},
+
+"332":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT",
+"Part":"High"}},
+
 "371":{
 "Length":1,
 "Format":"NumericLE",

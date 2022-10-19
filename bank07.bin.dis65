@@ -110,7 +110,8 @@
 "452":"Read PDM",
 "480":"read total number of partitions on the device",
 "482":"read and parse NUM_PART PDM",
-"488":"skip parsing if partition not recognized ???",
+"485":"check partition name @ BUF_PTR+30",
+"488":"skip creating SDAT entry if partition is not recognized",
 "504":"add 1 to block",
 "509":"read next PDM",
 "522":"add partition to SDAT",
@@ -124,6 +125,7 @@
 "603":"fill the block count",
 "618":"fill partition start",
 "626":"fill SDAT entry software ID",
+"629":"default timeout",
 "631":"fill SDAT entry timeout",
 "634":"Find empty SDAT (TMP_PTR0 points to the first free entry)",
 "640":"TMP_PTR0=SDAT_BASE",
@@ -561,6 +563,54 @@
 "SubFormat":"Symbol",
 "SymbolRef":{
 "Label":"SCSI_CMD_WRITE6",
+"Part":"Low"}},
+
+"530":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT_SIGNATURE",
+"Part":"Low"}},
+
+"634":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT",
+"Part":"Low"}},
+
+"638":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT",
+"Part":"High"}},
+
+"646":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT_SIGNATURE",
+"Part":"Low"}},
+
+"655":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT_ENTRY_SIZE",
+"Part":"Low"}},
+
+"686":{
+"Length":2,
+"Format":"NumericLE",
+"SubFormat":"Symbol",
+"SymbolRef":{
+"Label":"SDAT_SIGNATURE",
 "Part":"Low"}},
 
 "867":{

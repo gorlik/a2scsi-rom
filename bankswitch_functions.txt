@@ -1,10 +1,10 @@
 BANK 00
-FN_00 Do Phases (TRM) (bus free, arbitrate, select, send cmd)
-FN_10 Data Xin (TRM) - description does not match TRM (looks more like a EXECUTE SCSI DATA read CMD) 
-FN_20 Execute SCSI DATA Send CMD (DoPhases, DataXout, get STATUS_MSG) 
-FN_30 Get Status and Message (external Timeout) (likely DoStatus from mistake in TRM $03->$30)
-FN_40 Data Read and get status (Xin without DoPhases)
-FN_50 Data Write and get status(FN_20 without DoPhases)
+FN_00 DoPhases (TRM) (bus free, arbitrate, select, send cmd)
+FN_10 EXEC SCSI DATA_IN (DoPhases, DataXin, get STATUS_MSG) 
+FN_20 EXEC SCSI DATA_OUT (DoPhases, DataXout, get STATUS_MSG) 
+FN_30 DoStatus (ext timeout) Get Status and Message
+FN_40 DATA_IN and DoStatus (FN_10 without DoPhases)
+FN_50 DATA_OUT and DoStatus (FN_20 without DoPhases)
 FN_60 Smartport return fail (not sure if this is also used for prodos)
 FN_70 jump to basic entry point ($e000)
 FN_80 next boot device (jmp to MON_SLOOP)
@@ -13,8 +13,8 @@ FN_A0 Get Status and Message with setting Timeout
 FN_B0 Do phases without BUS_FREE
 
 BANK 01
-FN_01 read data to BUF_PTR - called from FN_10 (Data Xin) (likely Xin itself mistake in TRM $10->$01)
-FN_11 Data Xout (TRM) from BUF_PTR - description matches TRM but is inconsistent with Xin
+FN_01 Data Xin - read data to BUF_PTR
+FN_11 Data Xout - write data from BUF_PTR 
 FN_21 copy LBA and other UNK to c8f5, TMP_PTR=$c8f5, then CALL DoStatus (FN_03) 
 FN_31 read status and message - save status in CMD_STATUS
 FN_41 Load CDB READ6 - 1 block at block LBA_c8db
@@ -31,7 +31,6 @@ FN_32 same as FN_42 - Decrement TIMEOUT3
 FN_42 Decrement TIMEOUT3
 FN_52 add PART_START to LBA ???
 FN_62 same as FN_52
-FN_92 LongData (TRM) - likley meant to be FN_29
 
 BANK 03
 FN_03 Do Status (TRM) - seems inconsistent (REASSIGN_BLOCKS)
@@ -86,7 +85,7 @@ FN_16 - error recovery ????
 FN_26 CALL FN_47 (Read DDM and master PDM) and check result - really needed???
 FN_36 BUS_FREE and send TEST_UNIT_READY
 FN_46 try to call FN_36 up to 2 times
-FN_56 SEND TEST_UNIT_READY until ok or tto many tries
+FN_56 SEND TEST_UNIT_READY until ok or too many tries
 FN_66 Process ASC from SENSE DATA at $c901
 
 BANK_07
@@ -102,7 +101,7 @@ FN_77 - restrore TMP_PTR from $c8d7
 BANK 09
 FN_09 - Smartport Read - not sure if this works 
 FN_19 - Smartport Write - not sure if this works
-FN_29 - LDIO ???
+FN_29 - LongData ??? (TRM)
 FN_39 Send REQUEST_SENSE (FN_49) and process sense key and ASC if necessary
 FN_49 - send REQUEST_SENSE and store the result at $c901
 FN_59 - SETBLK_512 - calls FN_AA
@@ -142,7 +141,7 @@ FN_5C DMA ext call IIgs
 FN_6C DMA IIe
 FN_7C add PART_START and optionally 5 to UNK_c827 if CMD is any read or write
 FN_8C detect IIgs
-FN_9C - call A4 and 85 :  Get SDAT entry in TMP_PTR0 for index in $c800, SET_BLK_COUNT from SDAT pointed by TMP_PTR0 and save CYAREG if IIgs
+FN_9C - call A4 and 85 - Get SDAT entry in TMP_PTR0 for DEV_IDX, SET_BLK_COUNT from SDAT pointed by TMP_PTR0 and save CYAREG if IIgs
 
 BANK 0D
 FN_0D UPDATED_DIBTAB_ENTRY - SEND INQUIRY and update DBITAB @ TMP_PTR0 (CALL FN_4D and FILL DIBTAB at TMP_PTR0 from inquiry data at $ca00) 

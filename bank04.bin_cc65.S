@@ -1,6 +1,8 @@
 ; Target assembler: cc65 v2.18.0 [--target none -C bank04.bin_cc65.cfg]
 ; 6502bench SourceGen v1.7.3
          .setcpu "65816"
+SDAT_ENTRY_SIZE = $11
+
 TMP_PTR0 =       $19        ; temporary ZP pointer 
 TMP_PTR1 =       $1b        ; temporary ZP pointer 
 PD_PAR_CMD =     $42        ;PRODOS input parameter COMMAND number
@@ -45,6 +47,7 @@ CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PR
 SCSI_RD_c81f =   $c81f      ; SCSI STATUS or MESSAGE return from FN_04 
 NUM_DEVICES =    $c823      ; number of devices (used in bank2)
 PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
+SDAT     =       $c831      ;start of SDAT table (extends to $C8A7)
 SAVE_ZP_F6 =     $c8a8      ;saved zero page locations $f6-$fd
 SAVE_ZP_15 =     $c8b0      ;saved zero page locations $15-$1e
 PD_PAR_CMD_CPY = $c8bc      ;PRODOS input parameter COMMAND number
@@ -175,9 +178,9 @@ SP_STAT_00_STATUS:
          lda     REG_5380_STAT,y
          cmp     #$bf
          beq     @dev_count_done
-         lda     #$31
+         lda     #<SDAT
          sta     TMP_PTR0
-         lda     #$c8
+         lda     #>SDAT
          sta     TMP_PTR0+1 ;TMP_PTR0=$c831 - SDAT_BASE
          ldy     #$00
 @dev_count_loop:
@@ -187,7 +190,7 @@ SP_STAT_00_STATUS:
          inc     NUM_DEVICES
          tya
          clc
-         adc     #$11       ;next entry
+         adc     #SDAT_ENTRY_SIZE ;next entry
          tay
          bne     @dev_count_loop
 @dev_count_done:
@@ -524,16 +527,16 @@ FN_94:   lda     RET_CODE   ;restore ZP and return
          rts
 
 FN_A4:   ldx     DEV_IDX    ;Get SDAT entry in TMP_PTR0 for index at $c800
-         lda     #$31
+         lda     #<SDAT
 @FN_A4_loop:
          dex
          bmi     @FN_A4_done
          clc
-         adc     #$11
+         adc     #SDAT_ENTRY_SIZE
          bne     @FN_A4_loop
 @FN_A4_done:
          sta     TMP_PTR0
-         lda     #$c8
+         lda     #>SDAT
          sta     TMP_PTR0+1
          rts
 

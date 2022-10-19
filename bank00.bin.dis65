@@ -130,14 +130,18 @@
 "252":"PRODOS Device Size",
 "254":"PRODOS Device Status",
 "255":"LSB of the PRODOS entry point (MUST be at $CCFF)",
-"265":"DATA READ - Xin without DoPhases",
+"256":"PRODOS Read",
+"262":"EXEC SCSI DATA_IN",
+"265":"DATA READ - Xin + DoStatus",
 "268":"MSG_IO_CD_MASK",
 "270":"data in Phase",
 "272":"branch if DATA IN phase",
 "279":"branch if STATUS phase",
 "281":"decrement TIMEOUT",
-"293":"CALL_FN_01 - data read to BUF_PTR",
+"293":"CALL_FN_01 - Data Xin - data read to BUF_PTR",
 "296":"get STATUS and MESSAGE IN",
+"302":"DoStatusTimeout",
+"305":"DoStatus",
 "312":"detected STATUS phase",
 "316":"detected MESSAGE IN phase",
 "318":"decrement TIMEOUT3",
@@ -153,7 +157,8 @@
 "397":"DATA WRITE (without DoPhases)",
 "399":"CALL_FN_11 (Data Xout)",
 "402":"get STATUS and MESSAGE",
-"416":"BUS_FREE",
+"416":"DoPhases (busfree + DoPhasesNF)",
+"419":"DoPhasesNF (dophases without busfree)",
 "425":"Send SCSI CMD",
 "445":"CALL_FN_25",
 "450":"CALL_FN_1D",
@@ -293,7 +298,7 @@
 "LabelAnno":"None"},
 
 "416":{
-"Label":"FN_00_DoPhases",
+"Label":"FN_00",
 "Value":52640,
 "Source":"User",
 "Type":"LocalOrGlobalAddr",
@@ -307,7 +312,7 @@
 "LabelAnno":"None"},
 
 "262":{
-"Label":"FN_10_DataXin",
+"Label":"FN_10",
 "Value":52486,
 "Source":"User",
 "Type":"LocalOrGlobalAddr",
@@ -363,7 +368,7 @@
 "LabelAnno":"None"},
 
 "256":{
-"Label":"FN_90_PRODOS_Read",
+"Label":"FN_90",
 "Value":52480,
 "Source":"User",
 "Type":"LocalOrGlobalAddr",
@@ -818,7 +823,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"FN_00_DoPhases",
+"Label":"FN_00",
 "Part":"Low"}},
 
 "950":{
@@ -826,7 +831,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"FN_10_DataXin",
+"Label":"FN_10",
 "Part":"Low"}},
 
 "952":{
@@ -890,7 +895,7 @@
 "Format":"NumericLE",
 "SubFormat":"Symbol",
 "SymbolRef":{
-"Label":"FN_90_PRODOS_Read",
+"Label":"FN_90",
 "Part":"Low"}},
 
 "968":{

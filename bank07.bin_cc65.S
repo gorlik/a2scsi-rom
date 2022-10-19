@@ -3,13 +3,15 @@
          .setcpu "65816"
 SCSI_CMD_READ6 = $08
 SCSI_CMD_WRITE6 = $0a
+SDAT_ENTRY_SIZE = $11
+SDAT_SIGNATURE = $86
 
 TMP_PTR0 =       $19        ; temporary ZP pointer 
-TMP_PTR1 =       $1b        ; temporary ZP pointer 
+JMP_PTR  =       $1b        ; Jmp target ZP pointer 
 PD_PAR_BLK_LO =  $46        ;PRODOS input parameter Block lo
 PD_PAR_BLK_HI =  $47        ;PRODOS input parameter Block hi
-TMP_PTR_L =      $f6        ; temporary ZP long pointer
-TMP_PTR_H =      $f7
+MEM_PTR_L =      $f6        ; temporary ZP long pointer
+MEM_PTR_H =      $f7
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
 BUF_PTR_H =      $fb
 BUF_PTR_VH =     $fc
@@ -22,7 +24,7 @@ TCOUNT_B1 =      $c803      ; timeout counter middle byte when using 24-bit coun
 XFER_MODE =      $c804      ; 0x00 IIe PDMA, 0x01 IIgs PDMA, 0x02-0xff PIO 
 SEL_TARGET =     $c806      ; SCSI (BUS?) ID of selected target
 RET_CODE =       $c80b      ; 
-BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
+BSW_TEMP =       $c80c      ; TEMP in BANKSWITCH
 SCSI_CMD_LEN =   $c80d      ; SCSI COMMAND lenght
 SCSI_CDB_CMD =   $c80e      ; SCSI CDB buffer
 SCSI_CDB_LUN =   $c80f      ; 
@@ -33,6 +35,7 @@ SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4
 SAVE_SP_CMD =    $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
+SDAT     =       $c831      ;start of SDAT table (extends to $C8A7)
 NUM_PART =       $c8ce      ; number of partition on the device - only used in bank 07
 PARTMAP_OK =     $c8cf      ; $00 if failed to read Partition Map. non-zero if PM detected
 BLOCK_SIZE =     $c8d0      ; temp int storage (size of DDM block?)
@@ -160,16 +163,16 @@ LCC51:   jsr     @LCC95
 @LCCA4:  lda     #$06
          sta     SCSI_CMD_LEN
          ldy     #$02
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          sta     BUF_PTR_L
          iny
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          sta     BUF_PTR_H
          iny
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          sta     SCSI_CDB_LBA_LO
          iny
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          sta     SCSI_CDB_LEN
          lda     #$00
          sta     BUF_PTR_VH
@@ -180,16 +183,16 @@ LCC51:   jsr     @LCC95
 @LCCCA:  lda     #$01
          sta     XFER_MODE
          ldy     #$02
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     BUF_PTR_L
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     BUF_PTR_H
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     BUF_PTR_VH
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     BUF_PTR_XH
          jmp     @LCCC6
 
@@ -329,8 +332,8 @@ FILL_SDAT_TABLE:
          lda     (BUF_PTR_L),y ;read total number of partitions on the device
          sta     NUM_PART   ;read and parse NUM_PART PDM
 @next_pdm:
-         jsr     CALL_FN_0E_CARRY
-         bcs     @skip_make_entry ;skip parsing if partition not recognized ???
+         jsr     CALL_FN_0E_CARRY ;check partition name @ BUF_PTR+30
+         bcs     @skip_make_entry ;skip creating SDAT entry if partition is not recognized
          jsr     NEW_SDAT_ENTRY
 @skip_make_entry:
          inc     TMP_COUNT
@@ -352,7 +355,7 @@ NEW_SDAT_ENTRY:
          inc     temp_part_count ;add partition to SDAT
          jsr     FN_57      ;Find empty SDAT -> TMP_PTR0
          ldy     #$00
-         lda     #$86
+         lda     #SDAT_SIGNATURE
          sta     (TMP_PTR0),y ;put signature in SDAT entry
          jsr     GET_PART_SIZE_START ;*$C8D2=partition size; PART_START=partition start
          jsr     FILL_SDAT_ENTRY
@@ -412,24 +415,24 @@ FILL_ID_TIMEOUT:
          lda     SEL_TARGET
          sta     (TMP_PTR0),y ;fill SDAT entry software ID
          iny
-         lda     #$0c
+         lda     #$0c       ;default timeout
          sta     (TMP_PTR0),y ;fill SDAT entry timeout
          rts
 
-FN_57:   lda     #$31       ;Find empty SDAT (TMP_PTR0 points to the first free entry)
+FN_57:   lda     #<SDAT     ;Find empty SDAT (TMP_PTR0 points to the first free entry)
          sta     TMP_PTR0
-         lda     #$c8
+         lda     #>SDAT
          sta     TMP_PTR0+1 ;TMP_PTR0=SDAT_BASE
          ldy     #$00
          lda     (TMP_PTR0),y ;load SDAT_ID
-         cmp     #$86       ;check for signature
+         cmp     #SDAT_SIGNATURE ;check for signature
          beq     next_entry ;branch if entry already taken
          bne     FN_57_end  ;branch if entry is free
 
 next_entry:
          lda     TMP_PTR0
          clc
-         adc     #$11
+         adc     #SDAT_ENTRY_SIZE
          cmp     #$98
          bcs     SET_TMP_PTR_CB00_RET ;branch if table overflow
          jsr     check_sdat_entry
@@ -449,7 +452,7 @@ check_sdat_entry:
          sta     TMP_PTR0
          ldy     #$00
          lda     (TMP_PTR0),y
-         cmp     #$86
+         cmp     #SDAT_SIGNATURE
          bne     @entry_free
          sec
          rts
@@ -601,16 +604,16 @@ CLR_SDAT_ENTRY:
          bne     @sdat_clr_loop
          rts
 
-FN_67:   lda     TMP_PTR_L  ;SAVE TMP_PTR to $c8d7
+FN_67:   lda     MEM_PTR_L  ;SAVE TMP_PTR to $c8d7
          sta     PTR_c8d7
-         lda     TMP_PTR_H
+         lda     MEM_PTR_H
          sta     PTR_c8d7+1
          rts
 
 FN_77:   lda     PTR_c8d7   ;Restore TMP_PTR from $c8d7
-         sta     TMP_PTR_L
+         sta     MEM_PTR_L
          lda     PTR_c8d7+1
-         sta     TMP_PTR_H
+         sta     MEM_PTR_H
          rts
 
 CALL_FN_60_RET:
@@ -642,9 +645,9 @@ FN_TABLE:
          .byte   $ea
 
 BANKSWITCH:
-         stx     BSW_SAVE_X
+         stx     BSW_TEMP
          tax
-         lda     BSW_SAVE_X
+         lda     BSW_TEMP
          pha
          txa
          pha
@@ -658,10 +661,10 @@ BANKSWITCH:
          ror     A
          tax
          lda     FN_TABLE,x
-         sta     TMP_PTR1
+         sta     JMP_PTR
          inx
          lda     FN_TABLE,x
-         sta     TMP_PTR1+1
+         sta     JMP_PTR+1
          jsr     DO_CALL_FN
          pla
          and     #$0f
@@ -670,7 +673,7 @@ BANKSWITCH:
          rts
 
 DO_CALL_FN:
-         jmp     (TMP_PTR1)
+         jmp     (JMP_PTR)
 
          .byte   $d7
          .byte   $00
