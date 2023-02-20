@@ -5,15 +5,20 @@ Commented disassembly of the Apple II SCSI card ROM (341-0437-A rev.c)
 The include makefile will reassemble the complete rom to use in an EPROM programmer or with MAME.
 
 ## useful info
-The rom contains 16 1KB banks that is mapped at $cc00.
-Bank 0 contains boot code that is also shadowed at $cn00.
+The rom contains sixteen 1KB banks that are mapped at $cc00.
+Bank 0 contains boot code that is also shadowed at $cn00. The boot code is used by the Apple IIgs
+SCSI Driver to identify the card (the apple driver contains a copy of this section and performs
+a full compare upon load). Any changes to this section will make the driver fail to load.
+
 All banks contain the same code fragment at $cfcc to support banks switching.
 
-The ram on the card is also banked (8 1KB banks) but it seems the on board firmware only uses bank 0.
+The ram on the card is also banked (eight 1KB banks) but it seems the on board firmware only uses bank 0.
 Bank 1 is used for the Patch1Call and two additional unidentified calls.
 
 ROM Bank 0 and Bank 8 are identical except the last 4 bytes.
 
+
+## Potential Bugs
 TIMEOUT byte order seem to be used inconsistenly in differet banks.
 Bank14 TIMEOUT decrement seems buggy.
 
