@@ -37,10 +37,10 @@ BSW_TEMP =       $c80c      ; TEMP in BANKSWITCH
 SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
 SAVE_SP_CMD =    $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
-PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
-UNK_c827 =       $c827      ; 3-byte unknown in reverse endian as the above
+PART_START =     $c824      ; partition start (3 bytes - reverse endian)
+DEV_SIZE =       $c827      ; device size in blocks (3-bytes reverese endian) - reused in some banks ???
 BLK_c8c7 =       $c8c7      ; saved PRODOS BLOCK from input parameters
-LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
+LBA      =       $c8db      ; LBA to read/write (little endian - adjusted for PART_START) to use in CDB (gets copied to CDB_LBA)
 BOOT_SEQ =       $c8e3      ; $55 if in boot process
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
 DIBTAB   =       $c931      ;start of DIBTAB (extends to $C9ED)
@@ -51,7 +51,7 @@ TIMEOUT  =       $c9f6      ; each unit is 1.25s
          .org    $cc00
          .a8
          .i8
-FN_0C:   lda     SEL_TARGET
+FN_0C:   lda     SEL_TARGET ;SetNewSDAT
          sta     $c929
          lda     DEV_IDX
          sta     $c92a
@@ -64,7 +64,7 @@ FN_0C:   lda     SEL_TARGET
          sta     SEL_TARGET
          lda     $c92a
          sta     DEV_IDX
-         jsr     FN_9C      ;call FN_A4, FN_85 - TMP_PTR0=SDAT[DEV_IDX], SET_BLK_COUNT=SDAT[DEV_IDX].blk_count
+         jsr     FN_9C      ;Call FN_A4, FN_85 - TMP_PTR0=SDAT[DEV_IDX], SET_BLK_COUNT=SDAT[DEV_IDX].blk_count
          lda     #$83
          jsr     CALL_FN_XC ;CALL_FN_83 - restore timeouts
          jmp     CLR_DIBTAB
@@ -75,7 +75,7 @@ CALL_FN_XC:
          jsr     BANKSWITCH ;CALL_FN_XC
          rts
 
-FN_1C:   lda     CALL_TYPE  ;add partition start to BLK number
+FN_1C:   lda     CALL_TYPE  ;LBA=BLOCK_NUMBER+PART_START
          cmp     #$01
          bne     @FN_1C_smartport
          lda     PD_PAR_BLK_LO
@@ -86,14 +86,14 @@ FN_1C:   lda     CALL_TYPE  ;add partition start to BLK number
          lda     PART_START+2
          adc     PD_PAR_BLK_LO
          sta     PD_PAR_BLK_LO
-         sta     LBA_c8db
+         sta     LBA
          lda     PART_START+1
          adc     PD_PAR_BLK_HI
          sta     PD_PAR_BLK_HI
-         sta     LBA_c8db+1
+         sta     LBA+1
          lda     #$00
          adc     PART_START
-         sta     LBA_c8db+2
+         sta     LBA+2
 @FN_1C_check_err:
          bcc     @FN_1C_end
          jmp     ERR_BADBLOCK
@@ -117,15 +117,15 @@ FN_1C:   lda     CALL_TYPE  ;add partition start to BLK number
          clc
          lda     (MEM_PTR_L),y
          adc     PART_START+2
-         sta     LBA_c8db
+         sta     LBA
          iny
          lda     (MEM_PTR_L),y
          adc     PART_START+1
-         sta     LBA_c8db+1
+         sta     LBA+1
          iny
          lda     (MEM_PTR_L),y
          adc     PART_START
-         sta     LBA_c8db+2
+         sta     LBA+2
          jmp     @FN_1C_check_err
 
 @FN_1C_2gs:
@@ -134,15 +134,15 @@ FN_1C:   lda     CALL_TYPE  ;add partition start to BLK number
          xce
          lda     [MEM_PTR_L],y
          adc     PART_START+2
-         sta     LBA_c8db
+         sta     LBA
          iny
          lda     [MEM_PTR_L],y
          adc     PART_START+1
-         sta     LBA_c8db+1
+         sta     LBA+1
          iny
          lda     [MEM_PTR_L],y
          adc     PART_START
-         sta     LBA_c8db+2
+         sta     LBA+2
          sec
          xce
          jmp     @FN_1C_check_err
@@ -193,7 +193,7 @@ FN_9C:   lda     #$a4
          lda     #$85
          jmp     CALL_FN_XC ;CALL_FN_85
 
-FN_7C:   lda     CALL_TYPE  ;Add PART_START and optionally 5 to UNK_c827 if CMD is any read or write
+FN_7C:   lda     CALL_TYPE  ;Add PART_START and optionally 5 to DEV_SIZE if CMD is any read or write
          cmp     #$01
          beq     IS_RW_prodos
          bne     IS_RW_smartport
@@ -201,39 +201,39 @@ FN_7C:   lda     CALL_TYPE  ;Add PART_START and optionally 5 to UNK_c827 if CMD 
 RW_OP:   lda     DEV_STATUS ;get here if CMD is read or write op (1,2,8 or 9)
          cmp     #$f8       ;BLOCK, R, W, ONLINE and FMT flags
          bne     @add5_done ;branch if not not as above
-         lda     UNK_c827+2 ;if(DEV_STATUS==0xf8) UNK_c827+=5
+         lda     DEV_SIZE+2 ;if(DEV_STATUS==0xf8) DEV_SIZE+=5
          clc
-         adc     #$05
-         sta     UNK_c827+2
+         adc     #$05       ;why add 5 ????
+         sta     DEV_SIZE+2
          bcc     @add5_done
-         inc     UNK_c827+1
+         inc     DEV_SIZE+1
          bne     @add5_done
-         inc     UNK_c827   ;add 5 to UNK_c827 (reverse endian)
+         inc     DEV_SIZE   ;add 5 to DEV_SIZE (reverse endian)
 @add5_done:
          ldy     #$02
          clc
 @add_loop:
-         lda     UNK_c827,y
+         lda     DEV_SIZE,y ;DEV_SIZE
          adc     PART_START,y
-         sta     UNK_c827,y
+         sta     DEV_SIZE,y
          dey
-         bpl     @add_loop  ;UNK_c827 = UNK_c827 + PART_START
-         lda     LBA_c8db+2
+         bpl     @add_loop  ;DEV_SIZE = DEV_SIZE + PART_START
+         lda     LBA+2
          sbc     #$1f
-         bcs     ERR_BADBLOCK ;branch if *($c8dd) > $20 ($1f ?)
-         lda     LBA_c8db+2 ;compare *($c8dd) and *($UNK_c827) - $c8dd seems in reverse endian
+         bcs     ERR_BADBLOCK ;branch if MSB of LBA > $1f
+         lda     LBA+2      ;if (LBA>DEV_SIZE) ERR_BADBLOCK
          sec                ;there might be a bug in the comparison
-         sbc     UNK_c827
+         sbc     DEV_SIZE
          bcc     FN_7C_end
          bne     ERR_BADBLOCK
-         lda     LBA_c8db+1
+         lda     LBA+1
          sec
-         sbc     UNK_c827+1
+         sbc     DEV_SIZE+1
          bcc     FN_7C_end
          bne     ERR_BADBLOCK
-         lda     LBA_c8db
+         lda     LBA
          sec
-         sbc     UNK_c827+2
+         sbc     DEV_SIZE+2 ;DEV_SIZE
          bcc     FN_7C_end
          bne     ERR_BADBLOCK
 FN_7C_end:

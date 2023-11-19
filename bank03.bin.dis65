@@ -133,7 +133,7 @@
 "41":"FORMAT_UNIT",
 "56":"READ_CAPACITY",
 "79":"TEST_UNIT_READY",
-"99":"CALL_FN_39",
+"99":"CALL_FN_39 - REQUEST_SENSE (FN_49) an process ASC if necessary",
 "104":"return fail",
 "111":"FORMAT_UNIT",
 "114":"Do_Phases",
@@ -691,6 +691,13 @@
 "Value":52399,
 "Source":"User",
 "Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"782":{
+"Label":"err_invalid_unit",
+"Value":53006,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -996,14 +1003,6 @@
 "SubFormat":"Symbol",
 "SymbolRef":{
 "Label":"FN_F3",
-"Part":"Low"}},
-
-"1004":{
-"Length":2,
-"Format":"NumericLE",
-"SubFormat":"Symbol",
-"SymbolRef":{
-"Label":"TMP_PTR1",
 "Part":"Low"}}},
 
 "LvTables":{

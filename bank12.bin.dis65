@@ -92,12 +92,13 @@
 },
 
 "Comments":{
+"0":"SetNewSDAT",
 "14":"CALL_FN_73 - save timeouts and clr SDAT table",
 "22":"CALL_FN_A5 - second part of init",
-"37":"call FN_A4, FN_85 - TMP_PTR0=SDAT[DEV_IDX], SET_BLK_COUNT=SDAT[DEV_IDX].blk_count",
+"37":"Call FN_A4, FN_85 - TMP_PTR0=SDAT[DEV_IDX], SET_BLK_COUNT=SDAT[DEV_IDX].blk_count",
 "42":"CALL_FN_83 - restore timeouts",
 "53":"CALL_FN_XC",
-"57":"add partition start to BLK number",
+"57":"LBA=BLOCK_NUMBER+PART_START",
 "194":"send random data to SCSI until not busy ???",
 "204":"assert data bus and ACK",
 "212":"deassert all",
@@ -105,16 +106,19 @@
 "230":"look through DIBTAB",
 "262":"CALL_FN_A4 - GET SDAT ENTRY PTR in TMP_PTR0",
 "267":"CALL_FN_85",
-"270":"Add PART_START and optionally 5 to UNK_c827 if CMD is any read or write",
+"270":"Add PART_START and optionally 5 to DEV_SIZE if CMD is any read or write",
 "279":"get here if CMD is read or write op (1,2,8 or 9)",
 "282":"BLOCK, R, W, ONLINE and FMT flags",
 "284":"branch if not not as above",
-"286":"if(DEV_STATUS==0xf8) UNK_c827+=5",
-"302":"add 5 to UNK_c827 (reverse endian)",
-"318":"UNK_c827 = UNK_c827 + PART_START",
-"325":"branch if *($c8dd) \u003e $20 ($1f ?)",
-"327":"compare *($c8dd) and *($UNK_c827) - $c8dd seems in reverse endian",
+"286":"if(DEV_STATUS==0xf8) DEV_SIZE+=5",
+"290":"why add 5 ????",
+"302":"add 5 to DEV_SIZE (reverse endian)",
+"308":"DEV_SIZE",
+"318":"DEV_SIZE = DEV_SIZE + PART_START",
+"325":"branch if MSB of LBA \u003e $1f",
+"327":"if (LBA\u003eDEV_SIZE) ERR_BADBLOCK",
 "330":"there might be a bug in the comparison",
+"353":"DEV_SIZE",
 "370":"return fail",
 "403":"X=Y+9",
 "415":"phase match mask",
@@ -610,46 +614,6 @@
 "SymbolRef":{
 "Label":"DIBTAB",
 "Part":"High"}},
-
-"286":{
-"Length":3,
-"Format":"NumericLE",
-"SubFormat":"Symbol",
-"SymbolRef":{
-"Label":"UNK_c827",
-"Part":"Low"}},
-
-"292":{
-"Length":3,
-"Format":"NumericLE",
-"SubFormat":"Symbol",
-"SymbolRef":{
-"Label":"UNK_c827",
-"Part":"Low"}},
-
-"297":{
-"Length":3,
-"Format":"NumericLE",
-"SubFormat":"Symbol",
-"SymbolRef":{
-"Label":"UNK_c827",
-"Part":"Low"}},
-
-"342":{
-"Length":3,
-"Format":"NumericLE",
-"SubFormat":"Symbol",
-"SymbolRef":{
-"Label":"UNK_c827",
-"Part":"Low"}},
-
-"353":{
-"Length":3,
-"Format":"NumericLE",
-"SubFormat":"Symbol",
-"SymbolRef":{
-"Label":"UNK_c827",
-"Part":"Low"}},
 
 "412":{
 "Length":3,

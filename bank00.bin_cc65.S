@@ -6,13 +6,13 @@ SCSI_CMD_WRITE6 = $0a
 P8E_WRITE_PROT = $2b        ;Disk write protected
 
 TMP_PTR0 =       $19        ; temporary ZP pointer 
-TMP_PTR1 =       $1b        ; temporary ZP pointer 
+JMP_PTR  =       $1b        ; Jmp target ZP pointer 
 PD_PAR_CMD =     $42        ;PRODOS input parameter COMMAND number
 PD_PAR_BUF_LO =  $44        ;PRODOS input parameter Buffer lo address
 PD_PAR_BUF_HI =  $45        ;PRODOS input parameter Buffer hi address
 PD_PAR_BLK_LO =  $46        ;PRODOS input parameter Block lo
 PD_PAR_BLK_HI =  $47        ;PRODOS input parameter Block hi
-TMP_PTR_L =      $f6        ; temporary ZP long pointer
+MEM_PTR_L =      $f6        ; temporary ZP long pointer
 ACTV_PERIP_SLOT = $07f8     ;slot num ($Cn) of active peripheral card
 REG_5380_DATA =  $c000      ; R current SCSI data lines status
 REG_5380_DATA_OUT = $c000   ; W SCSI data output register
@@ -31,7 +31,7 @@ TCOUNT_B1 =      $c803      ; timeout counter middle byte when using 24-bit coun
 SEL_TARGET =     $c806      ; SCSI (BUS?) ID of selected target
 INIT_FLAG =      $c809      ; card initialized flag (init=$77)
 RET_CODE =       $c80b      ; 
-BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
+BSW_TEMP =       $c80c      ; TEMP in BANKSWITCH
 SCSI_CMD_LEN =   $c80d      ; SCSI COMMAND lenght
 SCSI_CDB_CMD =   $c80e      ; SCSI CDB buffer
 SCSI_CDB_LUN =   $c80f      ; 
@@ -49,7 +49,7 @@ UNK_c827 =       $c827      ; 3-byte unknown in reverse endian as the above
 SAVE_ZP_F6 =     $c8a8      ;saved zero page locations $f6-$fd
 SAVE_ZP_15 =     $c8b0      ;saved zero page locations $15-$1e
 PD_PAR_CMD_CPY = $c8bc      ;PRODOS input parameter COMMAND number
-LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
+LBA      =       $c8db      ; LBA to read/write (little endian - adjusted for PART_START) to use in CDB (gets copied to CDB_LBA)
 BOOT_SEQ =       $c8e3      ; $55 if in boot process
 RX_LEN_LO =      $c8e4      ; bytes read if call successfull
 RX_LEN_HI =      $c8e5      ; bytes read if call successfull
@@ -70,7 +70,7 @@ MON_SLOOP =      $faba
 
          .a8
          .i8
-         lda     CLRROM     ;boot code?
+         lda     CLRROM     ;Boot code
          cld
          php
          sei                ;this fragment retrieves the slot number
@@ -109,7 +109,7 @@ MON_SLOOP =      $faba
          lda     #$01
          sta     CALL_TYPE
          sta     DEV_IDX
-         jsr     CALL_FN_75
+         jsr     CALL_FN_75 ;TMP_PTR0=&SDAT[DEV_IDX], BLK_COUNT=SDAT[DEV_IDX].blk_count, save CYAREG
          jmp     LOAD_BLOCK_0
 
 ENTRY_PRODOS:
@@ -164,7 +164,7 @@ skip_sp: cld
          bcc     @prodos_path
          ldx     #$00       ;smartport path
          lda     #$02
-         jsr     BANKSWITCH ;CALL_FN_02
+         jsr     BANKSWITCH ;CALL_FN_02 - process Smartport Command
          jsr     CALL_FN_12 ;Restore ZP and return
          ldx     RX_LEN_LO
          ldy     RX_LEN_HI
@@ -189,12 +189,12 @@ skip_sp: cld
 @cmd_not_0:
          cmp     #$01
          bne     @cmd_not_01
-         jmp     FN_90_PRODOS_Read ;PRODOS CMD 1 READ
+         jmp     FN_90      ;PRODOS CMD 1: READ BLK
 
 @cmd_not_01:
          cmp     #$02
          bne     @cmd_not_012
-         jmp     PRODOS_WRITE ;PRODOS CMD 2: WRITE
+         jmp     PRODOS_WRITE ;PRODOS CMD 2: WRITE BLK
 
 @cmd_not_012:
          cmp     #$03
@@ -210,12 +210,10 @@ skip_sp: cld
 @PRODOS_ENTRY_ADDR:
          .byte   <ENTRY_PRODOS ;LSB of the PRODOS entry point (MUST be at $CCFF)
 
-FN_90_PRODOS_Read:
-         jsr     CALL_FN_3A_DUP
+FN_90:   jsr     CALL_FN_3A_DUP ;PRODOS Read
          jsr     SCSI_READ_CMD
-FN_10_DataXin:
-         jsr     FN_00_DoPhases
-FN_40:   lda     REG_5380_STAT,y ;DATA READ - Xin without DoPhases
+FN_10:   jsr     FN_00      ;EXEC SCSI DATA_IN
+FN_40:   lda     REG_5380_STAT,y ;DATA READ - Xin + DoStatus
          and     #$1c       ;MSG_IO_CD_MASK
          cmp     #$04       ;data in Phase
          beq     @Read_data ;branch if DATA IN phase
@@ -229,13 +227,13 @@ FN_40:   lda     REG_5380_STAT,y ;DATA READ - Xin without DoPhases
 
 @Read_data:
          lda     #$01
-         jsr     CALL_FN_X0 ;CALL_FN_01 - data read to BUF_PTR
+         jsr     CALL_FN_X0 ;CALL_FN_01 - Data Xin - data read to BUF_PTR
 @FN_40_end:
          jsr     FN_A0      ;get STATUS and MESSAGE IN
          jmp     CMD_end
 
-FN_A0:   jsr     SET_TIMEOUT
-FN_30:   lda     REG_5380_STAT,y
+FN_A0:   jsr     SET_TIMEOUT ;DoStatusTimeout
+FN_30:   lda     REG_5380_STAT,y ;DoStatus
          and     #$1c
          cmp     #$0c
          beq     @FN_30_read_status ;detected STATUS phase
@@ -285,7 +283,7 @@ PRODOS_WRITE:
          beq     ERROR_NOWRITE
          jsr     CALL_FN_3A_DUP ;BUS_FREE
          jsr     SCSI_WRITE_CMD
-FN_20:   jsr     FN_00_DoPhases ;EXECUTE SCSI DATA send COMMAND
+FN_20:   jsr     FN_00      ;EXECUTE SCSI DATA send COMMAND
 FN_50:   lda     #$11       ;DATA WRITE (without DoPhases)
          jsr     CALL_FN_X0 ;CALL_FN_11 (Data Xout)
          jsr     FN_A0      ;get STATUS and MESSAGE
@@ -296,9 +294,8 @@ ERROR_NOWRITE:
          sta     RET_CODE
          jmp     FN_60
 
-FN_00_DoPhases:
-         jsr     CALL_FN_3A ;BUS_FREE
-FN_B0:   jsr     SCSI_ARBITRATE
+FN_00:   jsr     CALL_FN_3A ;DoPhases (busfree + DoPhasesNF)
+FN_B0:   jsr     SCSI_ARBITRATE ;DoPhasesNF (dophases without busfree)
          jsr     SCSI_SELECT
          jsr     CALL_FN_14 ;Send SCSI CMD
 SET_TIMEOUT:
@@ -367,7 +364,7 @@ SCSI_WRITE_CMD:
 scsi_rw: sta     SCSI_CDB_CMD ;create a r/w SCSI CDB from the PD input paramteres
          lda     #$06
          sta     SCSI_CMD_LEN
-         lda     LBA_c8db+2
+         lda     LBA+2
          sta     SCSI_CDB_LUN
          lda     PD_PAR_BLK_HI
          sta     SCSI_CDB_LBA_HI
@@ -398,7 +395,7 @@ LOAD_BLOCK_0:
          sta     PD_PAR_BUF_LO ;load block at $0800
          lda     #$55
          sta     BOOT_SEQ
-         jsr     FN_90_PRODOS_Read
+         jsr     FN_90      ;PRODOS READ_BLK
          ldx     $0801
          beq     @CALL_FN_45 ;branch if not bootable
          ldx     $0800
@@ -585,7 +582,7 @@ CALL_FN_12:
 SAVE_ZP_COPY_PARAM:
          ldx     #$07
 @cpy_loop1:
-         lda     TMP_PTR_L,x ;copy from $F6-$FD to $C8A8-C8AF
+         lda     MEM_PTR_L,x ;copy from $F6-$FD to $C8A8-C8AF
          sta     SAVE_ZP_F6,x
          lda     $15,x
          sta     SAVE_ZP_15,x ;copy from $15-$1C to $C8B0-C8B7
@@ -618,8 +615,8 @@ FN_60:   jsr     CALL_FN_12 ;Restore ZP and return
          rts
 
 FN_TABLE:
-         .word   FN_00_DoPhases
-         .word   FN_10_DataXin
+         .word   FN_00
+         .word   FN_10
          .word   FN_20
          .word   FN_30      ;Get Status and message with external timeout
          .word   FN_40
@@ -627,15 +624,15 @@ FN_TABLE:
          .word   FN_60      ;Smartport Return Fail
          .word   FN_70      ;RUN BASIC
          .word   FN_80      ;jmp SLOOP (next boot device)
-         .word   FN_90_PRODOS_Read
+         .word   FN_90
          .word   FN_A0      ;Get status and Message with setting timeout
          .word   FN_B0
 
          .org    $cfcc
 BANKSWITCH:
-         stx     BSW_SAVE_X
+         stx     BSW_TEMP
          tax
-         lda     BSW_SAVE_X
+         lda     BSW_TEMP
          pha
          txa
          pha
@@ -649,10 +646,10 @@ BANKSWITCH:
          ror     A
          tax
          lda     FN_TABLE,x
-         sta     TMP_PTR1
+         sta     JMP_PTR
          inx
          lda     FN_TABLE,x
-         sta     TMP_PTR1+1
+         sta     JMP_PTR+1
          jsr     @DO_CALL_FN
          pla
          and     #$0f
@@ -661,7 +658,7 @@ BANKSWITCH:
          rts
 
 @DO_CALL_FN:
-         jmp     (TMP_PTR1)
+         jmp     (JMP_PTR)
 
          .byte   $02
          .byte   $31

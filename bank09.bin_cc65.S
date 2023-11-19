@@ -4,11 +4,11 @@
 SCSI_CMD_READ6 = $08
 SCSI_CMD_WRITE6 = $0a
 
-TMP_PTR1 =       $1b        ; temporary ZP pointer 
-TMP_PTR_L =      $f6        ; temporary ZP long pointer
-TMP_PTR_H =      $f7
-TMP_PTR_VH =     $f8
-TMP_PTR_XH =     $f9
+JMP_PTR  =       $1b        ; Jmp target ZP pointer 
+MEM_PTR_L =      $f6        ; temporary ZP long pointer
+MEM_PTR_H =      $f7
+MEM_PTR_VH =     $f8
+MEM_PTR_XH =     $f9
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
 BUF_PTR_H =      $fb
 BUF_PTR_VH =     $fc
@@ -25,7 +25,7 @@ TCOUNT_B2 =      $c802      ; timeout counter MSB
 TCOUNT_B1 =      $c803      ; timeout counter middle byte when using 24-bit counter
 SAVE_CYAREG =    $c808      ; saved value of CYAREG
 RET_CODE =       $c80b      ; 
-BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
+BSW_TEMP =       $c80c      ; TEMP in BANKSWITCH
 SCSI_CMD_LEN =   $c80d      ; SCSI COMMAND lenght
 SCSI_CDB_CMD =   $c80e      ; SCSI CDB buffer
 SCSI_CDB_LEN =   $c812
@@ -34,7 +34,7 @@ CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PR
 CMD_STATUS =     $c81e      ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 UNK_c827 =       $c827      ; 3-byte unknown in reverse endian as the above
 NEW_BLK_SIZE =   $c82a      ; desired block size in SetBlock
-LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
+LBA      =       $c8db      ; LBA to read/write (little endian - adjusted for PART_START) to use in CDB (gets copied to CDB_LBA)
 RX_LEN_LO =      $c8e4      ; bytes read if call successfull
 RX_LEN_HI =      $c8e5      ; bytes read if call successfull
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
@@ -416,22 +416,22 @@ FN_39:   lda     IS_IIgs
          rts
 
 FN_49:   lda     #$01       ;Send REQUEST_SENSE and store result at $c901
-         sta     TMP_PTR_L
+         sta     MEM_PTR_L
          lda     #$c9
-         sta     TMP_PTR_H
+         sta     MEM_PTR_H
          lda     #$00
-         sta     TMP_PTR_VH ;TMP_PTR=$c901
+         sta     MEM_PTR_VH ;TMP_PTR=$c901
          lda     #$67
          jsr     CALL_FN_X9 ;CALL_FN_67 - save TMP_PTR
          ldy     #$02       ;the pointer is copied to fake a PD command
-         lda     TMP_PTR_L
-         sta     (TMP_PTR_L),y ;TMP_PTR_L[2]=TMP_PTR_L
+         lda     MEM_PTR_L
+         sta     (MEM_PTR_L),y ;TMP_PTR_L[2]=TMP_PTR_L
          iny
-         lda     TMP_PTR_H
-         sta     (TMP_PTR_L),y ;TMP_PTR_L[3]=TMP_PTR_H
+         lda     MEM_PTR_H
+         sta     (MEM_PTR_L),y ;TMP_PTR_L[3]=TMP_PTR_H
          iny
          lda     #$00
-         sta     (TMP_PTR_L),y ;TMP_PTR_L[4]=0;
+         sta     (MEM_PTR_L),y ;TMP_PTR_L[4]=0;
          lda     #$b3
          jsr     CALL_FN_X9 ;CALL_FN_B3 - Send REQUEST_SENSE
          lda     #$77
@@ -439,8 +439,8 @@ FN_49:   lda     #$01       ;Send REQUEST_SENSE and store result at $c901
          rts
 
 GET_ASC: lda     #$00
-         sta     TMP_PTR_VH
-         sta     TMP_PTR_XH
+         sta     MEM_PTR_VH
+         sta     MEM_PTR_XH
          sta     CALL_TYPE
          lda     #$66
          jmp     CALL_FN_X9 ;CALL_FN_66 - Process ASC from sense data
@@ -556,19 +556,19 @@ FAIL_IOERROR:
 
 CHECK_END_BLK_VALID:
          clc
-         lda     LBA_c8db
+         lda     LBA
          adc     UNK_LEN
          sta     LBA_TEMP
-         lda     LBA_c8db+1
+         lda     LBA+1
          adc     #$00
          sta     LBA_TEMP+1
-         lda     LBA_c8db+2
+         lda     LBA+2
          adc     #$00
-         sta     LBA_TEMP+2 ;LBA_TEMP=LBA_c8db+(char)UNK_c92d
+         sta     LBA_TEMP+2 ;LBA_TEMP=LBA+(char)UNK_LEN
          bcs     FAIL_BADBLOCK
          lda     LBA_TEMP+2
          sec
-         sbc     UNK_c827
+         sbc     UNK_c827   ;here UNK_c827 is BLOCK_COUNT
          bcc     @ret
          bne     FAIL_BADBLOCK
          lda     LBA_TEMP+1
@@ -623,9 +623,9 @@ FN_TABLE:
          .byte   $ea
 
 BANKSWITCH:
-         stx     BSW_SAVE_X
+         stx     BSW_TEMP
          tax
-         lda     BSW_SAVE_X
+         lda     BSW_TEMP
          pha
          txa
          pha
@@ -639,10 +639,10 @@ BANKSWITCH:
          ror     A
          tax
          lda     FN_TABLE,x
-         sta     TMP_PTR1
+         sta     JMP_PTR
          inx
          lda     FN_TABLE,x
-         sta     TMP_PTR1+1
+         sta     JMP_PTR+1
          jsr     DO_FN_CALL
          pla
          and     #$0f
@@ -651,7 +651,7 @@ BANKSWITCH:
          rts
 
 DO_FN_CALL:
-         jmp     (TMP_PTR1)
+         jmp     (JMP_PTR)
 
          .byte   $d7
          .byte   $00

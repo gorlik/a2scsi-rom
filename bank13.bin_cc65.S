@@ -2,11 +2,11 @@
 ; 6502bench SourceGen v1.8.3
          .setcpu "65816"
 TMP_PTR0 =       $19        ; temporary ZP pointer 
-TMP_PTR1 =       $1b        ; temporary ZP pointer 
-TMP_PTR_L =      $f6        ; temporary ZP long pointer
-TMP_PTR_H =      $f7
-TMP_PTR_VH =     $f8
-TMP_PTR_XH =     $f9
+JMP_PTR  =       $1b        ; Jmp target ZP pointer 
+MEM_PTR_L =      $f6        ; temporary ZP long pointer
+MEM_PTR_H =      $f7
+MEM_PTR_VH =     $f8
+MEM_PTR_XH =     $f9
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
 BUF_PTR_H =      $fb
 BUF_PTR_VH =     $fc
@@ -25,12 +25,12 @@ TMP_c807 =       $c807      ; save BUF_PTR_VH ???
 SAVE_CYAREG =    $c808      ; saved value of CYAREG
 TMP_c80a =       $c80a      ; unknown
 RET_CODE =       $c80b      ; 
-BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
+BSW_TEMP =       $c80c      ; TEMP in BANKSWITCH
 SCSI_CDB_CMD =   $c80e      ; SCSI CDB buffer
 SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 UNK_c820 =       $c820      ; 0xff if PIO ?
-UNK_c827 =       $c827      ; 3-byte unknown in reverse endian as the above
+DEV_SIZE =       $c827      ; device size in blocks (3-bytes reverese endian) - reused in some banks ???
 TEMP_PTR_c8ca =  $c8ca      ; TEMP_BUF_PTR?
 SAVE_SP2 =       $c8ed      ;saved SP - also used a random temp
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
@@ -107,7 +107,7 @@ FN_0D:   lda     #$86       ;fill DIBTAB at TMP_PTR0
 CPY_BLK_SIZE:
          ldx     #$02       ;copy BLK_SIZE from $c825 ???
 @cpy_loop:
-         lda     UNK_c827,x
+         lda     DEV_SIZE,x ;UNK_c827 should be BLK_SIZE here
          sta     (TMP_PTR0),y
          iny
          dex
@@ -261,31 +261,31 @@ FN_4D:   tya                ;INQUIRY_CA00
          sta     PTR_SAVE
          lda     TMP_PTR0+1
          sta     PTR_SAVE+1 ;SAVE TMP_PTR0
-         lda     TMP_PTR_L
+         lda     MEM_PTR_L
          sta     TEMP_PTR_c8ca
-         lda     TMP_PTR_H
+         lda     MEM_PTR_H
          sta     TEMP_PTR_c8ca+1
-         lda     TMP_PTR_VH
+         lda     MEM_PTR_VH
          sta     $c925
-         lda     TMP_PTR_XH
+         lda     MEM_PTR_XH
          sta     $c926      ;SAVE TMP_PTR (all 4 bytes)
          lda     #$00
-         sta     TMP_PTR_L
+         sta     MEM_PTR_L
          lda     #$ca
-         sta     TMP_PTR_H  ;set TMP_PTR to $ca00
+         sta     MEM_PTR_H  ;set TMP_PTR to $ca00
          ldy     #$02
-         lda     TMP_PTR_L
-         sta     (TMP_PTR_L),y
+         lda     MEM_PTR_L
+         sta     (MEM_PTR_L),y
          iny
-         lda     TMP_PTR_H
-         sta     (TMP_PTR_L),y
+         lda     MEM_PTR_H
+         sta     (MEM_PTR_L),y
          iny
          lda     #$00
-         sta     TMP_PTR_VH
-         sta     TMP_PTR_XH
-         sta     (TMP_PTR_L),y
+         sta     MEM_PTR_VH
+         sta     MEM_PTR_XH
+         sta     (MEM_PTR_L),y
          iny
-         sta     (TMP_PTR_L),y ;*(TMP_PTR+2)=TMP_PTR - *($ca02)=$ca00
+         sta     (MEM_PTR_L),y ;*(TMP_PTR+2)=TMP_PTR - *($ca02)=$ca00
          lda     #$93
          jsr     CALL_FN_XD ;CALL_FN_93 - INQUIRY
          ldx     #$03
@@ -299,13 +299,13 @@ FN_4D:   tya                ;INQUIRY_CA00
          lda     PTR_SAVE+1
          sta     TMP_PTR0+1 ;RESTORE TMP_PTR0
          lda     TEMP_PTR_c8ca
-         sta     TMP_PTR_L
+         sta     MEM_PTR_L
          lda     TEMP_PTR_c8ca+1
-         sta     TMP_PTR_H
+         sta     MEM_PTR_H
          lda     $c925
-         sta     TMP_PTR_VH
+         sta     MEM_PTR_VH
          lda     $c926
-         sta     TMP_PTR_XH ;RESTORE TMP_PTR (4 bytes)
+         sta     MEM_PTR_XH ;RESTORE TMP_PTR (4 bytes)
          pla
          tay
          rts
@@ -370,14 +370,14 @@ LCE01:   txa
          rts
 
 FN_1D:   lda     #$15
-         jsr     CALL_FN_XD ;CALL_FN_15
+         jsr     CALL_FN_XD ;CALL_FN_15 - FN_35, FN_1C, FN_6A - load info from SDAT[DEV_IDX], LBA+=PART_START, memcpy($ca00,&DIBTAB[DEV_IDX])
          lda     #$bf
          jsr     CALL_FN_XD ;CALL_FN_BF - set TPM_PTR to $ca00, check if device is online
-         lda     UNK_c827
+         lda     DEV_SIZE   ;no idea what is UNK_c827
          beq     @FN_1D_end
          lda     #$ff
-         sta     UNK_c827+1
-         sta     UNK_c827+2
+         sta     DEV_SIZE+1
+         sta     DEV_SIZE+2
 @FN_1D_end:
          rts
 
@@ -684,9 +684,9 @@ FN_TABLE:
          .byte   $ea
          .byte   $ea
 BANKSWITCH:
-         stx     BSW_SAVE_X
+         stx     BSW_TEMP
          tax
-         lda     BSW_SAVE_X
+         lda     BSW_TEMP
          pha
          txa
          pha
@@ -700,10 +700,10 @@ BANKSWITCH:
          ror     A
          tax
          lda     FN_TABLE,x
-         sta     TMP_PTR1
+         sta     JMP_PTR
          inx
          lda     FN_TABLE,x
-         sta     TMP_PTR1+1
+         sta     JMP_PTR+1
          jsr     DO_CALL_FN
          pla
          and     #$0f
@@ -712,7 +712,7 @@ BANKSWITCH:
          rts
 
 DO_CALL_FN:
-         jmp     (TMP_PTR1)
+         jmp     (JMP_PTR)
 
          .byte   $00
          .byte   $00

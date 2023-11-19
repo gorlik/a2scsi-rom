@@ -6,11 +6,11 @@ SCSI_CMD_WRITE6 = $0a
 P8E_IO_ERR =     $27        ;I/O error
 P8E_WRITE_PROT = $2b        ;Disk write protected
 
-TMP_PTR1 =       $1b        ; temporary ZP pointer 
+JMP_PTR  =       $1b        ; Jmp target ZP pointer 
 PD_PAR_BLK_LO =  $46        ;PRODOS input parameter Block lo
 PD_PAR_BLK_HI =  $47        ;PRODOS input parameter Block hi
-TMP_PTR_L =      $f6        ; temporary ZP long pointer
-TMP_PTR_H =      $f7
+MEM_PTR_L =      $f6        ; temporary ZP long pointer
+MEM_PTR_H =      $f7
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
 BUF_PTR_H =      $fb
 REG_5380_DATA =  $c000      ; R current SCSI data lines status
@@ -23,7 +23,7 @@ REG_IO_BANK_SEL = $c00a     ; W memory bank select
 TCOUNT_B0 =      $c801      ; timeout counter LSB
 SEL_TARGET =     $c806      ; SCSI (BUS?) ID of selected target
 RET_CODE =       $c80b      ; 
-BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
+BSW_TEMP =       $c80c      ; TEMP in BANKSWITCH
 SCSI_CMD_LEN =   $c80d      ; SCSI COMMAND lenght
 SCSI_CDB_CMD =   $c80e      ; SCSI CDB buffer
 SCSI_CDB_LUN =   $c80f      ; 
@@ -34,9 +34,9 @@ SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4
 SAVE_SP_CMD =    $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 CMD_STATUS =     $c81e      ; SCSI CMD status - 0x00 OK, 0x02 Check condition
-SDAT_BASE =      $c831      ;start of SDAT table (extends to $C8A7)
+UNK_c830 =       $c830      ; 
 TMP_COUNTER =    $c8c6
-RD_ERRORS =      $c8c9      ; used only in blk 6 to count the number of read errors
+RD_ERRORS =      $c8c9      ; used only in bank 6 to count the number of read errors
 PARTMAP_OK =     $c8cf      ; $00 if failed to read Partition Map. non-zero if PM detected
 BLOCK_SIZE =     $c8d0      ; temp int storage (size of DDM block?)
 TEMP_c8da =      $c8da      ; unknown
@@ -67,11 +67,11 @@ EXECUTE_FORMAT_PM_INIT:
          jsr     @CALL_FN_D3 ;FORMAT_UNIT
          jsr     NEW_PM
          lda     #$0c
-         jmp     CALL_FN_X6_SY ;CALL_FN_0C - Set New SDAT
+         jmp     CALL_FN_X6_LY ;CALL_FN_0C - Set New SDAT
 
 @CALL_FN_D3:
          lda     #$d3       ;FORMAT_UNIT
-CALL_FN_X6_SY:
+CALL_FN_X6_LY:
          ldx     #$06
          ldy     SLOT_OFFSET
          jsr     BANKSWITCH ;CALL_FN_X6
@@ -84,18 +84,18 @@ NEW_PM:  jsr     EXEC_PARSE_READ_CAPACITY
 EXEC_PARSE_READ_CAPACITY:
          lda     #$00
          sta     BUF_PTR_L
-         sta     TMP_PTR_L
+         sta     MEM_PTR_L
          lda     #$ca
          sta     BUF_PTR_H
-         sta     TMP_PTR_H  ;set BUF_PTR and TMP_PTR to $ca00
+         sta     MEM_PTR_H  ;set BUF_PTR and TMP_PTR to $ca00
          ldy     #$02
-         lda     TMP_PTR_L
-         sta     (TMP_PTR_L),y
+         lda     MEM_PTR_L
+         sta     (MEM_PTR_L),y
          iny
-         lda     TMP_PTR_H
-         sta     (TMP_PTR_L),y
+         lda     MEM_PTR_H
+         sta     (MEM_PTR_L),y
          lda     #$c3
-         jsr     CALL_FN_X6_SY ;CALL_FN_C3 - READ_CAPACITY
+         jsr     CALL_FN_X6_LY ;CALL_FN_C3 - READ_CAPACITY
          lda     #$00
          sta     BUF_PTR_L
          lda     #$ca
@@ -161,17 +161,17 @@ CREATE_PM:
          lda     #$01
          sta     (BUF_PTR_L),y ;set DDM drive count to 1
          lda     #$1f
-         jsr     CALL_FN_X6_SY ;CALL_FN_1F
+         jsr     CALL_FN_X6_LY ;CALL_FN_1F
          jsr     EXECUTE_WRITE ;WRITE DDM in block 0
          lda     #$01
-         jsr     SET_BLK_BLK_CLR
+         jsr     SET_BLK_BUF_CLR
          lda     #$2f
-         jsr     CALL_FN_X6_SY ;CALL_FN_2F
+         jsr     CALL_FN_X6_LY ;CALL_FN_2F
          jsr     EXECUTE_WRITE ;WRITE MASTER PDM in block 1
          lda     #$02
-         jsr     SET_BLK_BLK_CLR
+         jsr     SET_BLK_BUF_CLR
          lda     #$0f
-         jsr     CALL_FN_X6_SY ;CALL_FN_0F
+         jsr     CALL_FN_X6_LY ;CALL_FN_0F
          jsr     EXECUTE_WRITE ;WRITE PDM ENTRY in block 2
          ldy     SLOT_OFFSET
          rts
@@ -179,9 +179,9 @@ CREATE_PM:
 EXECUTE_WRITE:
          jsr     FILL_CMD_WRITE6
          lda     #$20
-         jmp     CALL_FN_X6_SY ;CALL_FN_20
+         jmp     CALL_FN_X6_LY ;CALL_FN_20
 
-SET_BLK_BLK_CLR:
+SET_BLK_BUF_CLR:
          sta     PD_PAR_BLK_LO ;set PAR_BLK to A, set BUF_PTR to $ca00, clear $ca00 buffer
          lda     #$00
          sta     PD_PAR_BLK_HI
@@ -200,7 +200,7 @@ CLR_BUF: lda     #$00       ;clear 256 bytes at BUF_PTR
          rts
 
 FN_26:   lda     #$47       ;try to read DDM and PDM
-         jsr     CALL_FN_X6_SY ;CALL_FN_47 - READ DDM and MASTER PDM
+         jsr     CALL_FN_X6_LY ;CALL_FN_47 - READ DDM and MASTER PDM
          lda     PARTMAP_OK
          beq     @ret_fail
          clc
@@ -298,7 +298,7 @@ ERROR_IOERROR:
 
 CALL_FN_49:
          lda     #$49       ;send REQUEST_SENSE and store res at $c901
-         jmp     CALL_FN_X6_SY ;CALL_FN_49
+         jmp     CALL_FN_X6_LY ;CALL_FN_49
 
 CHECK_REQ_SENSE:
          jsr     CALL_FN_49 ;send REQUEST_SENSE and store res at $c901
@@ -331,7 +331,7 @@ FN_66:   jsr     LDA_ASC    ;process ASC from SENSE_DATA at $c901
          beq     LCE27
          cmp     #$b0
          beq     ERROR_OFFLINE
-LCDDF:   jsr     LCDF9
+LCDDF:   jsr     CALL_FN_0C
          lda     CALL_TYPE
          cmp     #$01
          bne     ERROR_DISKSWITCH
@@ -348,14 +348,15 @@ ERROR_OFFLINE:
          lda     #$2f
          bne     RET_ERROR
 
-LCDF9:   lda     #$0c
-         jmp     CALL_FN_X6_SY ;CALL_FN_0C
+CALL_FN_0C:
+         lda     #$0c
+         jmp     CALL_FN_X6_LY ;CALL_FN_0C
 
 FN_56:   lda     #$ff
          sta     SAVE_SP2   ;number of retrys
 @FN_65_try_again:
          lda     #$a3
-         jsr     CALL_FN_X6_SY ;CALL_FN_A3 - SEND CMD_TEST_UNIT_READY
+         jsr     CALL_FN_X6_LY ;CALL_FN_A3 - SEND CMD_TEST_UNIT_READY
          lda     CMD_STATUS
          beq     @FN_56_ret_ok
          jsr     DELAY_C0FF
@@ -449,11 +450,11 @@ READ_BLK_CA00:
          jsr     SET_BUF_PTR_CA00 ;read block at LBA $cddb to buf at $ca00
 READ_BLK:
          lda     #$41
-         jsr     CALL_FN_X6_SY ;CALL_FN_41 - LOAD CDB READ6 - 1 block from LBA at $c8db
+         jsr     CALL_FN_X6_LY ;CALL_FN_41 - LOAD CDB READ6 - 1 block from LBA at $c8db
          jsr     CALL_FN_00 ;Do Phases
          jsr     CALL_FN_01 ;Data Xin
          lda     #$a0
-         jsr     CALL_FN_X6_SY ;CALL_FN_A0 - Get status and message
+         jsr     CALL_FN_X6_LY ;CALL_FN_A0 - Get status and message
 CHECK_STATUS_RET:
          lda     CMD_STATUS ;check status
          beq     @ret_ok
@@ -466,11 +467,11 @@ CHECK_STATUS_RET:
 WRITE_BLK_CA00:
          jsr     SET_BUF_PTR_CA00 ;write block at $ca00 to LBA at $c8db
          lda     #$51
-         jsr     CALL_FN_X6_SY ;CALL_FN_51 - LOAD CDB WRITE6 - 1 block from LBA at $c8db
+         jsr     CALL_FN_X6_LY ;CALL_FN_51 - LOAD CDB WRITE6 - 1 block from LBA at $c8db
          jsr     CALL_FN_00 ;Do Phases
          jsr     CALL_FN_11 ;Data Xout
          lda     #$a0
-         jsr     CALL_FN_X6_SY ;CALL_FN_A0 - Get status and message
+         jsr     CALL_FN_X6_LY ;CALL_FN_A0 - Get status and message
          jmp     CHECK_STATUS_RET
 
 CALL_FN_00:
@@ -517,7 +518,7 @@ FN_36:   jsr     LCF21      ;CALL_FN_3A - BUS_FREE
          jsr     SCSI_SELECT_ALT
          bcs     RET_EC_27
          lda     #$44
-         jsr     CALL_FN_X6_SY ;CALL_FN_44
+         jsr     CALL_FN_X6_LY ;CALL_FN_44
          clc
          rts
 
@@ -541,19 +542,20 @@ SCSI_ARBITRATE_ALT:
          ora     #$01
          sta     REG_5380_MODE_SEL,y ;initiate arbitration
          lda     REG_5380_ICMD,y
-         and     #$20
+         and     #$20       ;check the lost arb bit
          bne     SCSI_ARBITRATE_ALT ;lost SCSI arbitration, try again
          lda     REG_5380_DATA,y
          sec
          sbc     REG_IO_DEV_ID,y
-         beq     @LCF55     ;only this device requested to arbitrate
+         beq     @arb_win   ;only this device requested to arbitrate
          sec
          sbc     REG_IO_DEV_ID,y
-         bmi     @LCF55     ;we are the highest priority
+         bmi     @arb_win   ;we are the highest priority
          sec                ;we are not the highest priority
          rts                ;return fail - bug(?) does not reset arbitrate bit
 
-@LCF55:  lda     REG_5380_ICMD,y ;check again for lost arbitration
+@arb_win:
+         lda     REG_5380_ICMD,y ;check again for lost arbitration (?)
          and     #$20
          bne     SCSI_ARBITRATE_ALT ;arbitration lost try again
          clc
@@ -561,19 +563,19 @@ SCSI_ARBITRATE_ALT:
 
 SCSI_SELECT_ALT:
          lda     #$04       ;very similar to SCSI SELECT
-         sta     REG_5380_ICMD,y
+         sta     REG_5380_ICMD,y ;assert busy
          nop
-         lda     REG_IO_DEV_ID,y
+         lda     REG_IO_DEV_ID,y ;get controller BUS ID
          ora     SEL_TARGET
-         sta     REG_5380_DATA_OUT,y
+         sta     REG_5380_DATA_OUT,y ;put INITIATOR and TARGET BUS ID on the bus
          lda     #$0d
-         sta     REG_5380_ICMD,y
+         sta     REG_5380_ICMD,y ;assert BUSY, SEL and enable data BUS (first part of SEL phase)
          lda     #$00
-         sta     REG_5380_MODE_SEL,y
+         sta     REG_5380_MODE_SEL,y ;no parity, initiator mode, no interrupts, no arbitration
          lda     #$00
-         sta     REG_5380_SEL,y
+         sta     REG_5380_SEL,y ;no interrupt on SEL
          lda     #$05
-         sta     REG_5380_ICMD,y
+         sta     REG_5380_ICMD,y ;deassert BUSY (keep SEL and data bus)
          sta     TCOUNT_B0
 @retry_not_busy:
          jsr     WAIT_NOT_BUSY
@@ -584,18 +586,18 @@ SCSI_SELECT_ALT:
 
 @end_sel:
          lda     #$00
-         sta     REG_5380_ICMD,y
+         sta     REG_5380_ICMD,y ;selection successfull - deassert SEL and disable data BUS
          clc
          rts
 
 CALL_FN_3A:
          lda     #$3a
-         jmp     CALL_FN_X6_SY ;CALL_FN_3A
+         jmp     CALL_FN_X6_LY ;CALL_FN_3A
 
 WAIT_NOT_BUSY:
          lda     #$4b
-         jsr     CALL_FN_X6_SY ;CALL_FN_4B
-         lda     SDAT_BASE-1
+         jsr     CALL_FN_X6_LY ;CALL_FN_4B
+         lda     UNK_c830
          beq     ret_fail2
          clc
          rts
@@ -630,9 +632,9 @@ FN_TABLE:
 
          .org    $cfcc
 BANKSWITCH:
-         stx     BSW_SAVE_X
+         stx     BSW_TEMP
          tax
-         lda     BSW_SAVE_X
+         lda     BSW_TEMP
          pha
          txa
          pha
@@ -646,10 +648,10 @@ BANKSWITCH:
          ror     A
          tax
          lda     FN_TABLE,x
-         sta     TMP_PTR1
+         sta     JMP_PTR
          inx
          lda     FN_TABLE,x
-         sta     TMP_PTR1+1
+         sta     JMP_PTR+1
          jsr     @DO_CALL_FN
          pla
          and     #$0f
@@ -658,7 +660,7 @@ BANKSWITCH:
          rts
 
 @DO_CALL_FN:
-         jmp     (TMP_PTR1)
+         jmp     (JMP_PTR)
 
          .byte   $02
          .byte   $31

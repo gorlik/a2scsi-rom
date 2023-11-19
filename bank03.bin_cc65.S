@@ -17,10 +17,10 @@ P8E_WRITE_PROT = $2b        ;Disk write protected
 SCSI_CMD_READ_DEFECT_DATA = $37
 
 TMP_PTR0 =       $19        ; temporary ZP pointer 
-TMP_PTR1 =       $1b        ; temporary ZP pointer 
+JMP_PTR  =       $1b        ; Jmp target ZP pointer 
 PD_PAR_BLK_LO =  $46        ;PRODOS input parameter Block lo
 PD_PAR_BLK_HI =  $47        ;PRODOS input parameter Block hi
-TMP_PTR_L =      $f6        ; temporary ZP long pointer
+MEM_PTR_L =      $f6        ; temporary ZP long pointer
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
 BUF_PTR_H =      $fb
 BUF_PTR_VH =     $fc
@@ -33,7 +33,7 @@ TCOUNT_B2 =      $c802      ; timeout counter MSB
 XFER_MODE =      $c804      ; 0x00 IIe PDMA, 0x01 IIgs PDMA, 0x02-0xff PIO 
 INIT_FLAG =      $c809      ; card initialized flag (init=$77)
 RET_CODE =       $c80b      ; 
-BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
+BSW_TEMP =       $c80c      ; TEMP in BANKSWITCH
 SCSI_CMD_LEN =   $c80d      ; SCSI COMMAND lenght
 SCSI_CDB_CMD =   $c80e      ; SCSI CDB buffer
 SCSI_CDB_LUN =   $c80f      ; 
@@ -45,7 +45,7 @@ CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PR
 CMD_STATUS =     $c81e      ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 UNK_c820 =       $c820      ; 0xff if PIO ?
 SDAT     =       $c831      ;start of SDAT table (extends to $C8A7)
-UNK_c8cc =       $c8cc      ;unknown
+INTERLEAVE =     $c8cc      ; interleave used for FORMAT_UNIT (set to 5 by default, can be changed with PD_SET_INTERLEAVE)
 SAVE_SP_UNIT =   $c8e8      ; saved Smartport UNIT number
 TEMP_16  =       $c8ee      ;generic 16-bit temp
 IS_IIgs  =       $c8f3      ;0x01 if IIgs
@@ -83,7 +83,7 @@ LOAD_CDB_FORMAT:
          jsr     ZERO_CMD_BUF6 ;FORMAT_UNIT
          lda     #SCSI_CMD_FORMAT_UNIT
          sta     SCSI_CDB_CMD
-         lda     UNK_c8cc
+         lda     INTERLEAVE
          sta     SCSI_CDB_LEN
          rts
 
@@ -108,7 +108,7 @@ FN_A3:   jsr     LOAD_CDB_TEST_UNIT_READY ;TEST_UNIT_READY
          lda     RET_CODE
          beq     @FN_A3_end
          lda     #$39
-         jsr     CALL_FN_X3 ;CALL_FN_39
+         jsr     CALL_FN_X3 ;CALL_FN_39 - REQUEST_SENSE (FN_49) an process ASC if necessary
          lda     #P8E_IO_ERR
          jmp     CALL_FN_60_RET ;return fail
 
@@ -117,7 +117,7 @@ FN_A3:   jsr     LOAD_CDB_TEST_UNIT_READY ;TEST_UNIT_READY
 
 FN_D3:   jsr     WRITE_PROT_CHECK
          jsr     LOAD_CDB_FORMAT ;FORMAT_UNIT
-         jsr     CALL_00_Do_Phases ;Do_Phases
+         jsr     CALL_FN_00 ;Do_Phases
 @LCC75:  lda     REG_5380_STAT,y
          and     #$1c
          cmp     #$0c
@@ -128,11 +128,11 @@ FN_D3:   jsr     WRITE_PROT_CHECK
          jmp     ERROR_IOERROR
 
 FN_B3:   jsr     LOAD_CDB_REQUEST_SENSE ;REQUEST_SENSE
-         jsr     CALL_00_Do_Phases
+         jsr     CALL_FN_00
          jmp     READ_DATA_PIO_WAIT
 
 FN_93:   jsr     LOAD_CDB_INQUIRY
-         jsr     CALL_00_Do_Phases
+         jsr     CALL_FN_00
          lda     PD_PAR_BLK_LO
          sta     TEMP_16
          lda     PD_PAR_BLK_HI
@@ -145,7 +145,7 @@ FN_93:   jsr     LOAD_CDB_INQUIRY
 ret_rts: rts
 
 FN_C3:   jsr     LOAD_CDB_READ_CAPACITY
-         jsr     CALL_00_Do_Phases
+         jsr     CALL_FN_00
          lda     BUF_PTR_L
          sta     TEMP_16
          lda     BUF_PTR_H
@@ -218,7 +218,7 @@ LOAD_CDB_MODE_SENSE6:
          cmp     #$01       ;if EXT_FLAG==$01 should be a PRODOS call
          bne     @LCD57     ;branch if not PRODOS
 @LCD45:  ldy     #$05
-@LCD47:  lda     (TMP_PTR_L),y
+@LCD47:  lda     (MEM_PTR_L),y
          jmp     @LCD50
 
          .byte   $a0
@@ -256,10 +256,10 @@ COPY_BUF_PTR:
          bne     @copy_long_buf_ptr
 @std_call:
          ldy     #$02
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          sta     BUF_PTR_L
          iny
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          sta     BUF_PTR_H
 @copy_buf_ptr_done:
          ldy     SLOT_OFFSET
@@ -267,16 +267,16 @@ COPY_BUF_PTR:
 
 @copy_long_buf_ptr:
          ldy     #$02
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     BUF_PTR_L
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     BUF_PTR_H
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     BUF_PTR_VH
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     BUF_PTR_XH
          jmp     @copy_buf_ptr_done
 
@@ -296,7 +296,7 @@ CALL_FN_30:
          lda     #$30
          jmp     CALL_FN_X3 ;CALL_FN_30 (Get Status and Message)
 
-CALL_00_Do_Phases:
+CALL_FN_00:
          lda     #$00
          jmp     CALL_FN_X3 ;CALL_FN_00 (DoPhases)
 
@@ -394,10 +394,9 @@ WRITE_PROT_CHECK:
 
 @not_wp: rts
 
-FN_03_DoStatus:
-         jsr     WRITE_PROT_CHECK
+FN_03:   jsr     WRITE_PROT_CHECK
          jsr     LOAD_CDB_REASSIGN_BLOCKS ;REASSIGN_BLOCKS
-         jsr     CALL_00_Do_Phases
+         jsr     CALL_FN_00
          jsr     WAIT_FOR_DATA_OUT
          bcs     ret_27
          jmp     WRITE_DATA_PIO
@@ -454,7 +453,7 @@ WAIT_FOR_DATA_IN:
 FN_13:   rts
 
 FN_23:   jsr     LOAD_CDB_MODE_SENSE6 ;MODE_SENSE
-         jsr     CALL_00_Do_Phases
+         jsr     CALL_FN_00
          lda     SCSI_CDB_LEN
          beq     JMP_FN_30  ;branch if CMD lenght is 0 (nothing to transfer)
          jsr     READ_DATA_PIO_TIMEOUT
@@ -470,7 +469,7 @@ FN_43:   jsr     LOAD_CDB_RELEASE
          jmp     SCSI_CMD_SEND_NO_DATA
 
 FN_53:   jsr     LOAD_CDB_READ_DEFECT
-         jsr     CALL_00_Do_Phases
+         jsr     CALL_FN_00
 @LCEC8:  lda     REG_5380_STAT,y
          and     #$1c
          cmp     #$04
@@ -492,7 +491,7 @@ ERROR_IOERROR_DUP:
          jmp     CALL_FN_60_RET
 
 FN_63:   jsr     LOAD_CDB_SEND_DIAG
-         jsr     CALL_00_Do_Phases
+         jsr     CALL_FN_00
          ldx     #$03
          lda     #$30
          jsr     BANKSWITCH ;CALL_FN_30
@@ -504,12 +503,13 @@ RET_27_LOCAL:
          jmp     ret_27
 
 FN_E3:   lda     SAVE_SP_UNIT
-         beq     @LCF0E     ;branch if unit number is invalid
+         beq     @err_invalid_unit ;branch if unit number is invalid
          lda     #$80
          sta     REG_5380_ICMD,y
          jmp     FN_A3      ;send CMD TEST_UNIT_READY
 
-@LCF0E:  lda     #$11       ;invalid unit number
+@err_invalid_unit:
+         lda     #$11       ;invalid unit number
          jmp     CALL_FN_60_RET ;return fail
 
 FN_F3:   jsr     ZERO_CMD_BUF6 ;Send REQUEST SENSE command
@@ -517,7 +517,7 @@ FN_F3:   jsr     ZERO_CMD_BUF6 ;Send REQUEST SENSE command
          sta     SCSI_CDB_CMD
          lda     #$1c
          sta     SCSI_CDB_LEN
-         jsr     CALL_00_Do_Phases ;Do_Phases
+         jsr     CALL_FN_00 ;Do_Phases
          jsr     READ_DATA_PIO_TIMEOUT
          rts
 
@@ -561,11 +561,11 @@ FN_73:   ldx     #$00       ;SAVE_TIMEOUT_AND CLEAR SDAT
          lda     #$ff
          sta     buf_c8f5,x ;end the buffer with $ff
          lda     #$00
-         ldx     #$76
+         ldx     #$76       ;SDAT_ENTRY_SIZE*7-1
 @sdat_clr_loop:
-         sta     SDAT,x     ;clear all SDAT table (???)
+         sta     SDAT,x
          dex
-         bpl     @sdat_clr_loop
+         bpl     @sdat_clr_loop ;clear all SDAT table
 RET_LOAD_Y:
          ldy     SLOT_OFFSET
          rts
@@ -597,7 +597,7 @@ CALL_FN_60_RET:
          jmp     BANKSWITCH ;CALL_FN_60
 
 FN_TABLE:
-         .word   FN_03_DoStatus
+         .word   FN_03
          .word   FN_13
          .word   FN_23
          .word   FN_33
@@ -616,9 +616,9 @@ FN_TABLE:
          .byte   $ea
 
 BANKSWITCH:
-         stx     BSW_SAVE_X
+         stx     BSW_TEMP
          tax
-         lda     BSW_SAVE_X
+         lda     BSW_TEMP
          pha
          txa
          pha
@@ -632,10 +632,10 @@ BANKSWITCH:
          ror     A
          tax
          lda     FN_TABLE,x
-         sta     TMP_PTR1
+         sta     JMP_PTR
          inx
          lda     FN_TABLE,x
-         sta     TMP_PTR1+1
+         sta     JMP_PTR+1
          jsr     DO_CALL_FN
          pla
          and     #$0f
@@ -643,7 +643,7 @@ BANKSWITCH:
          rts                ;bug? all other banks have a clc before rts
 
 DO_CALL_FN:
-         jmp     (TMP_PTR1)
+         jmp     (JMP_PTR)
 
          .byte   $00        ;bug? this is unique to this bank
          .byte   $02

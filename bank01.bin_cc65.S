@@ -5,11 +5,11 @@ SCSI_CMD_READ6 = $08
 SCSI_CMD_WRITE6 = $0a
 P8E_IO_ERR =     $27        ;I/O error
 
-TMP_PTR1 =       $1b        ; temporary ZP pointer 
+JMP_PTR  =       $1b        ; Jmp target ZP pointer 
 PD_PAR_BLK_LO =  $46        ;PRODOS input parameter Block lo
 PD_PAR_BLK_HI =  $47        ;PRODOS input parameter Block hi
-TMP_PTR_L =      $f6        ; temporary ZP long pointer
-TMP_PTR_H =      $f7
+MEM_PTR_L =      $f6        ; temporary ZP long pointer
+MEM_PTR_H =      $f7
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
 BUF_PTR_H =      $fb
 BUF_PTR_VH =     $fc
@@ -35,7 +35,7 @@ XFER_MODE =      $c804      ; 0x00 IIe PDMA, 0x01 IIgs PDMA, 0x02-0xff PIO
 SAVE_CYAREG =    $c808      ; saved value of CYAREG
 INIT_FLAG =      $c809      ; card initialized flag (init=$77)
 RET_CODE =       $c80b      ; 
-BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
+BSW_TEMP =       $c80c      ; TEMP in BANKSWITCH
 SCSI_CMD_LEN =   $c80d      ; SCSI COMMAND lenght
 SCSI_CDB_CMD =   $c80e      ; SCSI CDB buffer
 SCSI_CDB_LUN =   $c80f      ; 
@@ -522,29 +522,29 @@ RESTORE_EMU_IF_NEEDED:
          rts
 
 FN_21:   lda     #$f5
-         sta     TMP_PTR_L
+         sta     MEM_PTR_L
          lda     #$c8
-         sta     TMP_PTR_H  ;TMP_PTR = $c8f5
+         sta     MEM_PTR_H  ;TMP_PTR = $c8f5
          lda     #$00
          ldy     #$0b
 @clr_loop_fn21:
-         sta     (TMP_PTR_L),y
+         sta     (MEM_PTR_L),y
          dey
          bpl     @clr_loop_fn21 ;clear 12 bytes starting at 0xc8f5
          ldy     #$02
          lda     #$f9
-         sta     (TMP_PTR_L),y
+         sta     (MEM_PTR_L),y
          iny
-         lda     TMP_PTR_H
-         sta     (TMP_PTR_L),y ;*($c8f5+2)=$c8f9
+         lda     MEM_PTR_H
+         sta     (MEM_PTR_L),y ;*($c8f5+2)=$c8f9
          lda     #$04
          ldy     #$07
-         sta     (TMP_PTR_L),y ;*$(c8f5+7)=$04
+         sta     (MEM_PTR_L),y ;*$(c8f5+7)=$04
          ldy     #$09
          ldx     #$01
 @cpy_loop_fn21:
          lda     SCSI_CDB_CMD,x
-         sta     (TMP_PTR_L),y
+         sta     (MEM_PTR_L),y
          iny
          inx
          cpx     #$04
@@ -616,9 +616,9 @@ FN_TABLE:
          .byte   $ea
 
 BANKSWITCH:
-         stx     BSW_SAVE_X
+         stx     BSW_TEMP
          tax
-         lda     BSW_SAVE_X
+         lda     BSW_TEMP
          pha
          txa
          pha
@@ -632,10 +632,10 @@ BANKSWITCH:
          ror     A
          tax
          lda     FN_TABLE,x
-         sta     TMP_PTR1
+         sta     JMP_PTR
          inx
          lda     FN_TABLE,x
-         sta     TMP_PTR1+1
+         sta     JMP_PTR+1
          jsr     DO_CALL_FN
          pla
          and     #$0f
@@ -644,7 +644,7 @@ BANKSWITCH:
          rts
 
 DO_CALL_FN:
-         jmp     (TMP_PTR1)
+         jmp     (JMP_PTR)
 
          .byte   $02
          .byte   $31

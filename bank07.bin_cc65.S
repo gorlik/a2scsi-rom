@@ -34,7 +34,7 @@ SCSI_CDB_LEN =   $c812
 SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
 SAVE_SP_CMD =    $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
-PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
+PART_START =     $c824      ; partition start (3 bytes - reverse endian)
 SDAT     =       $c831      ;start of SDAT table (extends to $C8A7)
 NUM_PART =       $c8ce      ; number of partition on the device - only used in bank 07
 PARTMAP_OK =     $c8cf      ; $00 if failed to read Partition Map. non-zero if PM detected
@@ -593,7 +593,7 @@ READ_BLOCK_LBA16:
          lda     #$01
          sta     SCSI_CDB_LEN
          lda     #$10
-         jmp     CALL_FN_X7 ;CALL_FN_10 Data Xin
+         jmp     CALL_FN_X7 ;CALL_FN_10 EXEC SCSI DATA_IN (DoPhases, DataXin, DoStatus)
 
 CLR_SDAT_ENTRY:
          lda     #$00

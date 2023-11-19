@@ -177,15 +177,24 @@
 "812":"reset arbitrate bit",
 "818":"put scsi id on the bus",
 "826":"initiate arbitration",
+"832":"check the lost arb bit",
 "834":"lost SCSI arbitration, try again",
 "843":"only this device requested to arbitrate",
 "849":"we are the highest priority",
 "851":"we are not the highest priority",
 "852":"return fail - bug(?) does not reset arbitrate bit",
-"853":"check again for lost arbitration",
+"853":"check again for lost arbitration (?)",
 "858":"arbitration lost try again",
 "861":"return success",
 "862":"very similar to SCSI SELECT",
+"864":"assert busy",
+"868":"get controller BUS ID",
+"874":"put INITIATOR and TARGET BUS ID on the bus",
+"879":"assert BUSY, SEL and enable data BUS (first part of SEL phase)",
+"884":"no parity, initiator mode, no interrupts, no arbitration",
+"889":"no interrupt on SEL",
+"894":"deassert BUSY (keep SEL and data bus)",
+"915":"selection successfull - deassert SEL and disable data BUS",
 "922":"CALL_FN_3A",
 "927":"CALL_FN_4B",
 "946":"CALL_FN_60_RET"},
@@ -279,7 +288,7 @@
 "LabelAnno":"None"},
 
 "41":{
-"Label":"CALL_FN_X6_SY",
+"Label":"CALL_FN_X6_LY",
 "Value":52265,
 "Source":"User",
 "Type":"LocalOrGlobalAddr",
@@ -580,7 +589,7 @@
 "LabelAnno":"None"},
 
 "251":{
-"Label":"SET_BLK_BLK_CLR",
+"Label":"SET_BLK_BUF_CLR",
 "Value":52475,
 "Source":"User",
 "Type":"GlobalAddr",
@@ -701,6 +710,20 @@
 "611":{
 "Label":"TRY_10_WR_RD",
 "Value":52835,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"853":{
+"Label":"arb_win",
+"Value":53077,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"505":{
+"Label":"CALL_FN_0C",
+"Value":52729,
 "Source":"User",
 "Type":"GlobalAddr",
 "LabelAnno":"None"}},

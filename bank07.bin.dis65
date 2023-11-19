@@ -149,7 +149,7 @@
 "798":"TEMP_c8d0 contains the size in bytes of the DDM",
 "804":"redundant",
 "854":"CALL_FN_0E",
-"899":"CALL_FN_10 Data Xin",
+"899":"CALL_FN_10 EXEC SCSI DATA_IN (DoPhases, DataXin, DoStatus)",
 "912":"SAVE TMP_PTR to $c8d7",
 "923":"Restore TMP_PTR from $c8d7"},
 

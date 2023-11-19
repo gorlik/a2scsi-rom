@@ -5,8 +5,8 @@ DIBTAB_ENTRY_SIZE = $1b
 P8E_IO_ERR =     $27        ;I/O error
 
 TMP_PTR0 =       $19        ; temporary ZP pointer 
-TMP_PTR1 =       $1b        ; temporary ZP pointer 
-TMP_PTR_L =      $f6        ; temporary ZP long pointer
+JMP_PTR  =       $1b        ; Jmp target ZP pointer 
+MEM_PTR_L =      $f6        ; temporary ZP long pointer
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
 BUF_PTR_H =      $fb
 BUF_PTR_VH =     $fc
@@ -23,7 +23,7 @@ TMP_c807 =       $c807      ; save BUF_PTR_VH ???
 INIT_FLAG =      $c809      ; card initialized flag (init=$77)
 TMP_c80a =       $c80a      ; unknown
 RET_CODE =       $c80b      ; 
-BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
+BSW_TEMP =       $c80c      ; TEMP in BANKSWITCH
 SCSI_CMD_LEN =   $c80d      ; SCSI COMMAND lenght
 SCSI_CDB_CMD =   $c80e      ; SCSI CDB buffer
 SCSI_CDB_LEN =   $c812
@@ -52,19 +52,19 @@ FN_0A:   jsr     DIBTAB_LOOKUP ;TMP_PTR0=&DIBTAB[DEV_IDX]
          jsr     FN_7A      ;copy DIBTAB entry from TMP_PTR0 to BUF_PTR omitting signature
          jsr     FN_2A      ;EXECUTE TEST_UNIT_READY (special tape handling)
          lda     #$7f
-         jsr     CALL_FN_XA ;CALL_FN_7F
+         jsr     CALL_FN_XA ;CALL_FN_7F - FN_0D, FN_8A
          jmp     restore_y_return
 
-FN_7A:   lda     #$1a       ;copy DIBTAB entry at TMP_PTR0 to BUF_PTR omitting signature
+FN_7A:   lda     #$1a       ;memcpy (BUF_PTR, TMP_PTR0+1, 25 or 26) (TMP_PTR0 points to DIBTAB[DEV_IDX], omits signature, corrects for std and ext call
          sta     RX_LEN_LO
          ldy     #$00
          sty     RX_LEN_HI  ;RX_LEN=$001a (size of DIBTAB entry)
          lda     CALL_TYPE
          and     #$40
-         beq     @std_call  ;branch if not ext call
+         beq     @not_ext_call ;branch if not ext call
          lda     IS_IIgs
          bne     IIgs       ;branch if IIgs detected
-@std_call:
+@not_ext_call:
          iny
          lda     (TMP_PTR0),y
          sta     DEV_STATUS ;DEV_STATUS=DIBTAB.dev_status
@@ -73,14 +73,14 @@ FN_7A:   lda     #$1a       ;copy DIBTAB entry at TMP_PTR0 to BUF_PTR omitting s
          cpy     #$04
          bne     @LCC41
          lda     CALL_TYPE
-         beq     std_sp_call
+         beq     std_sp_call ;branch if std call
 @LCC41:  iny
          cpy     #$1a
          beq     FN_7A_end
-         bne     @std_call
+         bne     @not_ext_call
 
 std_sp_call:
-         iny
+         iny                ;messy copy code
          dec     RX_LEN_LO
          iny
 @LCC4D:  lda     (TMP_PTR0),y
@@ -205,10 +205,10 @@ FN_4A:   ldy     #$02       ;SET_BLOCK_SIZE - get new blk size and fall though F
          lda     IS_IIgs
          bne     FN_4A_native
 @FN_4A_std_call:
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          sta     NEW_BLK_SIZE
          iny
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          sta     NEW_BLK_SIZE+1 ;*$c82a=new block size (pointer member of the smartport control list)
 FN_AA:   ldy     #$07
          jsr     SET_TIMEOUT_0C
@@ -231,10 +231,10 @@ FN_AA:   ldy     #$07
          jmp     restore_y_return
 
 FN_4A_native:
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     NEW_BLK_SIZE
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     NEW_BLK_SIZE+1 ;*$c82a=new block size (pointer member of the smartport control list)
          jmp     FN_AA
 
@@ -406,14 +406,14 @@ FN_5A:   ldx     #$06       ;SP_MODE_SELECT
 @not_etx:
          ldy     #$05
 @emulation_path:
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
 @cdb_len_done:
          sta     SCSI_CDB_LEN
          jmp     SEND_CMD_DOUT_STATUS
 
 @native_path:
          ldy     #$07
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          jmp     @cdb_len_done
 
 MODE_SELECT_DATA:
@@ -615,9 +615,9 @@ FN_TABLE:
          .byte   $ea
 
 BANKSWITCH:
-         stx     BSW_SAVE_X
+         stx     BSW_TEMP
          tax
-         lda     BSW_SAVE_X
+         lda     BSW_TEMP
          pha
          txa
          pha
@@ -631,10 +631,10 @@ BANKSWITCH:
          ror     A
          tax
          lda     FN_TABLE,x
-         sta     TMP_PTR1
+         sta     JMP_PTR
          inx
          lda     FN_TABLE,x
-         sta     TMP_PTR1+1
+         sta     JMP_PTR+1
          jsr     DO_CALL_FN
          pla
          and     #$0f
@@ -643,7 +643,7 @@ BANKSWITCH:
          rts
 
 DO_CALL_FN:
-         jmp     (TMP_PTR1)
+         jmp     (JMP_PTR)
 
          .byte   $d7
          .byte   $00

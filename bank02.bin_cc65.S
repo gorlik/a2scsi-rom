@@ -6,13 +6,13 @@ SCSI_CMD_WRITE6 = $0a
 P8E_WRITE_PROT = $2b        ;Disk write protected
 
 TMP_PTR0 =       $19        ; temporary ZP pointer 
-TMP_PTR1 =       $1b        ; temporary ZP pointer 
+JMP_PTR  =       $1b        ; Jmp target ZP pointer 
 TMP_PTR2 =       $1d        ; temporary ZP pointer 
 PD_PAR_UNIT =    $43        ;PRODOS input parameter UNIT number
-TMP_PTR_L =      $f6        ; temporary ZP long pointer
-TMP_PTR_H =      $f7
-TMP_PTR_VH =     $f8
-TMP_PTR_XH =     $f9
+MEM_PTR_L =      $f6        ; temporary ZP long pointer
+MEM_PTR_H =      $f7
+MEM_PTR_VH =     $f8
+MEM_PTR_XH =     $f9
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
 BUF_PTR_H =      $fb
 BUF_PTR_VH =     $fc
@@ -26,7 +26,7 @@ TCOUNT_B2 =      $c802      ; timeout counter MSB
 TCOUNT_B1 =      $c803      ; timeout counter middle byte when using 24-bit counter
 INIT_FLAG =      $c809      ; card initialized flag (init=$77)
 RET_CODE =       $c80b      ; 
-BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
+BSW_TEMP =       $c80c      ; TEMP in BANKSWITCH
 SCSI_CMD_LEN =   $c80d      ; SCSI COMMAND lenght
 SCSI_CDB_CMD =   $c80e      ; SCSI CDB buffer
 SCSI_CDB_LUN =   $c80f      ; 
@@ -38,9 +38,9 @@ SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4
 SAVE_SP_CMD =    $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 SAVE_ENTRY_SP =  $c821      ; stack pointer saved at the PD/SM entry point
-PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
+PART_START =     $c824      ; partition start (3 bytes - reverse endian)
 SDAT     =       $c831      ;start of SDAT table (extends to $C8A7)
-LBA_c8db =       $c8db      ; LBA to use in CDB (?) (copied to CDB_LBA)
+LBA      =       $c8db      ; LBA to read/write (little endian - adjusted for PART_START) to use in CDB (gets copied to CDB_LBA)
 RX_LEN_LO =      $c8e4      ; bytes read if call successfull
 RX_LEN_HI =      $c8e5      ; bytes read if call successfull
 SAVE_SP_CMD_TEMP = $c8e6    ; saved Smartport COMMAND number
@@ -73,10 +73,10 @@ FN_02:   tsx                ;main smartport entry
          sta     SAVE_SP_CMD
          iny
          lda     (TMP_PTR2),y
-         sta     TMP_PTR_L
+         sta     MEM_PTR_L
          iny
          lda     (TMP_PTR2),y
-         sta     TMP_PTR_H  ;TMP_PTR2=smartport inline paramters
+         sta     MEM_PTR_H  ;TMP_PTR2=smartport inline paramters
          ldx     SAVE_ENTRY_SP
          lda     SAVE_SP_CMD
          and     #$40
@@ -84,7 +84,7 @@ FN_02:   tsx                ;main smartport entry
          beq     @std_call
          iny
          lda     (TMP_PTR2),y
-         sta     TMP_PTR_VH ;copy byte 2 of smartport parameter address to TMP_PTR2
+         sta     MEM_PTR_VH ;copy byte 2 of smartport parameter address to TMP_PTR2
          ldx     IS_IIgs
          cpx     #$00
          bne     @ext_call
@@ -93,7 +93,7 @@ FN_02:   tsx                ;main smartport entry
 @ext_call:
          iny
          lda     (TMP_PTR2),y
-         sta     TMP_PTR_XH ;copy byte 3 of smartport parameter address to TMP_PTR2
+         sta     MEM_PTR_XH ;copy byte 3 of smartport parameter address to TMP_PTR2
 @std_call:
          lda     SAVE_SP_CMD
          and     #$0f
@@ -139,7 +139,7 @@ FN_02:   tsx                ;main smartport entry
          ldy     #$00
          cpx     #$04
          beq     param_count_ok ;bug?? - skip parameter count check if CMD==CONTROL ($04)
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          cmp     CMD_PARAM_COUNT_TABLE,x
          beq     param_count_ok ;branch if parameter count matches expectations
 ERROR_BADCTRLPARM:
@@ -148,7 +148,7 @@ ERROR_BADCTRLPARM:
 
 param_count_ok:
          iny
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
 got_dev_idx:
          sta     DEV_IDX
          sta     SAVE_SP_UNIT
@@ -182,23 +182,25 @@ SP_unit_valid:
 @LCCF0:  lda     INIT_FLAG
          cmp     #$77
          beq     @init_done
-         lda     TMP_PTR_L
+         lda     MEM_PTR_L
          jsr     SAVE_TMP_PTR_IDX
          lda     #$05
          jsr     CALL_FN_X2 ;CALL_FN_05 - Init card
          jsr     RESTORE_TMP_PTR_IDX
 @init_done:
          lda     DEV_IDX
-         bne     @LCD14     ;branch if DEV_IDX!=0
+         bne     @dev_not_0 ;branch if DEV_IDX!=0
          jsr     SET_PTR0_SDAT_BASE
          lda     #$85
          jsr     CALL_FN_X2 ;CALL_FN_85 - Set BLK COUNT from SDAT
-         jmp     @LCD19
+         jmp     @dev_equ_0
 
-@LCD14:  lda     #$75
+@dev_not_0:
+         lda     #$75
          jsr     CALL_FN_X2 ;CALL_FN_75 - TMP_PTR0=&SDAT[DEV_IDX], set BLK_COUNT
-@LCD19:  lda     #$15
-         jsr     CALL_FN_X2 ;CALL_FN_15
+@dev_equ_0:
+         lda     #$15
+         jsr     CALL_FN_X2 ;CALL_FN_15 - FN_35, FN_1C, FN_6A - load info from SDAT[DEV_IDX], BLK_NUMBER+=PART_START
 @LCD1E:  ldx     SAVE_SP_CMD_TEMP
          lda     SP_CMD_TABLE_H,x
          sta     TMP_PTR2+1
@@ -216,7 +218,7 @@ LDA_TMP_PTR_NATIVE_1:
          clc                ;SET NATIVE mode
          xce
          ldy     #$01
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     DEV_IDX
          sec                ;Go back to EMULATION mode
          xce
@@ -231,9 +233,9 @@ SET_PTR0_SDAT_BASE:
          rts
 
 SAVE_TMP_PTR_IDX:
-         lda     TMP_PTR_L
+         lda     MEM_PTR_L
          sta     $c8e9
-         lda     TMP_PTR_H
+         lda     MEM_PTR_H
          sta     $c8ea
          lda     DEV_IDX
          sta     LDIO_SIZE_HI-1
@@ -241,9 +243,9 @@ SAVE_TMP_PTR_IDX:
 
 RESTORE_TMP_PTR_IDX:
          lda     $c8e9
-         sta     TMP_PTR_L
+         sta     MEM_PTR_L
          lda     $c8ea
-         sta     TMP_PTR_H
+         sta     MEM_PTR_H
          lda     LDIO_SIZE_HI-1
          sta     DEV_IDX
          rts
@@ -430,20 +432,20 @@ FN_52:   lda     CALL_TYPE
          lda     #$06       ;the following 2 are common to both code paths
          sta     SCSI_CMD_LEN
          ldy     #$02
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          sta     BUF_PTR_L
          iny
-         lda     (TMP_PTR_L),y
-         sta     BUF_PTR_H  ;BUF_PTR=*(TMP_PTR+2)
+         lda     (MEM_PTR_L),y
+         sta     BUF_PTR_H  ;BUF_PTR=*(MEM_PTR+2)
          ldx     #$02       ;probably useless
          lda     IS_IIgs    ;seems useless
          beq     @LCE62     ;seems useless
-@LCE62:  lda     LBA_c8db
+@LCE62:  lda     LBA
          sta     SCSI_CDB_LBA_LO
-         lda     LBA_c8db+1
+         lda     LBA+1
          sta     SCSI_CDB_LBA_HI
-         lda     LBA_c8db+2
-         sta     SCSI_CDB_LUN ;CDB_LBA=LBA_c8db
+         lda     LBA+2
+         sta     SCSI_CDB_LUN ;CDB_LBA=LBA
 @fn_52_end:
          lda     #$01
          sta     SCSI_CDB_LEN
@@ -456,33 +458,33 @@ FN_52:   lda     CALL_TYPE
          lda     #$06       ;(bug?) should NATIVE be set before calling this??
          sta     SCSI_CMD_LEN
          ldy     #$02
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     BUF_PTR_L
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     BUF_PTR_H
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     BUF_PTR_VH
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     BUF_PTR_XH ;BUF_PTR=*(TMP_PTR+2); 4 bytes
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          clc
          adc     PART_START+2
-         sta     LBA_c8db
+         sta     LBA
          sta     SCSI_CDB_LBA_LO
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          adc     PART_START+1
-         sta     LBA_c8db+1
+         sta     LBA+1
          sta     SCSI_CDB_LBA_HI
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          adc     PART_START
          sta     SCSI_CDB_LUN
-         sta     LBA_c8db+2 ;LBA_c8db=*(TMP_PTR+6)+PART_START, CDB_LBA=LBA_c8db
+         sta     LBA+2      ;LBA_c8db=*(TMP_PTR+6)+PART_START, CDB_LBA=LBA_c8db
          jmp     @fn_52_end
 
 SP_CMD_04_CONTROL:
@@ -494,7 +496,7 @@ SP_CMD_04_CONTROL:
          clc
          xce
          ldy     #$06
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          tax
          sec
          xce
@@ -508,7 +510,7 @@ CMD_04_not2gs:
 CMD_04_not_ext:
          ldy     #$04
 CMD_04_load_emulation:
-         lda     (TMP_PTR_L),y ;get the control code
+         lda     (MEM_PTR_L),y ;get the control code
 CMD_04_check_valid:
          cmp     #$2b       ;last implemented control code is $2a
          bcc     CTRL_CODE_TABLE_IDX_A ;branch if control code is valid
@@ -520,11 +522,11 @@ CTRL_CODE_TABLE_IDX_A:
          tax
          lda     CTRL_CODE_TABLE_L,x
          beq     ERROR_BADCTL ;; BUG???? what if the low address is 0?
-         sta     TMP_PTR1
+         sta     JMP_PTR
          lda     CTRL_CODE_TABLE1_H,x
-         sta     TMP_PTR1+1
+         sta     JMP_PTR+1
          ldx     #$02
-         jmp     (TMP_PTR1)
+         jmp     (JMP_PTR)
 
 CALL_FN_93:
          lda     #$93
@@ -684,9 +686,9 @@ FN_TABLE:
          .byte   $ea
 
 BANKSWITCH:
-         stx     BSW_SAVE_X
+         stx     BSW_TEMP
          tax
-         lda     BSW_SAVE_X
+         lda     BSW_TEMP
          pha
          txa
          pha
@@ -700,18 +702,19 @@ BANKSWITCH:
          ror     A
          tax
          lda     FN_TABLE,x
-         sta     TMP_PTR1
+         sta     JMP_PTR
          inx
          lda     FN_TABLE,x
-         sta     TMP_PTR1+1
-         jsr     @LCFF9
+         sta     $1c
+         jsr     DO_CALL_FN
          pla
          and     #$0f
          sta     REG_IO_BANK_SEL,y
          clc
          rts
 
-@LCFF9:  jmp     (TMP_PTR1)
+DO_CALL_FN:
+         jmp     (JMP_PTR)
 
          .byte   $02
          .byte   $31

@@ -248,7 +248,7 @@
 "263":"branch if DEV_IDX!=0",
 "270":"CALL_FN_85 - Set BLK COUNT from SDAT",
 "278":"CALL_FN_75 - TMP_PTR0=\u0026SDAT[DEV_IDX], set BLK_COUNT",
-"283":"CALL_FN_15",
+"283":"CALL_FN_15 - FN_35, FN_1C, FN_6A - load info from SDAT[DEV_IDX], BLK_NUMBER+=PART_START",
 "302":"seems redundant as CALL_FN_60_RET saves RET_CODE",
 "311":"SET NATIVE mode",
 "320":"Go back to EMULATION mode",
@@ -306,11 +306,11 @@
 "566":"CALL_FN_05 - Init card",
 "569":"could replace with CALL_FN_X2_RESTORE_RET",
 "587":"the following 2 are common to both code paths",
-"601":"BUF_PTR=*(TMP_PTR+2)",
+"601":"BUF_PTR=*(MEM_PTR+2)",
 "603":"probably useless",
 "605":"seems useless",
 "608":"seems useless",
-"625":"CDB_LBA=LBA_c8db",
+"625":"CDB_LBA=LBA",
 "640":"CALL_FN_7C - add PART_START to UNK_c827",
 "643":"(bug?) should NATIVE be set before calling this??",
 "667":"BUF_PTR=*(TMP_PTR+2); 4 bytes",
@@ -923,6 +923,27 @@
 "179":{
 "Label":"got_dev_idx",
 "Value":52403,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"1017":{
+"Label":"DO_CALL_FN",
+"Value":53241,
+"Source":"User",
+"Type":"GlobalAddr",
+"LabelAnno":"None"},
+
+"276":{
+"Label":"dev_not_0",
+"Value":52500,
+"Source":"User",
+"Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"281":{
+"Label":"dev_equ_0",
+"Value":52505,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
 "LabelAnno":"None"}},

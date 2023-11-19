@@ -4,13 +4,13 @@
 SDAT_ENTRY_SIZE = $11
 
 TMP_PTR0 =       $19        ; temporary ZP pointer 
-TMP_PTR1 =       $1b        ; temporary ZP pointer 
+JMP_PTR  =       $1b        ; Jmp target ZP pointer 
 PD_PAR_CMD =     $42        ;PRODOS input parameter COMMAND number
 PD_PAR_BUF_LO =  $44        ;PRODOS input parameter Buffer lo address
 PD_PAR_BUF_HI =  $45        ;PRODOS input parameter Buffer hi address
 PD_PAR_BLK_LO =  $46        ;PRODOS input parameter Block lo
 PD_PAR_BLK_HI =  $47        ;PRODOS input parameter Block hi
-TMP_PTR_L =      $f6        ; temporary ZP long pointer
+MEM_PTR_L =      $f6        ; temporary ZP long pointer
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
 BUF_PTR_H =      $fb
 BUF_PTR_VH =     $fc
@@ -33,7 +33,7 @@ TCOUNT_B1 =      $c803      ; timeout counter middle byte when using 24-bit coun
 SAVE_CYAREG =    $c808      ; saved value of CYAREG
 TMP_c80a =       $c80a      ; unknown
 RET_CODE =       $c80b      ; 
-BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
+BSW_TEMP =       $c80c      ; TEMP in BANKSWITCH
 SCSI_CMD_LEN =   $c80d      ; SCSI COMMAND lenght
 SCSI_CDB_CMD =   $c80e      ; SCSI CDB buffer
 SCSI_CDB_LBA_HI = $c810
@@ -46,7 +46,7 @@ SAVE_SP_CMD =    $c81b      ; saved SmartPort Command
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 SCSI_RD_c81f =   $c81f      ; SCSI STATUS or MESSAGE return from FN_04 
 NUM_DEVICES =    $c823      ; number of devices (used in bank2)
-PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
+PART_START =     $c824      ; partition start (3 bytes - reverse endian)
 SDAT     =       $c831      ;start of SDAT table (extends to $C8A7)
 SAVE_ZP_F6 =     $c8a8      ;saved zero page locations $f6-$fd
 SAVE_ZP_15 =     $c8b0      ;saved zero page locations $15-$1e
@@ -136,18 +136,18 @@ FN_24:   lda     CALL_TYPE
          bne     @FN_24_ext_call
 @FN_24_not_ext:
          ldy     #$04
-         lda     (TMP_PTR_L),y ;get SP status code
+         lda     (MEM_PTR_L),y ;get SP status code
          sta     SCSI_CDB_CMD ;in this case this is the SP STATUS code
          lda     CALL_TYPE
          beq     @LCCA5     ;branch if std Smartport call
          ldy     #$06
-         lda     (TMP_PTR_L),y ;get SP status code
+         lda     (MEM_PTR_L),y ;get SP status code
          sta     SCSI_CDB_CMD ;in this case this is the SP STATUS code
 @LCCA5:  jmp     @LCCAF
 
 @FN_24_ext_call:
          ldy     #$06
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     SCSI_CDB_CMD ;in this case this is the SP STATUS code
 @LCCAF:  jsr     CALL_FN_62 ;add PART_START to LBA
          lda     SCSI_CDB_CMD ;in this case this is the SP STATUS code
@@ -159,10 +159,10 @@ FN_24:   lda     CALL_TYPE
 @process_SP_STATUS:
          tax
          lda     SP_STAT_JMPTABLE_L,x
-         sta     TMP_PTR1
+         sta     JMP_PTR
          lda     SP_STAT_JMPTABLE_H,x
-         sta     TMP_PTR1+1
-         jmp     (TMP_PTR1)
+         sta     $1c
+         jmp     (JMP_PTR)
 
          .byte   $4c
          .byte   $be
@@ -429,27 +429,27 @@ FN_74:   lda     CALL_TYPE  ;unreferenced function
          and     #$40
          bne     @FN_74_ext_call
          ldy     #$05
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          sta     PD_PAR_BLK_LO
          sta     RX_LEN_LO
          iny
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          sta     PD_PAR_BLK_HI
          sta     RX_LEN_HI
          clc
          ror     A
          sta     SCSI_CDB10_8
          iny
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          clc
          adc     PART_START+2
          sta     SCSI_CDB_CTRL
          iny
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          adc     PART_START+1
          sta     SCSI_CDB_LEN
          iny
-         lda     (TMP_PTR_L),y
+         lda     (MEM_PTR_L),y
          adc     PART_START
          sta     SCSI_CDB_LBA_LO
          ldy     SLOT_OFFSET
@@ -457,28 +457,28 @@ FN_74:   lda     CALL_TYPE  ;unreferenced function
 
 @FN_74_ext_call:
          ldy     #$07
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     PD_PAR_BLK_LO
          sta     RX_LEN_LO
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          sta     PD_PAR_BLK_HI
          sta     RX_LEN_HI
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          clc
          adc     PART_START+2
          sta     SCSI_CDB_CTRL
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          adc     PART_START+1
          sta     SCSI_CDB_LEN
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          adc     PART_START
          sta     SCSI_CDB_LBA_LO
          iny
-         lda     [TMP_PTR_L],y
+         lda     [MEM_PTR_L],y
          adc     #$00
          sta     SCSI_CDB_LBA_HI
          lda     PD_PAR_BLK_HI
@@ -510,7 +510,7 @@ FN_94:   lda     RET_CODE   ;restore ZP and return
          ldx     #$07
 @FN_94_loop1:
          lda     SAVE_ZP_F6,x
-         sta     TMP_PTR_L,x
+         sta     MEM_PTR_L,x
          lda     SAVE_ZP_15,x
          sta     $15,x
          lda     PD_PAR_CMD_CPY,x
@@ -630,9 +630,9 @@ FN_TABLE:
          .byte   $ea
 
 BANKSWITCH:
-         stx     BSW_SAVE_X
+         stx     BSW_TEMP
          tax
-         lda     BSW_SAVE_X
+         lda     BSW_TEMP
          pha
          txa
          pha
@@ -646,10 +646,10 @@ BANKSWITCH:
          ror     A
          tax
          lda     FN_TABLE,x
-         sta     TMP_PTR1
+         sta     JMP_PTR
          inx
          lda     FN_TABLE,x
-         sta     TMP_PTR1+1
+         sta     $1c
          jsr     DO_CALL_FN
          pla
          and     #$0f
@@ -658,7 +658,7 @@ BANKSWITCH:
          rts
 
 DO_CALL_FN:
-         jmp     (TMP_PTR1)
+         jmp     (JMP_PTR)
 
          .byte   $02
          .byte   $31

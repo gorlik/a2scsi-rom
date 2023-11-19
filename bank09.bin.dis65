@@ -141,7 +141,8 @@
 "706":"CALL_FN_AA",
 "711":"CALL_FN_0B",
 "716":"CALL_FN_7C - add PART_START",
-"884":"LBA_TEMP=LBA_c8db+(char)UNK_c92d",
+"884":"LBA_TEMP=LBA+(char)UNK_LEN",
+"893":"here UNK_c827 is BLOCK_COUNT",
 "920":"if(LBA_TEMP\u003eUNK_c827) FAIL_BADBLOCK"},
 
 "LongComments":{

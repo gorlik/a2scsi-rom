@@ -2,10 +2,10 @@
 ; 6502bench SourceGen v1.8.3
          .setcpu "65816"
 TMP_PTR0 =       $19        ; temporary ZP pointer 
-TMP_PTR1 =       $1b        ; temporary ZP pointer 
+JMP_PTR  =       $1b        ; Jmp target ZP pointer 
 MON_CV   =       $25        ;cursor vertical displacement
-TMP_PTR_L =      $f6        ; temporary ZP long pointer
-TMP_PTR_H =      $f7
+MEM_PTR_L =      $f6        ; temporary ZP long pointer
+MEM_PTR_H =      $f7
 BUF_PTR_L =      $fa        ; ZP long BUF pointer
 BUF_PTR_H =      $fb
 BUF_PTR_VH =     $fc
@@ -25,7 +25,7 @@ TCOUNT_B2 =      $c802      ; timeout counter MSB
 TCOUNT_B1 =      $c803      ; timeout counter middle byte when using 24-bit counter
 SAVE_CYAREG =    $c808      ; saved value of CYAREG
 RET_CODE =       $c80b      ; 
-BSW_SAVE_X =     $c80c      ; save X in BANKSWITCH
+BSW_TEMP =       $c80c      ; TEMP in BANKSWITCH
 SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 BOOT_SEQ =       $c8e3      ; $55 if in boot process
@@ -563,11 +563,11 @@ CHECK_NATIVE_REQUIRED:
          rts
 
 FN_BF:   lda     #$ca
-         sta     TMP_PTR_H
+         sta     MEM_PTR_H
          sta     BUF_PTR_H
          lda     #$00
          sta     RET_CODE
-         sta     TMP_PTR_L
+         sta     MEM_PTR_L
          sta     BUF_PTR_L  ;TMP_PTR=$ca00; BUF_PTR=$ca00
          lda     #$9a
          jsr     CALL_FN_XF ;CALL_FN_9A - same as FN_2A
@@ -603,9 +603,9 @@ FN_TABLE:
          .byte   $ea
 
 BANKSWITCH:
-         stx     BSW_SAVE_X
+         stx     BSW_TEMP
          tax
-         lda     BSW_SAVE_X
+         lda     BSW_TEMP
          pha
          txa
          pha
@@ -619,18 +619,19 @@ BANKSWITCH:
          ror     A
          tax
          lda     FN_TABLE,x
-         sta     TMP_PTR1
+         sta     JMP_PTR
          inx
          lda     FN_TABLE,x
-         sta     TMP_PTR1+1
-         jsr     @LCFF9
+         sta     JMP_PTR+1
+         jsr     DO_CALL_FN
          pla
          and     #$0f
          sta     REG_IO_BANK_SEL,y
          clc
          rts
 
-@LCFF9:  jmp     (TMP_PTR1)
+DO_CALL_FN:
+         jmp     (JMP_PTR)
 
          .byte   $d7
          .byte   $00

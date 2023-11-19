@@ -35,7 +35,7 @@ BSW_TEMP =       $c80c      ; TEMP in BANKSWITCH
 SLOT_OFFSET =    $c81a      ; slot adress (n+8)<<4 
 CALL_TYPE =      $c81d      ; 0x00 std SP call - 0x40 extended SP call - 0x01 PRODOS call
 BLKSIZE_H2 =     $c822      ; copy of byte1 of block size
-PART_START =     $c824      ; partition start (3 bytes) seems to be in reverse endian (?)
+PART_START =     $c824      ; partition start (3 bytes - reverse endian)
 UNK_c827 =       $c827      ; 3-byte unknown in reverse endian as the above
 SDAT     =       $c831      ;start of SDAT table (extends to $C8A7)
 SCAN_ID  =       $c8c6      ;current DEV ID being scanned
@@ -52,7 +52,7 @@ BLKSIZE_H =      $c92f      ;byte1 of block size - reverse endian
 BLKSIZE_L =      $c930      ;byte0 of block size - reverse endian
 DIBTAB   =       $c931      ;start of DIBTAB (extends to $C9ED)
 TIMEOUT  =       $c9f6      ; each unit is 1.25s
-PD_UNIT  =       $c9fd      ; PRODOS UNIT from the parameter if prodos call
+PD_UNIT  =       $c9fd      ; PRODOS UNIT from the parameter if prodos call - only used in bank 05 can be optimized out
 
          .org    $cc00
          .a8
@@ -205,7 +205,7 @@ FN_05:   lda     #$0c       ;init card
          sta     REG_IO_BANK_SEL,y ;switch to RAM bank 1
          lda     #$60
          sta     $c800      ;put RTS to additional BANK 01 entry points
-         sta     $c803      ;put rts in Patch1Call entry point
+         sta     $c803      ;put RTS in Patch1Call entry point
          sta     $c806      ;put RTS to additional BANK 01 entry points
          lda     #$05
          sta     REG_IO_BANK_SEL,y ;back to RAM bank 0
@@ -303,12 +303,12 @@ FN_35:   ldx     DEV_IDX    ;get SDAT info (include partition offset)
          sta     BLKSIZE_L
          ldy     #$0c
          ldx     #$02
-FN_35_part_cpy_loop:
+@FN_35_part_cpy_loop:
          lda     (TMP_PTR0),y ;copy partition start
          sta     PART_START,x
          dey
          dex
-         bpl     FN_35_part_cpy_loop
+         bpl     @FN_35_part_cpy_loop
          ldy     #$0d
          lda     (TMP_PTR0),y ;get software ID code from SDAT entry
          sta     SEL_TARGET
@@ -352,12 +352,12 @@ FN_45:   ldx     $00        ;next boot device or error if last
          bne     JSR_BANKSWITCH ;CALL_FN_80 - Next boot device
 
 BOOT_ERROR:
-         lda     #$22
+         lda     #$22       ;CALL_FN_22 - FN_4F - print "SCSI BOOT ERROR" and run basic
 JSR_BANKSWITCH:
-         jsr     BANKSWITCH ;CALL_FN_22 - FN_4F - print "SCSI BOOT ERROR" and run basic
+         jsr     BANKSWITCH ;; is jmp more correct? - FN_22 and FN80 are no return
 FN_25:   jsr     PD_UNIT_TO_IDX
 FN_75:   jsr     SDAT_LOOKUP ;TMP_PTR0=&SDAT[DEV_IDX-1]
-FN_85:   jsr     GET_UNK_c827_FROM_PTR0_2 ;UNK_c827=BLK_COUNT from SDAT entry pointed by TMP_PTR0
+FN_85:   jsr     GET_UNK_c827_FROM_PTR0_2 ;UNK_c827=DEV_SIZE (BLK COUNT) from SDAT entry pointed by TMP_PTR0
          lda     IS_IIgs
          cmp     #$01
          bne     @not_2gs
@@ -408,10 +408,10 @@ SDAT_LOOKUP:
 @LCE78:  lda     SLOT_OFFSET ;Prodos unit is either $20 or $A0
          cmp     #$d0       ;is the card in slot 5 ?
          bne     ERROR_NODRIVE_DUP
-         lda     DEV_IDX    ;DEV_IDX-=2
+         lda     DEV_IDX
          sec
          sbc     #$02
-         sta     DEV_IDX
+         sta     DEV_IDX    ;DEV_IDX-=2
          bmi     ERROR_NODRIVE_DUP ;branch if DEV_IDX<0
          bpl     SDAT_LOOKUP
 
@@ -455,7 +455,7 @@ GET_UNK_c827_FROM_PTR0_2:
          ldx     #$02       ;copy 3 bytes from *(TMP_PTR0+2) to $c827
          ldy     #$04       ;PTR0 likely points to a SDAT entry
 @cpy_loop_3b:
-         lda     (TMP_PTR0),y ;so it copies the BLK count in regular endian
+         lda     (TMP_PTR0),y ;so it copies DEV_SIZE (BLK count) in regular endian
          sta     UNK_c827,x ;however UNK_c827 is often used in reverse endian
          dey
          dex
@@ -560,7 +560,7 @@ FN_55:   jsr     PDMA_INIT  ;PDMA READ
          bne     @wait_for_DRQ_read
          inc     BUF_PTR_H
          lda     BUF_PTR_H
-         cmp     #$cf
+         cmp     #$cf       ;$CFxx for wap arpund seems wrong (should it be $CBxx???)
          bne     @LCF7A
          lda     #$ca
          sta     BUF_PTR_H  ;wrap around buffer

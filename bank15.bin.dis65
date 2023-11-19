@@ -722,6 +722,13 @@
 "Value":52784,
 "Source":"User",
 "Type":"NonUniqueLocalAddr",
+"LabelAnno":"None"},
+
+"1017":{
+"Label":"DO_CALL_FN",
+"Value":53241,
+"Source":"User",
+"Type":"GlobalAddr",
 "LabelAnno":"None"}},
 
 "OperandFormats":{
@@ -819,14 +826,6 @@
 "SubFormat":"Symbol",
 "SymbolRef":{
 "Label":"FN_BF",
-"Part":"Low"}},
-
-"1004":{
-"Length":2,
-"Format":"NumericLE",
-"SubFormat":"Symbol",
-"SymbolRef":{
-"Label":"TMP_PTR1",
 "Part":"Low"}}},
 
 "LvTables":{
