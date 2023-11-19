@@ -64,15 +64,15 @@ CMD_STATUS        @ $C81E   ; SCSI CMD status - 0x00 OK, 0x02 Check condition
 SCSI_RD_c81f      @ $C81F   ; SCSI STATUS or MESSAGE return from FN_04 
 UNK_c820          @ $C820   ; 0xff if PIO ?
 SAVE_ENTRY_SP     @ $C821   ; stack pointer saved at the PD/SM entry point
-BLKSIZE_H2        @ $C822   ; copy of byte1 of block size
+BLKSIZE_H2        @ $C822   ; copy of byte1 of block size - seems unused
 NUM_DEVICES       @ $C823   ; number of devices (used in bank2)
-PART_START        @ $C824 3 ; partition start (3 bytes) seems to be in reverse endian (?)
-UNK_c827          @ $C827 3 ; 3-byte unknown in reverse endian as the above
+PART_START        @ $C824 3 ; partition start (3 bytes - reverse endian)
+DEV_SIZE          @ $C827 3 ; device size in blocks (3-bytes reverese endian) - reused in some banks ???
 
 NEW_BLK_SIZE      @ $C82A 2 ; desired block size in SetBlock
 ; c82c
 ; ...
-; c830
+UNK_c830          @ $C830   ; 
 
 ; SCSI Device Access Table 
 ; 7 entries, 17 ($11) bytes per entry
@@ -97,7 +97,7 @@ PD_PAR_BLK_HI_CPY @ $C8C1     ;PRODOS input parameter Block hi
 ; c8c5
 ; TMP_c8c6         @ $C8C6   ; local TEMP variable - different for each bank
 BLK_c8c7          @ $C8C7 2 ; saved PRODOS BLOCK from input parameters
-RD_ERRORS         @ $C8C9   ; used only in blk 6 to count the number of read errors
+RD_ERRORS         @ $C8C9   ; used only in bank 6 to count the number of read errors
 TEMP_PTR_c8ca     @ $C8CA 2 ; TEMP_BUF_PTR?
 INTERLEAVE        @ $C8CC   ; interleave used for FORMAT_UNIT (set to 5 by default, can be changed with PD_SET_INTERLEAVE)
 ; c8cd
@@ -111,7 +111,7 @@ TMP_COUNT         @ $C8D6   ; temp counter - only used in bank 07
 PTR_c8d7          @ $C8D7 2 ; temp pointer storage (?)
 temp_part_count   @ $C8D9   ; temporary partition counter
 TEMP_c8da         @ $C8DA   ; unknown
-LBA_c8db          @ $C8DB 3 ; LBA to use in CDB (?) (copied to CDB_LBA)
+LBA               @ $C8DB 3 ; LBA to read/write (little endian - adjusted for PART_START) to use in CDB (gets copied to CDB_LBA)
 ; c8de
 PTR_c8df          @ $C8DF 2 ; unknown
 BLK_c8e1          @ $C8E1 2 ; unknown
@@ -168,7 +168,7 @@ TIMEOUT           @ $C9F6   ; each unit is 1.25s
 ; c9f7
 ; ...
 ; c9fc
-PD_UNIT           @ $C9FD   ; PRODOS UNIT from the parameter if prodos call
+PD_UNIT           @ $C9FD   ; PRODOS UNIT from the parameter if prodos call - only used in bank 05 can be optimized out
 LDIO_SIZE_HI      @ $C9FF   ;
 
 ; ca00                      ; seems used as read buffer
