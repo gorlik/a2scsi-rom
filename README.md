@@ -1,8 +1,9 @@
 # a2scsi-rom
-Commented disassembly of the Apple II SCSI card ROM (341-0437-A rev.c)
+Commented disassembly of the Apple II SCSI card ROM (341-0437-A rev.c).
+
 6502bench sourcegen from faddensoft has been used and dis65 files are provided.
 
-The include makefile will reassemble the complete rom to use in an EPROM programmer or with MAME.
+The included makefile will reassemble the complete rom to use in an EPROM programmer or with MAME.
 
 ## useful info
 The rom contains sixteen 1KB banks that are mapped at $cc00.
