@@ -5,12 +5,12 @@ FN_20 EXEC SCSI DATA_OUT (DoPhases, DataXout, get STATUS_MSG)
 FN_30 DoStatus (ext timeout) Get Status and Message
 FN_40 DATA_IN and DoStatus (FN_10 without DoPhases)
 FN_50 DATA_OUT and DoStatus (FN_20 without DoPhases)
-FN_60 Smartport return fail (not sure if this is also used for prodos)
+FN_60 Return (C==0, A==0 success, C==1, A=ERROR_CODE fail)
 FN_70 jump to basic entry point ($e000)
 FN_80 next boot device (jmp to MON_SLOOP)
-FN_90 PRODOS Read
+FN_90 PRODOS Read - only used in bank00
 FN_A0 Get Status and Message with setting Timeout
-FN_B0 Do phases without BUS_FREE
+FN_B0 DoPhases without BUS_FREE
 
 BANK 01
 FN_01 Data Xin - read data to BUF_PTR
@@ -29,7 +29,7 @@ FN_12 jump to FN_94 - restore ZP and return
 FN_22 jump to FN_4F - print "SCSI BOOT ERROR" and run BASIC
 FN_32 same as FN_42 - Decrement TIMEOUT3
 FN_42 Decrement TIMEOUT3
-FN_52 add PART_START to LBA ???
+FN_52 BUF_PTR=*(MEM_PTR+2), copy LBA to CDB, add PART_START to LBA ???
 FN_62 same as FN_52
 
 BANK 03
@@ -43,7 +43,7 @@ FN_63 SEND_DIAGNOSTIC
 FN_73 save timeouts to c8f5 and clear SDAT table
 FN_83 restore timeouts from c8f5
 FN_93 INQUIRY
-FN_A3 SEND_CMD_TEST_UNIT_READY ($00)
+FN_A3 SEND_CMD_TEST_UNIT_READY ($00) (load CDB, FN_00 (DoPhases), FN_30 (DoStatus), FN_39 (DoSense) if error)
 FN_B3 SEND_CMD_REQUEST_SENSE ($03)
 FN_C3 READ_CAPACITY
 FN_D3 FORMAT_UNIT
@@ -66,7 +66,7 @@ FN_B4 IIgs LDIO DMA read ??????
 
 BANK 05
 FN_05 init card
-FN_15 FN_35, FN_1C, FN_6A - load info from SDAT[DEV_IDX], BLK_NUMBER+=PART_START, memcpy($ca00,DIBTAB[DEV_IDX])
+FN_15 FN_35, FN_1C, FN_6A - TMP_PTR0=&SDAT[DEV_IDX], get PART_START and BLKSIZE from SDAT[DEV_IDX], BLK_NUMBER+=PART_START, memcpy($ca00,DIBTAB[DEV_IDX])
 FN_25 get DEV_IDX from PD_UNIT, then fall through FN_75 
 FN_35 load info from SDAT[DEV_IDX] entry (SEL_TARGET, PART_START, BLKSIZE, TIMEOUT)
 FN_45 next boot device or error if last
@@ -83,8 +83,8 @@ BANK_06
 FN_06 FORMAT unit and initialize PM if no PM detected
 FN_16 - error recovery ????
 FN_26 CALL FN_47 (Read DDM and master PDM) and check result - really needed???
-FN_36 BUS_FREE and send TEST_UNIT_READY
-FN_46 try to call FN_36 up to 2 times
+FN_36 BUS_FREE and send TEST_UNIT_READY (FN_3A, arb, sel, FN_44) - BUS SCAN helper - only used in bank06
+FN_46 try to call FN_36 up to 2 times - used in bus scan - only called once from bank05
 FN_56 SEND TEST_UNIT_READY until ok or too many tries
 FN_66 Process ASC from SENSE DATA at $c901
 
@@ -115,8 +115,8 @@ FN_3A jump to FN_AF - BUS_FREE (TRM)
 FN_4A SET BLK SIZE - TMP_PTR points to SP parameter list
 FN_5A MODE_SELECT ($15)
 FN_6A TMP_PTR0=&DIBTAB[DEV_IDX], set DEV_STATUS and copy device status and block size to memory pointed by BUF_PTR_L
-FN_7A copy DIBTAB entry from TMP_PTR0 to BUF_PTR omitting signature
-FN_8A set DEV_STATUS, copy memory from TMP_PTR0-1 (points to a DIBTAB entry) to BUF_PTR_L lenght 4 or 5
+FN_7A copy DIBTAB entry from TMP_PTR0 to BUF_PTR omitting signature - Result for Control $00 Code $03/$04
+FN_8A set DEV_STATUS, memcpy(BUF_PTR, TMP_PTR0+1, 4 or 5) (TMP_PTR0 points to DIBTAB[DEV_IDX]) - Result for Control $00 Code $00
 FN_9A points to FN_2A
 FN_AA EXECUTE SET_BLK_SIZE
 
@@ -139,13 +139,13 @@ FN_3C DMA read IIgs
 FN_4C DMA write1 - need to understand the difference between 4C, 5C and 6C 
 FN_5C DMA ext call IIgs
 FN_6C DMA IIe
-FN_7C add PART_START and optionally 5 to UNK_c827 if CMD is any read or write
+FN_7C if(CMD is RD or WR) { DEV_SIZE+=PART_START; if (DEV_STATUS==0xf8 (DIRECT_ACCESS)) DEV_SIZE+=5; }
 FN_8C detect IIgs
 FN_9C - call A4 and 85 - Get SDAT entry in TMP_PTR0 for DEV_IDX, SET_BLK_COUNT from SDAT pointed by TMP_PTR0 and save CYAREG if IIgs
 
 BANK 0D
 FN_0D UPDATED_DIBTAB_ENTRY - SEND INQUIRY and update DBITAB @ TMP_PTR0 (CALL FN_4D and FILL DIBTAB at TMP_PTR0 from inquiry data at $ca00) 
-FN_1D
+FN_1D FN_15, FN_BF 
 FN_2D DMA READ_ALT ??? - try to use self modifying code if possible otherwise call FN_B5 - similar to FN_3F
 FN_3D auto select XFER_MODE ($3 is override)
 FN_4D send INQUIRY, save result at $ca00, restore initial state
