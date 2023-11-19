@@ -1,19 +1,27 @@
 # a2scsi-rom
-Commented disassembly of the Apple II SCSI card ROM (341-0437-A rev.c)
+Commented disassembly of the Apple II SCSI card ROM (341-0437-A rev.c).
+
 6502bench sourcegen from faddensoft has been used and dis65 files are provided.
 
-The include makefile will reassemble the complete rom to use in an EPROM programmer or with MAME.
+The included makefile will reassemble the complete rom to use in an EPROM programmer or with MAME.
 
 ## useful info
-The rom contains 16 1KB banks that is mapped at $cc00.
-Bank 0 contains boot code that is also shadowed at $cn00.
+The rom contains sixteen 1KB banks that are mapped at $cc00.
+Bank 0 contains boot code that is also shadowed at $cn00. The boot code is used by the Apple IIgs
+SCSI Driver to identify the card (the apple driver contains a copy of this section and performs
+a full compare upon load). Any changes to this section will make the driver fail to load.
+
 All banks contain the same code fragment at $cfcc to support banks switching.
 Bank03 is missing a CLC before the RTS that ends the bankswitch code.
 
-The ram on the card is also banked (8 1KB banks) but it seems the on board firmware only uses bank 0.
+The ram on the card is also banked (eight 1KB banks) but it seems the on board firmware only uses bank 0.
 Bank 1 is used for the Patch1Call and two additional unidentified calls.
 
 ROM Bank 0 and Bank 8 are identical except the last 4 bytes.
+
+## Potential Bugs
+TIMEOUT byte order seem to be used inconsistenly in differet banks.
+Bank14 TIMEOUT decrement seems buggy.
 
 The Apple TRM defines apple device type $06 as direct access tape drive (???). 
 This is inconsistent with the SCSI documentation as SCSI type $01 (sequential access) and all direct 
