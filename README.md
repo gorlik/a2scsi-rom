@@ -18,6 +18,9 @@ The ram on the card is also banked (eight 1KB banks) but it seems the on board f
 Bank 1 is used for the Patch1Call and two additional unidentified calls.
 
 ROM Bank 0 and Bank 8 are identical except the last 4 bytes.
+This is required because A13 of the ROM chip is not gated by IOSEL# (HW bug in the card). 
+Bank 0 or 8 will be randomly selected when IOSEL# is asserted depending on the last state of
+bit 3 in the BANK_SEL register.
 
 ## Potential Bugs
 TIMEOUT byte order seem to be used inconsistenly in differet banks.
@@ -40,7 +43,8 @@ Bank14 TIMEOUT decrement seems buggy.
 DEV_IDX seems to start either at 0 or 1 depending on the code path.
 
 ## TRM Errata
-In Appendix B the TRM incorrectly documents some of the BANKSWITCH calls. For some calls the nibbles have been swapped.
+In Appendix B the TRM incorrectly documents some of the BANKSWITCH calls. For some calls the 
+nibbles have been swapped.
 ```
 DataXin is FN_01 ($10 in TRM)
 DoStatus is FN_30 ($03 in TRM)
